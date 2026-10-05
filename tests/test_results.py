@@ -33,8 +33,8 @@ def test_meta():
                 "generated_at", "git_revision"):
         assert isinstance(m[key], str) and m[key]
     assert m["years"] == YEARS
-    assert m["dataset"] == "populace_uk_2023"
-    assert m["cross_check_dataset"] == "enhanced_frs_2024_25"
+    assert m["dataset"] == "enhanced_frs_2024_25"
+    assert m["cross_check_dataset"] == "populace_uk_2023"
     assert "sample" not in m  # the dashboard fixture's flag; never set on real results
 
 

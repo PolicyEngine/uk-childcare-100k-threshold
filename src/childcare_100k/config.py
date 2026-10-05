@@ -21,9 +21,12 @@ VALIDATION_YEAR = 2025
 HEADLINE_YEAR = 2029
 
 # Datasets (names in the policyengine.py release bundle).
-PRIMARY_DATASET = "populace_uk_2023"  # "Microcosm"
-CROSS_CHECK_DATASET = "enhanced_frs_2024_25"
-DATASET_LABELS = {PRIMARY_DATASET: "Microcosm (populace_uk_2023)", CROSS_CHECK_DATASET: "Enhanced FRS 2024-25"}
+# The Enhanced FRS is the headline: the cost turns on how many parents earn over
+# £100,000, and it holds 1.70m people at £100,000+ in 2025-26 against HMRC's
+# projected 1.96m; Microcosm holds 2.87m (see baseline_validation).
+PRIMARY_DATASET = "enhanced_frs_2024_25"
+CROSS_CHECK_DATASET = "populace_uk_2023"  # "Microcosm"
+DATASET_LABELS = {"populace_uk_2023": "Microcosm (populace_uk_2023)", "enhanced_frs_2024_25": "Enhanced FRS 2024-25"}
 
 # The two parameters the reform touches, and nothing else.
 THIRTY_HOURS_LIMIT = "gov.dfe.extended_childcare_entitlement.income.limit"

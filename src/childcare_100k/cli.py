@@ -73,12 +73,15 @@ LIMITATIONS = [
     "would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly.",
     "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), close to but not "
     "equal to DfE's 2026-27 national average rates (see baseline_validation).",
+    "The central figure likely sits low on funded hours: the central baseline spends about £7.0bn on free hours "
+    "in 2026-27 against DfE's £9.9bn, while full 30-hour use gives about £11.7bn, so the truth lies between the "
+    "central and high ends on that leg.",
     "The low and high ends add the separate adjustments; interactions between them are ignored.",
-    "Distributional and recipient figures come from Microcosm; the Enhanced FRS is a cross-check of the budget totals "
+    "Distributional and recipient figures come from the Enhanced FRS; Microcosm is a cross-check of the budget totals "
     "only. Breakdown cells resting on fewer than ten gaining records are suppressed.",
     "Microcosm holds about 2.9 million people with income of £100,000 or more in 2025-26 against HMRC's projected "
     "2.0 million (the Enhanced FRS holds 1.7 million), so it likely overstates the pool of families the reform "
-    "reaches; this is the main reason the Microcosm cost is well above the Enhanced FRS cross-check. Microcosm "
+    "reaches; this is why the Enhanced FRS is the headline and the main reason the Microcosm cross-check is well above it. Microcosm "
     "also holds fewer households in Scotland, Wales and Northern Ireland than official estimates, so the "
     "by-country split understates the devolved nations (where only Tax-Free Childcare changes).",
     "Policy assumed in force for the whole of each fiscal year from 2026-27; the proposal's start date is not given.",
@@ -173,7 +176,7 @@ def build(metas):
         },
         "distribution": agg.distribution(p),
         "baseline_validation": baseline_validation(PRIMARY_DATASET, p, CROSS_CHECK_DATASET, x),
-        "assumptions": {"microcosm": agg.assumptions(p), "enhanced_frs": agg.assumptions(x)},
+        "assumptions": {"enhanced_frs": agg.assumptions(p), "microcosm": agg.assumptions(x)},
         "cliff_example": cliff_example(),
         "benchmarks": [
             {
@@ -184,10 +187,12 @@ def build(metas):
                 "like_for_like": (
                     "The party's own estimate as reported by the press (City AM: 'scrapped at a cost of about £700m "
                     "per year'); the party's announcement gives no figure, year or method. Ours is the static gross "
-                    f"cost of both legs in {HEADLINE_YEAR}-{(HEADLINE_YEAR + 1) % 100:02d} on Microcosm (range "
+                    f"cost of both legs in {HEADLINE_YEAR}-{(HEADLINE_YEAR + 1) % 100:02d} on the Enhanced FRS (range "
                     f"£{sens_p['range_bn']['low'][str(HEADLINE_YEAR)]:.2f}bn to "
                     f"£{sens_p['range_bn']['high'][str(HEADLINE_YEAR)]:.2f}bn), before any behavioural response or "
-                    "the proposed headcount savings."
+                    "the proposed headcount savings. The Microcosm cross-check is higher "
+                    f"(£{budget_x['total'][str(HEADLINE_YEAR)]:.2f}bn) because it holds about 47% more people on "
+                    "£100,000 or more than HMRC projects."
                 ),
                 "url": CONSERVATIVE_SOURCE_URL,
                 "announcement_url": CONSERVATIVE_ANNOUNCEMENT_URL,

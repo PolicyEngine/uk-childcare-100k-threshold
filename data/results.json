@@ -2,29 +2,21 @@
  "meta": {
   "policyengine": "6.2.1",
   "policyengine_uk": "2.102.3",
-  "dataset": "populace_uk_2023",
-  "dataset_revision": "populace-uk-2023-dd68c73-4aa4b14-20260619T023711Z",
-  "dataset_sha256": "f17306ccb2aad7ff0130be3589b560afb2e2a12a943570911cd0c77f07934833",
-  "cross_check_dataset": "enhanced_frs_2024_25",
-  "cross_check_dataset_revision": "1.56.16",
+  "dataset": "enhanced_frs_2024_25",
+  "dataset_revision": "1.56.16",
+  "dataset_sha256": "e433e532b17bd8ce76030156285816e33d44e93edabd2204adbef71d19a68712",
+  "cross_check_dataset": "populace_uk_2023",
+  "cross_check_dataset_revision": "populace-uk-2023-dd68c73-4aa4b14-20260619T023711Z",
   "years": [
    2026,
    2027,
    2028,
    2029
   ],
-  "generated_at": "2026-10-05T11:10:28+00:00",
-  "git_revision": "ca371854e64ce78dbcf86dface1c77fb585de177",
+  "generated_at": "2026-10-05T11:48:39+00:00",
+  "git_revision": "28b9fea87613a5c414f9040823038ec9163fafbb",
   "min_cell_size": 10,
   "run_seconds": {
-   "populace_uk_2023/baseline": 68.3,
-   "populace_uk_2023/reform": 83.1,
-   "populace_uk_2023/thirty_hours_only": 85.0,
-   "populace_uk_2023/tfc_only": 85.9,
-   "populace_uk_2023/baseline_hours30": 56.2,
-   "populace_uk_2023/reform_hours30": 83.0,
-   "populace_uk_2023/baseline_routed": 57.6,
-   "populace_uk_2023/reform_routed": 84.2,
    "enhanced_frs_2024_25/baseline": 9.3,
    "enhanced_frs_2024_25/reform": 9.4,
    "enhanced_frs_2024_25/thirty_hours_only": 9.1,
@@ -32,17 +24,17 @@
    "enhanced_frs_2024_25/baseline_hours30": 7.1,
    "enhanced_frs_2024_25/reform_hours30": 9.0,
    "enhanced_frs_2024_25/baseline_routed": 7.2,
-   "enhanced_frs_2024_25/reform_routed": 9.2
+   "enhanced_frs_2024_25/reform_routed": 9.2,
+   "populace_uk_2023/baseline": 68.3,
+   "populace_uk_2023/reform": 83.1,
+   "populace_uk_2023/thirty_hours_only": 85.0,
+   "populace_uk_2023/tfc_only": 85.9,
+   "populace_uk_2023/baseline_hours30": 56.2,
+   "populace_uk_2023/reform_hours30": 83.0,
+   "populace_uk_2023/baseline_routed": 57.6,
+   "populace_uk_2023/reform_routed": 84.2
   },
   "peak_rss_gb": {
-   "populace_uk_2023/baseline": 17.6,
-   "populace_uk_2023/reform": 19.0,
-   "populace_uk_2023/thirty_hours_only": 17.0,
-   "populace_uk_2023/tfc_only": 18.5,
-   "populace_uk_2023/baseline_hours30": 18.9,
-   "populace_uk_2023/reform_hours30": 19.2,
-   "populace_uk_2023/baseline_routed": 18.6,
-   "populace_uk_2023/reform_routed": 18.9,
    "enhanced_frs_2024_25/baseline": 3.1,
    "enhanced_frs_2024_25/reform": 3.8,
    "enhanced_frs_2024_25/thirty_hours_only": 3.8,
@@ -50,7 +42,15 @@
    "enhanced_frs_2024_25/baseline_hours30": 3.0,
    "enhanced_frs_2024_25/reform_hours30": 3.8,
    "enhanced_frs_2024_25/baseline_routed": 3.0,
-   "enhanced_frs_2024_25/reform_routed": 3.9
+   "enhanced_frs_2024_25/reform_routed": 3.9,
+   "populace_uk_2023/baseline": 17.6,
+   "populace_uk_2023/reform": 19.0,
+   "populace_uk_2023/thirty_hours_only": 17.0,
+   "populace_uk_2023/tfc_only": 18.5,
+   "populace_uk_2023/baseline_hours30": 18.9,
+   "populace_uk_2023/reform_hours30": 19.2,
+   "populace_uk_2023/baseline_routed": 18.6,
+   "populace_uk_2023/reform_routed": 18.9
   }
  },
  "reform": {
@@ -72,74 +72,6 @@
  "budget": {
   "gross_bn": {
    "thirty_hours": {
-    "2026": 0.629,
-    "2027": 0.69,
-    "2028": 0.75,
-    "2029": 0.838
-   },
-   "tax_free_childcare": {
-    "2026": 0.244,
-    "2027": 0.262,
-    "2028": 0.284,
-    "2029": 0.302
-   },
-   "total": {
-    "2026": 0.873,
-    "2027": 0.952,
-    "2028": 1.034,
-    "2029": 1.14
-   }
-  },
-  "net_bn": {
-   "total": {
-    "2026": 0.873,
-    "2027": 0.952,
-    "2028": 1.035,
-    "2029": 1.14
-   }
-  },
-  "thirty_hours_components_bn": {
-   "extended": {
-    "2026": 0.714,
-    "2027": 0.792,
-    "2028": 0.868,
-    "2029": 0.959
-   },
-   "universal": {
-    "2026": -0.085,
-    "2027": -0.101,
-    "2028": -0.118,
-    "2029": -0.121
-   },
-   "targeted": {
-    "2026": 0.0,
-    "2027": 0.0,
-    "2028": 0.0,
-    "2029": 0.0
-   }
-  },
-  "variants": {
-   "thirty_hours_only": {
-    "2026": 0.629,
-    "2027": 0.69,
-    "2028": 0.75,
-    "2029": 0.838
-   },
-   "tfc_only": {
-    "2026": 0.244,
-    "2027": 0.262,
-    "2028": 0.284,
-    "2029": 0.302
-   }
-  },
-  "cross_check": {
-   "total": {
-    "2026": 0.478,
-    "2027": 0.542,
-    "2028": 0.559,
-    "2029": 0.616
-   },
-   "thirty_hours": {
     "2026": 0.336,
     "2027": 0.384,
     "2028": 0.397,
@@ -151,24 +83,92 @@
     "2028": 0.162,
     "2029": 0.175
    },
-   "net_total": {
+   "total": {
     "2026": 0.478,
     "2027": 0.542,
     "2028": 0.559,
     "2029": 0.616
+   }
+  },
+  "net_bn": {
+   "total": {
+    "2026": 0.478,
+    "2027": 0.542,
+    "2028": 0.559,
+    "2029": 0.616
+   }
+  },
+  "thirty_hours_components_bn": {
+   "extended": {
+    "2026": 0.372,
+    "2027": 0.424,
+    "2028": 0.445,
+    "2029": 0.495
+   },
+   "universal": {
+    "2026": -0.036,
+    "2027": -0.04,
+    "2028": -0.048,
+    "2029": -0.054
+   },
+   "targeted": {
+    "2026": 0.0,
+    "2027": 0.0,
+    "2028": 0.0,
+    "2029": 0.0
+   }
+  },
+  "variants": {
+   "thirty_hours_only": {
+    "2026": 0.336,
+    "2027": 0.384,
+    "2028": 0.397,
+    "2029": 0.441
+   },
+   "tfc_only": {
+    "2026": 0.142,
+    "2027": 0.158,
+    "2028": 0.162,
+    "2029": 0.175
+   }
+  },
+  "cross_check": {
+   "total": {
+    "2026": 0.873,
+    "2027": 0.952,
+    "2028": 1.034,
+    "2029": 1.14
+   },
+   "thirty_hours": {
+    "2026": 0.629,
+    "2027": 0.69,
+    "2028": 0.75,
+    "2029": 0.838
+   },
+   "tax_free_childcare": {
+    "2026": 0.244,
+    "2027": 0.262,
+    "2028": 0.284,
+    "2029": 0.302
+   },
+   "net_total": {
+    "2026": 0.873,
+    "2027": 0.952,
+    "2028": 1.035,
+    "2029": 1.14
    },
    "thirty_hours_components_bn": {
     "extended": {
-     "2026": 0.372,
-     "2027": 0.424,
-     "2028": 0.445,
-     "2029": 0.495
+     "2026": 0.714,
+     "2027": 0.792,
+     "2028": 0.868,
+     "2029": 0.959
     },
     "universal": {
-     "2026": -0.036,
-     "2027": -0.04,
-     "2028": -0.048,
-     "2029": -0.054
+     "2026": -0.085,
+     "2027": -0.101,
+     "2028": -0.118,
+     "2029": -0.121
     },
     "targeted": {
      "2026": 0.0,
@@ -179,86 +179,38 @@
    },
    "variants": {
     "thirty_hours_only": {
-     "2026": 0.336,
-     "2027": 0.384,
-     "2028": 0.397,
-     "2029": 0.441
+     "2026": 0.629,
+     "2027": 0.69,
+     "2028": 0.75,
+     "2029": 0.838
     },
     "tfc_only": {
-     "2026": 0.142,
-     "2027": 0.158,
-     "2028": 0.162,
-     "2029": 0.175
+     "2026": 0.244,
+     "2027": 0.262,
+     "2028": 0.284,
+     "2029": 0.302
     }
    },
    "range_bn": {
     "low": {
-     "2026": 0.427,
-     "2027": 0.453,
-     "2028": 0.467,
-     "2029": 0.477
+     "2026": 0.752,
+     "2027": 0.781,
+     "2028": 0.908,
+     "2029": 0.968
     },
     "central": {
-     "2026": 0.478,
-     "2027": 0.542,
-     "2028": 0.559,
-     "2029": 0.616
+     "2026": 0.873,
+     "2027": 0.952,
+     "2028": 1.034,
+     "2029": 1.14
     },
     "high": {
-     "2026": 0.983,
-     "2027": 1.103,
-     "2028": 1.148,
-     "2029": 1.259
+     "2026": 1.619,
+     "2027": 1.766,
+     "2028": 1.951,
+     "2029": 2.148
     }
    },
-   "effects_bn": {
-    "full_30_hour_usage": {
-     "2026": 0.362,
-     "2027": 0.413,
-     "2028": 0.435,
-     "2029": 0.48
-    },
-    "under_ones": {
-     "2026": 0.143,
-     "2027": 0.147,
-     "2028": 0.154,
-     "2029": 0.164
-    },
-    "ani_net_of_pension_contributions": {
-     "2026": -0.006,
-     "2027": -0.044,
-     "2028": -0.046,
-     "2029": -0.091
-    },
-    "tfc_routed_share": {
-     "2026": -0.045,
-     "2027": -0.045,
-     "2028": -0.046,
-     "2029": -0.048
-    }
-   }
-  },
-  "range_bn": {
-   "low": {
-    "2026": 0.752,
-    "2027": 0.781,
-    "2028": 0.908,
-    "2029": 0.968
-   },
-   "central": {
-    "2026": 0.873,
-    "2027": 0.952,
-    "2028": 1.034,
-    "2029": 1.14
-   },
-   "high": {
-    "2026": 1.619,
-    "2027": 1.766,
-    "2028": 1.951,
-    "2029": 2.148
-   }
-  },
-  "sensitivities": {
    "effects_bn": {
     "full_30_hour_usage": {
      "2026": 0.648,
@@ -284,6 +236,54 @@
      "2028": -0.056,
      "2029": -0.057
     }
+   }
+  },
+  "range_bn": {
+   "low": {
+    "2026": 0.427,
+    "2027": 0.453,
+    "2028": 0.467,
+    "2029": 0.477
+   },
+   "central": {
+    "2026": 0.478,
+    "2027": 0.542,
+    "2028": 0.559,
+    "2029": 0.616
+   },
+   "high": {
+    "2026": 0.983,
+    "2027": 1.103,
+    "2028": 1.148,
+    "2029": 1.259
+   }
+  },
+  "sensitivities": {
+   "effects_bn": {
+    "full_30_hour_usage": {
+     "2026": 0.362,
+     "2027": 0.413,
+     "2028": 0.435,
+     "2029": 0.48
+    },
+    "under_ones": {
+     "2026": 0.143,
+     "2027": 0.147,
+     "2028": 0.154,
+     "2029": 0.164
+    },
+    "ani_net_of_pension_contributions": {
+     "2026": -0.006,
+     "2027": -0.044,
+     "2028": -0.046,
+     "2029": -0.091
+    },
+    "tfc_routed_share": {
+     "2026": -0.045,
+     "2027": -0.045,
+     "2028": -0.046,
+     "2029": -0.048
+    }
    },
    "low": [
     "ani_net_of_pension_contributions",
@@ -303,99 +303,25 @@
  },
  "recipients": {
   "2026": {
-   "families_gaining": 230000,
-   "children_gaining": 291000,
-   "by_scheme": {
-    "thirty_hours": 120000,
-    "tax_free_childcare": 202000
-   },
-   "children_by_scheme": {
-    "thirty_hours": 134000,
-    "tax_free_childcare": 248000
-   },
-   "children_gaining_by_age": {
-    "0-1": 39000,
-    "2": 61000,
-    "3-4": 110000,
-    "5-11": 82000,
-    "12+": 0
-   },
-   "mean_gain_gbp": 3842,
-   "families_losing": 10000
-  },
-  "2027": {
-   "families_gaining": 250000,
-   "children_gaining": 313000,
-   "by_scheme": {
-    "thirty_hours": 131000,
-    "tax_free_childcare": 219000
-   },
-   "children_by_scheme": {
-    "thirty_hours": 145000,
-    "tax_free_childcare": 268000
-   },
-   "children_gaining_by_age": {
-    "0-1": 40000,
-    "2": 61000,
-    "3-4": 123000,
-    "5-11": 89000,
-    "12+": 0
-   },
-   "mean_gain_gbp": 3861,
-   "families_losing": 10000
-  },
-  "2028": {
-   "families_gaining": 262000,
-   "children_gaining": 329000,
-   "by_scheme": {
-    "thirty_hours": 141000,
-    "tax_free_childcare": 227000
-   },
-   "children_by_scheme": {
-    "thirty_hours": 159000,
-    "tax_free_childcare": 280000
-   },
-   "children_gaining_by_age": {
-    "0-1": 44000,
-    "2": 69000,
-    "3-4": 127000,
-    "5-11": 89000,
-    "12+": 0
-   },
-   "mean_gain_gbp": 3995,
-   "families_losing": 10000
-  },
-  "2029": {
-   "families_gaining": 275000,
-   "children_gaining": 342000,
-   "by_scheme": {
-    "thirty_hours": 150000,
-    "tax_free_childcare": 236000
-   },
-   "children_by_scheme": {
-    "thirty_hours": 168000,
-    "tax_free_childcare": 288000
-   },
-   "children_gaining_by_age": {
-    "0-1": 51000,
-    "2": 74000,
-    "3-4": 128000,
-    "5-11": 89000,
-    "12+": 0
-   },
-   "mean_gain_gbp": 4195,
-   "families_losing": 10000
-  }
- },
- "recipients_cross_check": {
-  "2026": {
    "families_gaining": 151000,
    "children_gaining": 233000,
    "by_scheme": {
     "thirty_hours": 61000,
     "tax_free_childcare": 117000
    },
-   "mean_gain_gbp": 3179
+   "children_by_scheme": {
+    "thirty_hours": 70000,
+    "tax_free_childcare": 196000
+   },
+   "children_gaining_by_age": {
+    "0-1": 20000,
+    "2": 26000,
+    "3-4": 60000,
+    "5-11": 126000,
+    "12+": 0
+   },
+   "mean_gain_gbp": 3179,
+   "families_losing": 3000
   },
   "2027": {
    "families_gaining": 162000,
@@ -404,7 +330,19 @@
     "thirty_hours": 69000,
     "tax_free_childcare": 127000
    },
-   "mean_gain_gbp": 3376
+   "children_by_scheme": {
+    "thirty_hours": 79000,
+    "tax_free_childcare": 209000
+   },
+   "children_gaining_by_age": {
+    "0-1": 21000,
+    "2": 33000,
+    "3-4": 61000,
+    "5-11": 131000,
+    "12+": 0
+   },
+   "mean_gain_gbp": 3376,
+   "families_losing": 3000
   },
   "2028": {
    "families_gaining": 166000,
@@ -413,7 +351,19 @@
     "thirty_hours": 71000,
     "tax_free_childcare": 131000
    },
-   "mean_gain_gbp": 3383
+   "children_by_scheme": {
+    "thirty_hours": 81000,
+    "tax_free_childcare": 216000
+   },
+   "children_gaining_by_age": {
+    "0-1": 21000,
+    "2": 33000,
+    "3-4": 65000,
+    "5-11": 134000,
+    "12+": 0
+   },
+   "mean_gain_gbp": 3383,
+   "families_losing": 3000
   },
   "2029": {
    "families_gaining": 176000,
@@ -422,7 +372,57 @@
     "thirty_hours": 76000,
     "tax_free_childcare": 139000
    },
-   "mean_gain_gbp": 3524
+   "children_by_scheme": {
+    "thirty_hours": 89000,
+    "tax_free_childcare": 226000
+   },
+   "children_gaining_by_age": {
+    "0-1": 23000,
+    "2": 40000,
+    "3-4": 66000,
+    "5-11": 139000,
+    "12+": 0
+   },
+   "mean_gain_gbp": 3524,
+   "families_losing": 4000
+  }
+ },
+ "recipients_cross_check": {
+  "2026": {
+   "families_gaining": 230000,
+   "children_gaining": 291000,
+   "by_scheme": {
+    "thirty_hours": 120000,
+    "tax_free_childcare": 202000
+   },
+   "mean_gain_gbp": 3842
+  },
+  "2027": {
+   "families_gaining": 250000,
+   "children_gaining": 313000,
+   "by_scheme": {
+    "thirty_hours": 131000,
+    "tax_free_childcare": 219000
+   },
+   "mean_gain_gbp": 3861
+  },
+  "2028": {
+   "families_gaining": 262000,
+   "children_gaining": 329000,
+   "by_scheme": {
+    "thirty_hours": 141000,
+    "tax_free_childcare": 227000
+   },
+   "mean_gain_gbp": 3995
+  },
+  "2029": {
+   "families_gaining": 275000,
+   "children_gaining": 342000,
+   "by_scheme": {
+    "thirty_hours": 150000,
+    "tax_free_childcare": 236000
+   },
+   "mean_gain_gbp": 4195
   }
  },
  "distribution": {
@@ -458,69 +458,69 @@
     },
     {
      "decile": 5,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 6,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 7,
-     "mean_change_gbp": 12.34,
-     "pct_change": 0.02,
-     "share_gaining_pct": 0.29,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 8,
-     "mean_change_gbp": 28.58,
-     "pct_change": 0.038,
-     "share_gaining_pct": 0.9,
+     "mean_change_gbp": 4.36,
+     "pct_change": 0.006,
+     "share_gaining_pct": 0.14,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 52.97,
-     "pct_change": 0.063,
-     "share_gaining_pct": 1.29,
+     "mean_change_gbp": 4.65,
+     "pct_change": 0.005,
+     "share_gaining_pct": 0.3,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 184.9,
-     "pct_change": 0.124,
-     "share_gaining_pct": 4.88,
+     "mean_change_gbp": 150.42,
+     "pct_change": 0.115,
+     "share_gaining_pct": 4.57,
      "suppressed": false
     }
    ],
    "by_country": [
     {
      "country": "England",
-     "total_change_bn": 0.87,
-     "families_gaining": 227000,
+     "total_change_bn": 0.471,
+     "families_gaining": 146000,
      "suppressed": false
     },
     {
      "country": "Scotland",
-     "total_change_bn": 0.001,
-     "families_gaining": 2000,
+     "total_change_bn": 0.005,
+     "families_gaining": 4000,
      "suppressed": false
     },
     {
      "country": "Wales",
-     "total_change_bn": 0.0,
-     "families_gaining": 0,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.003,
+     "total_change_bn": 0.0,
      "families_gaining": 2000,
      "suppressed": false
     }
@@ -558,70 +558,70 @@
     },
     {
      "decile": 5,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 6,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 7,
-     "mean_change_gbp": 12.62,
-     "pct_change": 0.02,
-     "share_gaining_pct": 0.29,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 8,
-     "mean_change_gbp": 32.21,
-     "pct_change": 0.042,
-     "share_gaining_pct": 0.94,
+     "mean_change_gbp": 4.97,
+     "pct_change": 0.006,
+     "share_gaining_pct": 0.19,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 56.74,
-     "pct_change": 0.066,
-     "share_gaining_pct": 1.61,
+     "mean_change_gbp": 8.85,
+     "pct_change": 0.01,
+     "share_gaining_pct": 0.4,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 200.7,
-     "pct_change": 0.133,
-     "share_gaining_pct": 5.1,
+     "mean_change_gbp": 168.4,
+     "pct_change": 0.126,
+     "share_gaining_pct": 4.81,
      "suppressed": false
     }
    ],
    "by_country": [
     {
      "country": "England",
-     "total_change_bn": 0.947,
-     "families_gaining": 245000,
+     "total_change_bn": 0.535,
+     "families_gaining": 154000,
      "suppressed": false
     },
     {
      "country": "Scotland",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
+     "total_change_bn": 0.006,
+     "families_gaining": 4000,
      "suppressed": false
     },
     {
      "country": "Wales",
-     "total_change_bn": 0.0,
-     "families_gaining": 0,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
+     "total_change_bn": 0.0,
+     "families_gaining": 3000,
      "suppressed": false
     }
    ]
@@ -658,70 +658,70 @@
     },
     {
      "decile": 5,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 6,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 7,
-     "mean_change_gbp": 16.42,
-     "pct_change": 0.025,
-     "share_gaining_pct": 0.36,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 8,
-     "mean_change_gbp": 49.46,
-     "pct_change": 0.063,
-     "share_gaining_pct": 1.19,
+     "mean_change_gbp": 5.32,
+     "pct_change": 0.007,
+     "share_gaining_pct": 0.22,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 73.25,
-     "pct_change": 0.084,
-     "share_gaining_pct": 1.88,
+     "mean_change_gbp": 9.88,
+     "pct_change": 0.011,
+     "share_gaining_pct": 0.44,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 190.79,
-     "pct_change": 0.124,
-     "share_gaining_pct": 4.91,
+     "mean_change_gbp": 171.9,
+     "pct_change": 0.126,
+     "share_gaining_pct": 4.88,
      "suppressed": false
     }
    ],
    "by_country": [
     {
      "country": "England",
-     "total_change_bn": 1.026,
-     "families_gaining": 255000,
+     "total_change_bn": 0.552,
+     "families_gaining": 159000,
      "suppressed": false
     },
     {
      "country": "Scotland",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
+     "total_change_bn": 0.006,
+     "families_gaining": 4000,
      "suppressed": false
     },
     {
      "country": "Wales",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
+     "total_change_bn": 0.0,
+     "families_gaining": 3000,
      "suppressed": false
     }
    ]
@@ -758,159 +758,76 @@
     },
     {
      "decile": 5,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 6,
-     "mean_change_gbp": 0.0,
-     "pct_change": 0.0,
-     "share_gaining_pct": 0.0,
-     "suppressed": false
+     "mean_change_gbp": null,
+     "pct_change": null,
+     "share_gaining_pct": null,
+     "suppressed": true
     },
     {
      "decile": 7,
-     "mean_change_gbp": 16.64,
-     "pct_change": 0.025,
-     "share_gaining_pct": 0.36,
+     "mean_change_gbp": 3.11,
+     "pct_change": 0.005,
+     "share_gaining_pct": 0.13,
      "suppressed": false
     },
     {
      "decile": 8,
-     "mean_change_gbp": 50.51,
-     "pct_change": 0.064,
-     "share_gaining_pct": 1.18,
+     "mean_change_gbp": 5.9,
+     "pct_change": 0.007,
+     "share_gaining_pct": 0.26,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 100.26,
-     "pct_change": 0.113,
-     "share_gaining_pct": 2.23,
+     "mean_change_gbp": 14.16,
+     "pct_change": 0.016,
+     "share_gaining_pct": 0.5,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 195.02,
-     "pct_change": 0.124,
-     "share_gaining_pct": 4.93,
+     "mean_change_gbp": 184.45,
+     "pct_change": 0.133,
+     "share_gaining_pct": 5.02,
      "suppressed": false
     }
    ],
    "by_country": [
     {
      "country": "England",
-     "total_change_bn": 1.131,
-     "families_gaining": 268000,
+     "total_change_bn": 0.605,
+     "families_gaining": 167000,
      "suppressed": false
     },
     {
      "country": "Scotland",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
+     "total_change_bn": 0.009,
+     "families_gaining": 6000,
      "suppressed": false
     },
     {
      "country": "Wales",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.003,
-     "families_gaining": 2000,
+     "total_change_bn": 0.001,
+     "families_gaining": 3000,
      "suppressed": false
     }
    ]
   }
  },
  "baseline_validation": [
-  {
-   "label": "Tax-Free Childcare government top-up",
-   "year": 2025,
-   "model": 0.512,
-   "official": 0.5998,
-   "unit": "£bn",
-   "source": "HMRC, Tax-Free Childcare statistics, June 2026, Table 1 (sum of Apr 2025-Mar 2026)",
-   "url": "https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026",
-   "dataset": "Microcosm (populace_uk_2023)"
-  },
-  {
-   "label": "Children with a used Tax-Free Childcare account in the year",
-   "year": 2025,
-   "model": 689000,
-   "official": 1151515,
-   "unit": "children",
-   "source": "HMRC, Tax-Free Childcare statistics, June 2026, Table 11",
-   "url": "https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026",
-   "dataset": "Microcosm (populace_uk_2023)"
-  },
-  {
-   "label": "Families with a used Tax-Free Childcare account in the year",
-   "year": 2025,
-   "model": 580000,
-   "official": 868095,
-   "unit": "families",
-   "source": "HMRC, Tax-Free Childcare statistics, June 2026, Table 10",
-   "url": "https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026",
-   "dataset": "Microcosm (populace_uk_2023)"
-  },
-  {
-   "label": "Children under 3 using the working parent entitlement",
-   "year": 2025,
-   "model": 530000,
-   "official": 501700,
-   "unit": "children",
-   "source": "DfE, Education provision: children under 5 years of age, January 2026 (published 2 July 2026) (9 months to 2 years registered)",
-   "url": "https://explore-education-statistics.service.gov.uk/find-statistics/education-provision-children-under-5",
-   "dataset": "Microcosm (populace_uk_2023)",
-   "note": "The model holds age in whole years and gives age 0 no hours, so 9-11-month-olds (30,700) cannot appear."
-  },
-  {
-   "label": "3- and 4-year-olds using the working parent entitlement",
-   "year": 2025,
-   "model": 381000,
-   "official": 388700,
-   "unit": "children",
-   "source": "DfE, Education provision: children under 5 years of age, January 2026 (published 2 July 2026)",
-   "url": "https://explore-education-statistics.service.gov.uk/find-statistics/education-provision-children-under-5",
-   "dataset": "Microcosm (populace_uk_2023)"
-  },
-  {
-   "label": "People with income of £100,000 or more",
-   "year": 2025,
-   "model": 2869000,
-   "official": 1955000,
-   "unit": "people",
-   "source": "HMRC, Income Tax liabilities statistics 2022-23 to 2025-26 (projected), June 2025, income before deductions",
-   "url": "https://www.gov.uk/government/statistics/income-tax-liabilities-statistics-tax-year-2022-to-2023-to-tax-year-2025-to-2026/bulletin-commentary",
-   "dataset": "Microcosm (populace_uk_2023)",
-   "note": "Model: adjusted net income as policyengine-uk computes it (before pension contributions), which matches HMRC's 'total income before any deductions' ranges."
-  },
-  {
-   "label": "Free early years entitlements spending (all three entitlements)",
-   "year": 2026,
-   "model": 6.91,
-   "official": 9.9,
-   "unit": "£bn",
-   "source": "DfE, 2026 to 2027 early years national funding formulae: technical note (sum of illustrative totals by age)",
-   "url": "https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note",
-   "dataset": "Microcosm (populace_uk_2023)"
-  },
-  {
-   "label": "Free early years entitlements spending if every family used all 30 extended hours",
-   "year": 2026,
-   "model": 11.38,
-   "official": 9.9,
-   "unit": "£bn",
-   "source": "DfE, 2026 to 2027 early years national funding formulae: technical note",
-   "url": "https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note",
-   "dataset": "Microcosm (populace_uk_2023)",
-   "note": "Sensitivity run: brackets the official figure with the central run."
-  },
   {
    "label": "Tax-Free Childcare government top-up",
    "year": 2025,
@@ -995,6 +912,89 @@
    "note": "Sensitivity run: brackets the official figure with the central run."
   },
   {
+   "label": "Tax-Free Childcare government top-up",
+   "year": 2025,
+   "model": 0.512,
+   "official": 0.5998,
+   "unit": "£bn",
+   "source": "HMRC, Tax-Free Childcare statistics, June 2026, Table 1 (sum of Apr 2025-Mar 2026)",
+   "url": "https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026",
+   "dataset": "Microcosm (populace_uk_2023)"
+  },
+  {
+   "label": "Children with a used Tax-Free Childcare account in the year",
+   "year": 2025,
+   "model": 689000,
+   "official": 1151515,
+   "unit": "children",
+   "source": "HMRC, Tax-Free Childcare statistics, June 2026, Table 11",
+   "url": "https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026",
+   "dataset": "Microcosm (populace_uk_2023)"
+  },
+  {
+   "label": "Families with a used Tax-Free Childcare account in the year",
+   "year": 2025,
+   "model": 580000,
+   "official": 868095,
+   "unit": "families",
+   "source": "HMRC, Tax-Free Childcare statistics, June 2026, Table 10",
+   "url": "https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026",
+   "dataset": "Microcosm (populace_uk_2023)"
+  },
+  {
+   "label": "Children under 3 using the working parent entitlement",
+   "year": 2025,
+   "model": 530000,
+   "official": 501700,
+   "unit": "children",
+   "source": "DfE, Education provision: children under 5 years of age, January 2026 (published 2 July 2026) (9 months to 2 years registered)",
+   "url": "https://explore-education-statistics.service.gov.uk/find-statistics/education-provision-children-under-5",
+   "dataset": "Microcosm (populace_uk_2023)",
+   "note": "The model holds age in whole years and gives age 0 no hours, so 9-11-month-olds (30,700) cannot appear."
+  },
+  {
+   "label": "3- and 4-year-olds using the working parent entitlement",
+   "year": 2025,
+   "model": 381000,
+   "official": 388700,
+   "unit": "children",
+   "source": "DfE, Education provision: children under 5 years of age, January 2026 (published 2 July 2026)",
+   "url": "https://explore-education-statistics.service.gov.uk/find-statistics/education-provision-children-under-5",
+   "dataset": "Microcosm (populace_uk_2023)"
+  },
+  {
+   "label": "People with income of £100,000 or more",
+   "year": 2025,
+   "model": 2869000,
+   "official": 1955000,
+   "unit": "people",
+   "source": "HMRC, Income Tax liabilities statistics 2022-23 to 2025-26 (projected), June 2025, income before deductions",
+   "url": "https://www.gov.uk/government/statistics/income-tax-liabilities-statistics-tax-year-2022-to-2023-to-tax-year-2025-to-2026/bulletin-commentary",
+   "dataset": "Microcosm (populace_uk_2023)",
+   "note": "Model: adjusted net income as policyengine-uk computes it (before pension contributions), which matches HMRC's 'total income before any deductions' ranges."
+  },
+  {
+   "label": "Free early years entitlements spending (all three entitlements)",
+   "year": 2026,
+   "model": 6.91,
+   "official": 9.9,
+   "unit": "£bn",
+   "source": "DfE, 2026 to 2027 early years national funding formulae: technical note (sum of illustrative totals by age)",
+   "url": "https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note",
+   "dataset": "Microcosm (populace_uk_2023)"
+  },
+  {
+   "label": "Free early years entitlements spending if every family used all 30 extended hours",
+   "year": 2026,
+   "model": 11.38,
+   "official": 9.9,
+   "unit": "£bn",
+   "source": "DfE, 2026 to 2027 early years national funding formulae: technical note",
+   "url": "https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note",
+   "dataset": "Microcosm (populace_uk_2023)",
+   "note": "Sensitivity run: brackets the official figure with the central run."
+  },
+  {
    "label": "Hourly funding rate, under-2s",
    "year": 2026,
    "model": 11.89,
@@ -1026,18 +1026,6 @@
   }
  ],
  "assumptions": {
-  "microcosm": {
-   "year": 2026,
-   "would_claim_30_hours_pct": {
-    "families_with_child_under_5": 80.3,
-    "of_which_parent_over_100k": 74.2
-   },
-   "would_claim_tfc_pct": {
-    "families_with_child_under_12": 56.3,
-    "of_which_parent_over_100k": 72.4
-   },
-   "mean_extended_hours_usage": 15.6
-  },
   "enhanced_frs": {
    "year": 2026,
    "would_claim_30_hours_pct": {
@@ -1049,6 +1037,18 @@
     "of_which_parent_over_100k": 87.4
    },
    "mean_extended_hours_usage": 15.2
+  },
+  "microcosm": {
+   "year": 2026,
+   "would_claim_30_hours_pct": {
+    "families_with_child_under_5": 80.3,
+    "of_which_parent_over_100k": 74.2
+   },
+   "would_claim_tfc_pct": {
+    "families_with_child_under_12": 56.3,
+    "of_which_parent_over_100k": 72.4
+   },
+   "mean_extended_hours_usage": 15.6
   }
  },
  "cliff_example": {
@@ -1548,12 +1548,12 @@
   {
    "source": "Conservative Party",
    "figure": "£0.7bn a year",
-   "ours": 1.14,
+   "ours": 0.616,
    "year": 2029,
-   "like_for_like": "The party's own estimate as reported by the press (City AM: 'scrapped at a cost of about £700m per year'); the party's announcement gives no figure, year or method. Ours is the static gross cost of both legs in 2029-30 on Microcosm (range £0.97bn to £2.15bn), before any behavioural response or the proposed headcount savings.",
+   "like_for_like": "The party's own estimate as reported by the press (City AM: 'scrapped at a cost of about £700m per year'); the party's announcement gives no figure, year or method. Ours is the static gross cost of both legs in 2029-30 on the Enhanced FRS (range £0.48bn to £1.26bn), before any behavioural response or the proposed headcount savings. The Microcosm cross-check is higher (£1.14bn) because it holds about 47% more people on £100,000 or more than HMRC projects.",
    "url": "https://www.cityam.com/badenoch-vows-to-end-100k-childcare-cliff-edge-introduced-under-last-tory-government/",
    "announcement_url": "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge",
-   "difference_bn": 0.44
+   "difference_bn": -0.084
   }
  ],
  "limitations": [
@@ -1565,9 +1565,10 @@
   "Tax-Free Childcare assumes all of a family's childcare spending goes through the account (routed share 1, the model default; the bundled datasets predate the routed-share calibration). The low end uses 0.58.",
   "Childcare spending is held fixed: a family that gains funded hours would in practice pay for fewer hours, which would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly.",
   "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), close to but not equal to DfE's 2026-27 national average rates (see baseline_validation).",
+  "The central figure likely sits low on funded hours: the central baseline spends about £7.0bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives about £11.7bn, so the truth lies between the central and high ends on that leg.",
   "The low and high ends add the separate adjustments; interactions between them are ignored.",
-  "Distributional and recipient figures come from Microcosm; the Enhanced FRS is a cross-check of the budget totals only. Breakdown cells resting on fewer than ten gaining records are suppressed.",
-  "Microcosm holds about 2.9 million people with income of £100,000 or more in 2025-26 against HMRC's projected 2.0 million (the Enhanced FRS holds 1.7 million), so it likely overstates the pool of families the reform reaches; this is the main reason the Microcosm cost is well above the Enhanced FRS cross-check. Microcosm also holds fewer households in Scotland, Wales and Northern Ireland than official estimates, so the by-country split understates the devolved nations (where only Tax-Free Childcare changes).",
+  "Distributional and recipient figures come from the Enhanced FRS; Microcosm is a cross-check of the budget totals only. Breakdown cells resting on fewer than ten gaining records are suppressed.",
+  "Microcosm holds about 2.9 million people with income of £100,000 or more in 2025-26 against HMRC's projected 2.0 million (the Enhanced FRS holds 1.7 million), so it likely overstates the pool of families the reform reaches; this is why the Enhanced FRS is the headline and the main reason the Microcosm cross-check is well above it. Microcosm also holds fewer households in Scotland, Wales and Northern Ireland than official estimates, so the by-country split understates the devolved nations (where only Tax-Free Childcare changes).",
   "Policy assumed in force for the whole of each fiscal year from 2026-27; the proposal's start date is not given."
  ]
 }
