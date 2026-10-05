@@ -12,14 +12,15 @@ vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: ()
 
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
 import LandingTab from "./LandingTab";
-import WhoGainsTab, { DECILE_MEASURES } from "./WhoGainsTab";
+import WhoGainsTab, { DECILE_MEASURES, listOf, SUPPRESSED } from "./WhoGainsTab";
 import CliffTab from "./CliffTab";
 import MethodTab from "./MethodTab";
-import { cliffSummary, getCliff } from "../lib/dataHelpers";
+import { cliffSummary, getCliff, getValidation } from "../lib/dataHelpers";
 import { formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, withSample } from "../lib/testUtils";
 
 const years = data.meta.years;
+const first = years[0];
 const final = years.at(-1);
 const total = (y) => data.budget.gross_bn.total[String(y)];
 
@@ -66,38 +67,50 @@ describe("the page", () => {
 });
 
 describe("budget impact", () => {
-  it("shows the final year's cost, its split and the families gaining, from the file", () => {
+  it("leads with the first year's cost, its range, its split and the families gaining, from the file", () => {
     render(<LandingTab data={data} />);
     const g = data.budget.gross_bn;
-    expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(final)));
-    expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[final])} and ${bn(g.tax_free_childcare[final])}`);
-    const r = data.recipients[final];
-    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(r.families_gaining));
-    expect(screen.getByTestId("card-families").textContent).toContain(gbp(r.mean_gain_gbp));
+    const r = data.budget.range_bn;
+    const card = screen.getByTestId("card-cost").textContent;
+    expect(card).toContain(fy(first));
+    expect(card).toContain(bn(total(first)));
+    expect(card).toContain(`Range ${bn(r.low[first])} to ${bn(r.high[first])}`);
+    expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[first])} and ${bn(g.tax_free_childcare[first])}`);
+    const rec = data.recipients[first];
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
+    expect(screen.getByTestId("card-families").textContent).toContain(gbp(rec.mean_gain_gbp));
   });
 
-  it("compares with the Conservatives' figure for the year the file names", () => {
+  it("labels the Conservatives' figure as the party's, as reported, and links the report", () => {
     render(<LandingTab data={data} />);
     const b = data.benchmarks[0];
-    const card = screen.getByTestId("card-benchmark").textContent;
-    expect(card).toContain(bn(total(b.year)));
-    expect(card).toContain(b.figure);
-    expect(screen.getByTestId("topic-conservatives").textContent).toContain(b.like_for_like);
+    const card = screen.getByTestId("card-benchmark");
+    expect(card.textContent).toContain(b.figure);
+    expect(card.textContent).toMatch(/party's estimate as reported/);
+    expect(within(card).getByRole("link").getAttribute("href")).toBe(b.url);
   });
 
-  it("shows each comparison table with a row per year", () => {
+  it("shows every sensitivity, signed in £m, from the file", () => {
+    render(<LandingTab data={data} />);
+    const effects = Object.entries(data.budget.sensitivities.effects_bn);
+    const rows = within(screen.getByTestId("sensitivity-table")).getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(effects.length);
+    effects.forEach(([id, v], i) => {
+      const m = Math.round(v[first] * 1000);
+      expect(rows[i].textContent, id).toContain(`${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`);
+      expect(rows[i].textContent, id).toContain(data.budget.sensitivities.descriptions[id]);
+    });
+  });
+
+  it("shows the Microcosm cross-check with its reason, and the 30 hours components", () => {
     render(<LandingTab data={data} />);
     const panel = screen.getByTestId("comparisons");
-    for (const [title, table] of [
-      ["One scheme at a time", "variants-table"],
-      ["Another dataset", "cross-check-table"],
-      ["After other taxes and benefits", "net-table"],
-    ]) {
-      fireEvent.click(within(panel).getByRole("tab", { name: new RegExp(title) }));
-      const rows = within(screen.getByTestId(table)).getAllByRole("row").slice(1);
-      expect(rows).toHaveLength(years.length);
-      expect(rows.at(-1).textContent).toContain(bn(total(final)));
-    }
+    fireEvent.click(within(panel).getByRole("tab", { name: /Microcosm cross-check/ }));
+    const rows = within(screen.getByTestId("cross-check-table")).getAllByRole("row");
+    expect(rows[1].textContent).toContain(bn(data.budget.cross_check.total[final]));
+    expect(screen.getByTestId("cross-check-reason").textContent).toMatch(/more people on £100,000 or more than HMRC projects/);
+    fireEvent.click(within(panel).getByRole("tab", { name: /Inside the 30 hours/ }));
+    expect(within(screen.getByTestId("components-table")).getAllByRole("row").length).toBeGreaterThan(2);
   });
 
   it("fails closed when a cost is missing", () => {
@@ -108,8 +121,14 @@ describe("budget impact", () => {
   it("drops only the cross-check when it is missing", () => {
     render(<LandingTab data={mutate("budget.cross_check", undefined, { remove: true })} />);
     expect(screen.getByTestId("card-cost")).toBeTruthy();
-    fireEvent.click(within(screen.getByTestId("comparisons")).getByRole("tab", { name: /Another dataset/ }));
+    fireEvent.click(within(screen.getByTestId("comparisons")).getByRole("tab", { name: /Microcosm cross-check/ }));
     expect(screen.getByTestId("unavailable").textContent).toMatch(/cross-check is unavailable/);
+  });
+
+  it("drops only the sensitivities when they are missing", () => {
+    render(<LandingTab data={mutate("budget.sensitivities", undefined, { remove: true })} />);
+    expect(screen.getAllByTestId("unavailable")).toHaveLength(1);
+    expect(screen.getByTestId("card-cost")).toBeTruthy();
   });
 });
 
@@ -122,18 +141,30 @@ describe("who gains", () => {
     fireEvent.change(screen.getByLabelText("Year"), { target: { value: String(years[0]) } });
     const r = data.recipients[years[0]];
     const rows = within(screen.getByTestId("scheme-table")).getAllByRole("row");
-    expect(rows.at(-1).textContent).toContain(r.families_gaining.toLocaleString("en-GB"));
+    expect(rows.find((x) => /Either or both/.test(x.textContent)).textContent).toContain(r.families_gaining.toLocaleString("en-GB"));
   });
 
-  it("shows every nation and the scheme counts from the file", () => {
+  it("shows every nation and the scheme counts from the file, with suppressed cells as too few records", () => {
     render(<WhoGainsTab data={data} />);
     const countries = data.distribution[final].by_country;
     const rows = within(screen.getByTestId("country-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(countries.length);
-    countries.forEach((c, i) => expect(rows[i].textContent).toContain(bn(c.total_change_bn)));
+    countries.forEach((c, i) => {
+      if (c.suppressed) {
+        expect(rows[i].textContent).toContain(SUPPRESSED);
+        expect(rows[i].textContent).not.toMatch(/£0m|\b0\b/);
+      } else expect(rows[i].textContent).toContain(c.families_gaining.toLocaleString("en-GB"));
+    });
     const s = within(screen.getByTestId("scheme-table")).getAllByRole("row").slice(1);
     expect(s[0].textContent).toContain(data.recipients[final].by_scheme.thirty_hours.toLocaleString("en-GB"));
     expect(s[1].textContent).toContain(data.recipients[final].by_scheme.tax_free_childcare.toLocaleString("en-GB"));
+  });
+
+  it("names the suppressed deciles instead of drawing them as zero", () => {
+    render(<WhoGainsTab data={data} />);
+    const hidden = data.distribution[final].by_decile.filter((r) => r.suppressed).map((r) => r.decile);
+    if (hidden.length) expect(screen.getByTestId("deciles-suppressed").textContent).toContain(`${listOf(hidden)}: ${SUPPRESSED}`);
+    else expect(screen.queryByTestId("deciles-suppressed")).toBeNull();
   });
 
   it("leaves a year with a broken distribution out of the choice", () => {
@@ -155,7 +186,10 @@ describe("the cliff", () => {
     render(<CliffTab data={data} />);
     const s = cliffSummary(getCliff(data));
     expect(s.drop).toBeGreaterThan(0);
-    expect(screen.getByTestId("cliff-drop").textContent).toContain(gbp(s.drop));
+    const text = screen.getByTestId("cliff-drop").textContent;
+    expect(text).toContain(gbp(s.drop));
+    expect(text).toContain(gbp(s.before.earnings));
+    expect(text).toContain(gbp(s.after.earnings));
     expect(screen.getByTestId("cliff-chart")).toBeTruthy();
   });
 
@@ -169,8 +203,14 @@ describe("methodology", () => {
   it("shows the versions, every validation row and every limitation from the file", () => {
     render(<MethodTab data={data} />);
     expect(screen.getByTestId("versions-table").textContent).toContain(data.meta.dataset);
-    const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(data.baseline_validation.length);
+    const v = getValidation(data);
+    const sets = [...new Set(v.map((r) => r.dataset))];
+    for (const d of sets) {
+      if (sets.length > 1) fireEvent.change(screen.getByLabelText("Source of the model figures"), { target: { value: d } });
+      const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
+      expect(rows, d).toHaveLength(v.filter((r) => r.dataset === d).length);
+    }
+    expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(6);
     expect(within(screen.getByTestId("limitations")).getAllByRole("listitem")).toHaveLength(data.limitations.length);
   });
 

@@ -7,7 +7,7 @@ import WhoGainsTab from "./WhoGainsTab";
 import CliffTab from "./CliffTab";
 import MethodTab from "./MethodTab";
 import SampleBanner from "./SampleBanner";
-import { fyLabel, getMeta, getYears } from "../lib/dataHelpers";
+import { fyLabel, getYears } from "../lib/dataHelpers";
 import { TabLayout } from "./ui";
 
 export const TAB_OPTIONS = [
@@ -23,6 +23,7 @@ const SECTIONS = {
   budget: [
     { id: "at-a-glance", title: "At a glance" },
     { id: "each-year", title: "Each year" },
+    { id: "sensitivities", title: "What moves the cost" },
     { id: "assumptions", title: "Assumptions" },
     { id: "comparisons", title: "Comparisons" },
   ],
@@ -38,6 +39,7 @@ const SECTIONS = {
   method: [
     { id: "model", title: "Data and model" },
     { id: "limits", title: "How the limits work" },
+    { id: "take-up", title: "Take-up" },
     { id: "validation", title: "Validation" },
     { id: "limitations", title: "Limitations" },
   ],
@@ -50,16 +52,15 @@ function getInitialTab(tabParam) {
   return TAB_OPTIONS.some((t) => t.id === tabParam) ? tabParam : DEFAULT_TAB;
 }
 
-/** "Replication code: PolicyEngine/uk-childcare-100k-threshold. Built with PolicyEngine UK X on D." */
-export function ReplicationLine({ data }) {
-  const meta = getMeta(data);
+/** "Replication code: PolicyEngine/uk-childcare-100k-threshold." */
+export function ReplicationLine() {
   return (
     <p data-testid="replication">
       Replication code:{" "}
       <a href={REPO_URL} target="_blank" rel="noreferrer">
         PolicyEngine/uk-childcare-100k-threshold
       </a>
-      .{meta ? ` Built with PolicyEngine UK ${meta.policyengine_uk} on ${meta.dataset}.` : ""}
+      . Model and data versions are on the Methodology tab.
     </p>
   );
 }
@@ -138,7 +139,7 @@ export function Dashboard({ data }) {
         </TabLayout>
 
         <footer className="mt-12 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">
-          <ReplicationLine data={data} />
+          <ReplicationLine />
         </footer>
       </main>
     </div>

@@ -85,7 +85,58 @@ export function getBudget(data) {
   };
 }
 
-/** The comparisons around the main costing; each is null on its own when missing. */
+/** The Enhanced FRS low-central-high range by year, or null. The central must be the headline total. */
+export function getRange(data) {
+  const years = getYears(data);
+  const r = data?.budget?.range_bn;
+  const low = byYear(r?.low, years);
+  const central = byYear(r?.central, years);
+  const high = byYear(r?.high, years);
+  const total = byYear(data?.budget?.gross_bn?.total, years);
+  if (!low || !central || !high || !total) return null;
+  if (years.some((_, i) => !(low[i] <= central[i] && central[i] <= high[i]) || Math.abs(central[i] - total[i]) > 0.001)) return null;
+  return { years, low, central, high };
+}
+
+/** The sensitivity runs: each effect (£bn by year), its description, and whether it builds the low or high end. */
+export function getSensitivities(data) {
+  const years = getYears(data);
+  const s = data?.budget?.sensitivities;
+  if (!s || !s.effects_bn || typeof s.effects_bn !== "object") return null;
+  const side = (id) => (s.low?.includes(id) ? "low" : s.high?.includes(id) ? "high" : null);
+  const rows = Object.entries(s.effects_bn).map(([id, v]) => ({
+    id,
+    values: byYear(v, years),
+    description: s.descriptions?.[id],
+    side: side(id),
+  }));
+  if (rows.length === 0 || rows.some((r) => !r.values || !isText(r.description) || !r.side)) return null;
+  return { years, rows };
+}
+
+/** The Microcosm cross-check: total and scheme split by year, or null. */
+export function getCrossCheck(data) {
+  const years = getYears(data);
+  const c = data?.budget?.cross_check;
+  const total = byYear(c?.total, years);
+  const thirty = byYear(c?.thirty_hours, years);
+  const tfc = byYear(c?.tax_free_childcare, years);
+  if (!total || !thirty || !tfc) return null;
+  return { years, total, thirty_hours: thirty, tax_free_childcare: tfc };
+}
+
+/** The 30 hours cost split into the extended hours gained and the universal hours the model switches off. */
+export function getThirtyHoursComponents(data) {
+  const years = getYears(data);
+  const c = data?.budget?.thirty_hours_components_bn;
+  const extended = byYear(c?.extended, years);
+  const universal = byYear(c?.universal, years);
+  const targeted = byYear(c?.targeted, years);
+  if (!extended || !universal || !targeted) return null;
+  return { years, extended, universal, targeted };
+}
+
+/** The other comparisons; each is null on its own when missing. */
 export function getBudgetComparisons(data) {
   const years = getYears(data);
   const b = data?.budget;
@@ -93,7 +144,6 @@ export function getBudgetComparisons(data) {
     net: byYear(b?.net_bn?.total, years),
     thirtyOnly: byYear(b?.variants?.thirty_hours_only, years),
     tfcOnly: byYear(b?.variants?.tfc_only, years),
-    crossCheck: byYear(b?.cross_check?.total, years),
   };
 }
 
@@ -104,27 +154,60 @@ function validRecipients(r) {
   );
 }
 
-/** Families and children gaining in one year, or null. */
+/** Families and children gaining in one year (Enhanced FRS), or null. */
 export function getRecipients(data, year) {
   const r = data?.recipients?.[String(year)];
   return validRecipients(r) ? r : null;
 }
 
-/** Ten income deciles with the mean change, % change and share gaining, in decile order, or null. */
+/** The Microcosm recipients in one year, or null. */
+export function getRecipientsCrossCheck(data, year) {
+  const r = data?.recipients_cross_check?.[String(year)];
+  return validRecipients(r) ? r : null;
+}
+
+export const AGE_GROUPS = [
+  { id: "0-1", label: "Under 2" },
+  { id: "2", label: "2" },
+  { id: "3-4", label: "3 and 4" },
+  { id: "5-11", label: "5 to 11" },
+  { id: "12+", label: "12 and over" },
+];
+
+/** Children gaining by age group, or null. */
+export function getChildrenByAge(data, year) {
+  const a = data?.recipients?.[String(year)]?.children_gaining_by_age;
+  if (!a) return null;
+  const rows = AGE_GROUPS.map((g) => ({ ...g, value: a[g.id] }));
+  return rows.every((r) => isNum(r.value)) ? rows : null;
+}
+
+/**
+ * A breakdown cell: valid if it has every number, or if it is marked suppressed (too few records) with no numbers.
+ * A suppressed cell must never be read as zero.
+ */
+function validCell(r, keys) {
+  if (r?.suppressed === true) return keys.every((k) => r[k] === null || r[k] === undefined);
+  return keys.every((k) => isNum(r?.[k]));
+}
+
+const DECILE_KEYS = ["mean_change_gbp", "pct_change", "share_gaining_pct"];
+
+/** Ten income deciles in order; a suppressed decile carries `suppressed: true` and null values. Or null. */
 export function getDeciles(data, year) {
   const rows = data?.distribution?.[String(year)]?.by_decile;
   if (!Array.isArray(rows) || rows.length !== 10) return null;
-  const ok = rows.every(
-    (r, i) => r?.decile === i + 1 && isNum(r.mean_change_gbp) && isNum(r.pct_change) && isNum(r.share_gaining_pct),
-  );
-  return ok ? rows : null;
+  const ok = rows.every((r, i) => r?.decile === i + 1 && validCell(r, DECILE_KEYS));
+  if (!ok || rows.every((r) => r.suppressed === true)) return null;
+  return rows.map((r) => ({ ...r, suppressed: r.suppressed === true }));
 }
 
-/** The change by nation, or null. */
+/** The change by nation; a suppressed nation carries `suppressed: true` and null values. Or null. */
 export function getCountries(data, year) {
   const rows = data?.distribution?.[String(year)]?.by_country;
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  return rows.every((r) => isText(r?.country) && isNum(r.total_change_bn) && isNum(r.families_gaining)) ? rows : null;
+  const ok = rows.every((r) => isText(r?.country) && validCell(r, ["total_change_bn", "families_gaining"]));
+  return ok ? rows.map((r) => ({ ...r, suppressed: r.suppressed === true })) : null;
 }
 
 /** The years with valid recipients and distribution, for the "Who gains" year choice. */
@@ -133,13 +216,36 @@ export function getDistributionYears(data) {
   return years.filter((y) => getRecipients(data, y) && getDeciles(data, y) && getCountries(data, y));
 }
 
-/** Rows comparing the model's baseline with official statistics, or null. */
+/** Rows comparing the model's baseline with official statistics, each with the dataset it comes from, or null. */
 export function getValidation(data) {
   const rows = data?.baseline_validation;
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const ok = rows.every(
-    (r) => isText(r?.label) && Number.isInteger(r.year) && isNum(r.model) && isNum(r.official) && isText(r.unit) && isText(r.source) && isText(r.url),
+    (r) =>
+      isText(r?.label) && Number.isInteger(r.year) && isNum(r.model) && isNum(r.official) && isText(r.unit) && isText(r.source) && isText(r.url) &&
+      (r.dataset === undefined || isText(r.dataset)) && (r.note === undefined || isText(r.note)),
   );
+  return ok ? rows.map((r) => ({ ...r, dataset: r.dataset ?? "Model" })) : null;
+}
+
+/** Take-up and usage assumptions for each dataset, or null. */
+export function getAssumptions(data) {
+  const a = data?.assumptions;
+  if (!a || typeof a !== "object") return null;
+  const rows = Object.entries(a).map(([id, v]) => ({ id, ...v }));
+  const ok =
+    rows.length > 0 &&
+    rows.every(
+      (r) =>
+        Number.isInteger(r.year) &&
+        [
+          r.would_claim_30_hours_pct?.families_with_child_under_5,
+          r.would_claim_30_hours_pct?.of_which_parent_over_100k,
+          r.would_claim_tfc_pct?.families_with_child_under_12,
+          r.would_claim_tfc_pct?.of_which_parent_over_100k,
+          r.mean_extended_hours_usage,
+        ].every(isNum),
+    );
   return ok ? rows : null;
 }
 
@@ -156,17 +262,19 @@ export function getCliff(data) {
 }
 
 /**
- * Where the example household falls off the cliff: the last point at or below £100,000, the first above it, the
- * income lost there, and the earnings needed to get back to the income at the limit (null if never within range).
+ * The cliff in the example: income just below the limit (the last point under it), the first point above it, the
+ * income lost between them, and the earnings needed to get back to the income below the limit (null if never within
+ * the range). Measured from below the limit because the model may already withdraw support at exactly £100,000.
  */
 export function cliffSummary(cliff, limit = 100000) {
   const rows = cliff?.rows;
   if (!rows) return null;
-  const at = rows.findLastIndex((r) => r.earnings <= limit);
-  if (at < 0 || at === rows.length - 1) return null;
-  const before = rows[at];
-  const after = rows[at + 1];
-  const recover = rows.slice(at + 1).find((r) => r.baseline >= before.baseline);
+  const below = rows.findLastIndex((r) => r.earnings < limit);
+  const above = rows.findIndex((r) => r.earnings > limit);
+  if (below < 0 || above < 0) return null;
+  const before = rows[below];
+  const after = rows[above];
+  const recover = rows.slice(above).find((r) => r.baseline >= before.baseline);
   return { before, after, drop: before.baseline - after.baseline, recoverAt: recover?.earnings ?? null };
 }
 
@@ -175,7 +283,9 @@ export function getBenchmarks(data) {
   const rows = data?.benchmarks;
   if (!Array.isArray(rows) || rows.length === 0) return null;
   const ok = rows.every(
-    (b) => isText(b?.source) && isText(b.figure) && isNum(b.ours) && Number.isInteger(b.year) && isText(b.like_for_like) && isText(b.url),
+    (b) =>
+      isText(b?.source) && isText(b.figure) && isNum(b.ours) && Number.isInteger(b.year) && isText(b.like_for_like) && isText(b.url) &&
+      (b.announcement_url === undefined || isText(b.announcement_url)),
   );
   return ok ? rows : null;
 }

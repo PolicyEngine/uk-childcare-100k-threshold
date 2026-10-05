@@ -5,15 +5,21 @@ import {
   fyLabel,
   getBenchmarks,
   getBudget,
+  getAssumptions,
   getBudgetComparisons,
+  getChildrenByAge,
   getCliff,
+  getCrossCheck,
   getCountries,
   getDeciles,
   getDistributionYears,
   getLimitations,
   getMeta,
+  getRange,
   getRecipients,
   getReform,
+  getSensitivities,
+  getThirtyHoursComponents,
   getValidation,
   getYears,
   isSample,
@@ -32,7 +38,13 @@ describe("the results file", () => {
     expect(getReform(data)).not.toBeNull();
     expect(getBudget(data)).not.toBeNull();
     const c = getBudgetComparisons(data);
-    for (const k of ["net", "thirtyOnly", "tfcOnly", "crossCheck"]) expect(c[k], k).not.toBeNull();
+    for (const k of ["net", "thirtyOnly", "tfcOnly"]) expect(c[k], k).not.toBeNull();
+    expect(getRange(data)).not.toBeNull();
+    expect(getSensitivities(data)).not.toBeNull();
+    expect(getCrossCheck(data)).not.toBeNull();
+    expect(getThirtyHoursComponents(data)).not.toBeNull();
+    expect(getAssumptions(data)).not.toBeNull();
+    for (const y of years) expect(getChildrenByAge(data, y), String(y)).not.toBeNull();
     expect(getDistributionYears(data)).toEqual(years);
     expect(getValidation(data)).not.toBeNull();
     expect(getCliff(data)).not.toBeNull();
@@ -49,6 +61,31 @@ describe("the results file", () => {
       const r = getRecipients(data, y);
       expect(r.by_scheme.thirty_hours).toBeLessThanOrEqual(r.families_gaining);
       expect(r.by_scheme.tax_free_childcare).toBeLessThanOrEqual(r.families_gaining);
+    }
+  });
+
+  it("builds the low and high ends from the central cost and the sensitivities", () => {
+    const r = getRange(data);
+    const s = getSensitivities(data);
+    years.forEach((_, i) => {
+      for (const side of ["low", "high"]) {
+        const sum = s.rows.filter((x) => x.side === side).reduce((a, x) => a + x.values[i], r.central[i]);
+        expect(Math.abs(sum - r[side][i]), `${side} ${years[i]}`).toBeLessThan(0.003);
+      }
+    });
+  });
+
+  it("splits the 30 hours cost into components that add up to it", () => {
+    const c = getThirtyHoursComponents(data);
+    const b = getBudget(data);
+    b.rows.forEach((row, i) => expect(Math.abs(c.extended[i] + c.universal[i] + c.targeted[i] - row.thirty_hours)).toBeLessThan(0.003));
+  });
+
+  it("marks every cell without numbers as suppressed, never as a silent gap", () => {
+    for (const y of years) {
+      for (const r of [...getDeciles(data, y), ...getCountries(data, y)]) {
+        if (r.suppressed) expect(r.mean_change_gbp ?? r.total_change_bn ?? null).toBeNull();
+      }
     }
   });
 
@@ -73,14 +110,32 @@ describe("readers fail closed", () => {
     expect(getBudget(mutate("meta.years", null))).toBeNull();
   });
 
-  it("on a missing comparison, without dropping the others", () => {
-    const c = getBudgetComparisons(mutate("budget.cross_check", null));
-    expect(c.crossCheck).toBeNull();
-    expect(c.thirtyOnly).not.toBeNull();
+  it("on a missing cross-check, without dropping the budget", () => {
+    const broken = mutate("budget.cross_check", null);
+    expect(getCrossCheck(broken)).toBeNull();
+    expect(getBudget(broken)).not.toBeNull();
+  });
+
+  it("on a range whose central is not the headline cost", () => {
+    expect(getRange(mutate(`budget.range_bn.central.${final}`, 9))).toBeNull();
+  });
+
+  it("on a sensitivity with no side", () => {
+    expect(getSensitivities(mutate("budget.sensitivities.low", []))).toBeNull();
+  });
+
+  it("on a missing value that is not marked suppressed", () => {
+    expect(getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, null), final)).toBeNull();
+    expect(getCountries(mutate(`distribution.${final}.by_country.0.total_change_bn`, null), final)).toBeNull();
+  });
+
+  it("on a suppressed cell that still carries a number", () => {
+    const i = data.distribution[final].by_country.findIndex((r) => !r.suppressed);
+    expect(getCountries(mutate(`distribution.${final}.by_country.${i}.suppressed`, true), final)).toBeNull();
   });
 
   it.each(BAD_VALUES)("on a bad decile value (%s)", (bad) => {
-    expect(getDeciles(mutate(`distribution.${final}.by_decile.3.mean_change_gbp`, bad), final)).toBeNull();
+    expect(getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, bad), final)).toBeNull();
   });
 
   it("on a short decile list, and drops that year from the choice", () => {
@@ -116,21 +171,23 @@ describe("the sample flag", () => {
 });
 
 describe("the cliff summary", () => {
-  it("finds the drop just above £100,000 and where income recovers", () => {
+  it("measures from the last point below £100,000 to the first above it, and finds where income recovers", () => {
     const rows = [
       { earnings: 99000, baseline: 100, reform: 100 },
-      { earnings: 100000, baseline: 101, reform: 101 },
+      { earnings: 100000, baseline: 90, reform: 101 },
       { earnings: 101000, baseline: 80, reform: 102 },
       { earnings: 120000, baseline: 101, reform: 120 },
     ];
     const s = cliffSummary({ rows });
-    expect(s.drop).toBe(21);
+    expect(s.before.earnings).toBe(99000);
+    expect(s.after.earnings).toBe(101000);
+    expect(s.drop).toBe(20);
     expect(s.recoverAt).toBe(120000);
   });
 
   it("says income never recovers within the range when it does not", () => {
     const rows = [
-      { earnings: 100000, baseline: 101, reform: 101 },
+      { earnings: 99000, baseline: 101, reform: 101 },
       { earnings: 101000, baseline: 80, reform: 102 },
     ];
     expect(cliffSummary({ rows }).recoverAt).toBeNull();

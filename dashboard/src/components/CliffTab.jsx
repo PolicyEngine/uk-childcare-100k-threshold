@@ -85,8 +85,8 @@ export default function CliffTab({ data }) {
               For this family, going from {formatCurrency(s.before.earnings)} to {formatCurrency(s.after.earnings)} of
               earnings cuts household net income by {formatCurrency(s.drop)}.{" "}
               {s.recoverAt
-                ? `They need earnings of about ${formatCurrency(s.recoverAt)} to get back to the income they had at £100,000.`
-                : `Even at ${formatCurrency(cliff.rows.at(-1).earnings)} of earnings they have not got back to the income they had at £100,000.`}
+                ? `They need earnings of about ${formatCurrency(s.recoverAt)} to get back to the income they had at ${formatCurrency(s.before.earnings)}.`
+                : `Even at ${formatCurrency(cliff.rows.at(-1).earnings)} of earnings they have not got back to the income they had at ${formatCurrency(s.before.earnings)}.`}
             </p>
           ) : null}
           <p>

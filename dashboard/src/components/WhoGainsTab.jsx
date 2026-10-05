@@ -5,6 +5,7 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { colors, schemeColors } from "../lib/colors";
 import {
   fyLabel,
+  getChildrenByAge,
   getCountries,
   getDeciles,
   getDistributionYears,
@@ -12,10 +13,20 @@ import {
   SCHEME_LABELS,
   SCHEMES,
 } from "../lib/dataHelpers";
-import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
+import { formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
 import { AXIS_STYLE, CustomTooltip, Section, Select, Unavailable } from "./ui";
+
+export const SUPPRESSED = "too few records";
+
+/** £bn as £m, with a gain that rounds to nothing shown as "under £1m" rather than £0m. */
+export function formatM(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return "unavailable";
+  const m = Math.round(v * 1000);
+  if (m === 0 && v >= 0) return "under £1m";
+  return `£${m.toLocaleString("en-GB")}m`;
+}
 
 export const DECILE_MEASURES = [
   { id: "mean_change_gbp", label: "Average gain, £ a year", format: (v) => formatCurrency(v), axis: (v) => `£${Math.round(v).toLocaleString("en-GB")}` },
@@ -23,9 +34,12 @@ export const DECILE_MEASURES = [
   { id: "share_gaining_pct", label: "Share of households gaining", format: (v) => formatPct(v, 1) },
 ];
 
-function DecileChart({ rows, measure }) {
+function DecileChart({ rows: raw, measure }) {
   const m = DECILE_MEASURES.find((x) => x.id === measure);
-  const values = rows.map((r) => r[measure]);
+  // A suppressed decile has no bar at all, never a zero bar.
+  const rows = raw.map((r) => ({ ...r, [measure]: r.suppressed ? null : r[measure] }));
+  const values = rows.map((r) => r[measure]).filter((v) => v !== null);
+  const hidden = raw.filter((r) => r.suppressed).map((r) => r.decile);
   const digits = axisDigits(values);
   const tick = m.axis ?? ((v) => `${v.toFixed(digits)}%`);
   return (
@@ -48,9 +62,19 @@ function DecileChart({ rows, measure }) {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      {hidden.length ? (
+        <p className="mt-2 text-center text-sm text-slate-500" data-testid="deciles-suppressed">
+          {hidden.length === 1 ? "Decile" : "Deciles"} {listOf(hidden)}: {SUPPRESSED} to show.
+        </p>
+      ) : null}
       <ChartLogo />
     </>
   );
+}
+
+/** "5", "5 and 6", "5, 6 and 7". */
+export function listOf(items) {
+  return items.length < 2 ? String(items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
 function CountryTable({ rows }) {
@@ -68,8 +92,8 @@ function CountryTable({ rows }) {
           {rows.map((r) => (
             <tr key={r.country}>
               <td>{r.country}</td>
-              <td className="tabular-nums">{formatBn(r.total_change_bn, 2)}</td>
-              <td className="tabular-nums">{formatCount(r.families_gaining)}</td>
+              <td className="tabular-nums">{r.suppressed ? SUPPRESSED : formatM(r.total_change_bn)}</td>
+              <td className="tabular-nums">{r.suppressed ? SUPPRESSED : formatCount(r.families_gaining)}</td>
             </tr>
           ))}
         </tbody>
@@ -79,6 +103,8 @@ function CountryTable({ rows }) {
 }
 
 function SchemeTable({ recipients }) {
+  const kids = recipients.children_by_scheme;
+  const withKids = kids && SCHEMES.every((sc) => typeof kids[sc] === "number");
   return (
     <div className="overflow-x-auto">
       <table className="data-table" data-testid="scheme-table">
@@ -86,22 +112,55 @@ function SchemeTable({ recipients }) {
           <tr>
             <th>Scheme</th>
             <th>Families gaining</th>
+            {withKids ? <th>Children gaining</th> : null}
           </tr>
         </thead>
         <tbody>
-          {SCHEMES.map((s) => (
-            <tr key={s}>
+          {SCHEMES.map((sc) => (
+            <tr key={sc}>
               <td>
-                <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: schemeColors[s] }} />
-                {SCHEME_LABELS[s]}
+                <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: schemeColors[sc] }} />
+                {SCHEME_LABELS[sc]}
               </td>
-              <td className="tabular-nums">{formatCount(recipients.by_scheme[s])}</td>
+              <td className="tabular-nums">{formatCount(recipients.by_scheme[sc])}</td>
+              {withKids ? <td className="tabular-nums">{formatCount(kids[sc])}</td> : null}
             </tr>
           ))}
           <tr>
             <td>Either or both</td>
             <td className="tabular-nums">{formatCount(recipients.families_gaining)}</td>
+            {withKids ? <td className="tabular-nums">{formatCount(recipients.children_gaining)}</td> : null}
           </tr>
+          {typeof recipients.families_losing === "number" ? (
+            <tr>
+              <td>Families losing (see below)</td>
+              <td className="tabular-nums">{formatCount(recipients.families_losing)}</td>
+              {withKids ? <td /> : null}
+            </tr>
+          ) : null}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AgeTable({ rows }) {
+  return (
+    <div className="mt-6 overflow-x-auto">
+      <table className="data-table" data-testid="age-table">
+        <thead>
+          <tr>
+            <th>Child&apos;s age</th>
+            <th>Children gaining</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td>{r.label}</td>
+              <td className="tabular-nums">{formatCount(r.value)}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -117,6 +176,7 @@ export default function WhoGainsTab({ data }) {
   const deciles = getDeciles(data, y);
   const countries = getCountries(data, y);
   const recipients = getRecipients(data, y);
+  const ages = getChildrenByAge(data, y);
   const fy = fyLabel(y);
 
   return (
@@ -130,7 +190,8 @@ export default function WhoGainsTab({ data }) {
         lead="Only families with a parent above £100,000 gain, so the gains sit almost entirely in the top income deciles."
         details={
           <p>
-            Households are ranked by net income adjusted for household size and split into ten equal groups. The
+            Households are ranked by net income adjusted for household size and split into ten equal groups. Deciles
+            where fewer than ten survey records gain are not shown. The
             average gain is across every household in the group, including the many with no young children, so it is
             far smaller than the gain to a family that benefits. Net income is after taxes and benefits, before
             housing costs.
@@ -143,18 +204,40 @@ export default function WhoGainsTab({ data }) {
         <DecileChart rows={deciles} measure={measure} />
       </Section>
 
-      <Section id="recipients" title="Families gaining" lead={`Families who gain from each scheme in ${fy}; many gain from both.`}>
+      <Section
+        id="recipients"
+        title="Families gaining"
+        lead={`Families and children who gain from each scheme in ${fy}; many gain from both.`}
+        details={
+          <>
+            <p>
+              Tax-Free Childcare covers children up to 11, so most children gaining are of school age. The 30 hours
+              cover children from 9 months, but the model holds ages in whole years and gives no hours at age 0.
+            </p>
+            {typeof recipients.families_losing === "number" ? (
+              <p>
+                A few families lose in the model: once they qualify for the extended hours it switches off the
+                universal 15 hours for a 3- or 4-year-old, and the extended hours the data say they use can be fewer.
+                In law the universal hours would stay.
+              </p>
+            ) : null}
+          </>
+        }
+      >
         <SchemeTable recipients={recipients} />
+        {ages ? <AgeTable rows={ages} /> : null}
       </Section>
 
       <Section
         id="nations"
         title="By nation"
         lead="The 30 hours are an English scheme, so nearly all of the cost falls in England."
+        detailsTitle="More detail"
         details={
           <p>
             Families in Scotland, Wales and Northern Ireland gain only from Tax-Free Childcare. The devolved
-            governments run their own early-years offers, which this reform does not change.
+            governments run their own early-years offers, which this reform does not change. Cells resting on fewer
+            than ten gaining survey records are not shown.
           </p>
         }
       >
