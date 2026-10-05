@@ -1,0 +1,679 @@
+{
+  "meta": {
+    "policyengine": "sample",
+    "policyengine_uk": "sample",
+    "dataset": "enhanced_frs_2023_24 (sample)",
+    "dataset_revision": "sample",
+    "cross_check_dataset": "frs_2023_24 (sample)",
+    "years": [
+      2026,
+      2027,
+      2028,
+      2029
+    ],
+    "generated_at": "SAMPLE - placeholder figures, not results",
+    "git_revision": "sample",
+    "sample": true
+  },
+  "reform": {
+    "title": "Remove the £100,000 income limit on childcare support",
+    "description": "Families where either parent has adjusted net income above £100,000 keep the 30 funded hours for working parents (England) and Tax-Free Childcare (UK-wide). Every other condition, including the minimum earnings test, is unchanged.",
+    "parameters": [
+      {
+        "name": "gov.dfe.extended_childcare_entitlement.income_limit",
+        "baseline": 100000,
+        "reform": "removed"
+      },
+      {
+        "name": "gov.hmrc.tax_free_childcare.income.income_limit",
+        "baseline": 100000,
+        "reform": "removed"
+      }
+    ]
+  },
+  "budget": {
+    "gross_bn": {
+      "thirty_hours": {
+        "2026": 0.45,
+        "2027": 0.48,
+        "2028": 0.5,
+        "2029": 0.52
+      },
+      "tax_free_childcare": {
+        "2026": 0.22,
+        "2027": 0.23,
+        "2028": 0.24,
+        "2029": 0.25
+      },
+      "total": {
+        "2026": 0.67,
+        "2027": 0.71,
+        "2028": 0.74,
+        "2029": 0.77
+      }
+    },
+    "net_bn": {
+      "total": {
+        "2026": 0.66,
+        "2027": 0.7,
+        "2028": 0.73,
+        "2029": 0.76
+      }
+    },
+    "variants": {
+      "thirty_hours_only": {
+        "2026": 0.45,
+        "2027": 0.48,
+        "2028": 0.5,
+        "2029": 0.52
+      },
+      "tfc_only": {
+        "2026": 0.23,
+        "2027": 0.24,
+        "2028": 0.25,
+        "2029": 0.26
+      }
+    },
+    "cross_check": {
+      "total": {
+        "2026": 0.62,
+        "2027": 0.65,
+        "2028": 0.68,
+        "2029": 0.71
+      }
+    }
+  },
+  "recipients": {
+    "2026": {
+      "families_gaining": 88000,
+      "children_gaining": 111760,
+      "by_scheme": {
+        "thirty_hours": 54560,
+        "tax_free_childcare": 73920
+      },
+      "mean_gain_gbp": 7614
+    },
+    "2027": {
+      "families_gaining": 91000,
+      "children_gaining": 115570,
+      "by_scheme": {
+        "thirty_hours": 56420,
+        "tax_free_childcare": 76440
+      },
+      "mean_gain_gbp": 7802
+    },
+    "2028": {
+      "families_gaining": 93000,
+      "children_gaining": 118110,
+      "by_scheme": {
+        "thirty_hours": 57660,
+        "tax_free_childcare": 78120
+      },
+      "mean_gain_gbp": 7957
+    },
+    "2029": {
+      "families_gaining": 95000,
+      "children_gaining": 120650,
+      "by_scheme": {
+        "thirty_hours": 58900,
+        "tax_free_childcare": 79800
+      },
+      "mean_gain_gbp": 8105
+    }
+  },
+  "distribution": {
+    "2026": {
+      "by_decile": [
+        {
+          "decile": 1,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 2,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 3,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 4,
+          "mean_change_gbp": 0.44,
+          "pct_change": 0.001,
+          "share_gaining_pct": 0.02
+        },
+        {
+          "decile": 5,
+          "mean_change_gbp": 0.87,
+          "pct_change": 0.002,
+          "share_gaining_pct": 0.03
+        },
+        {
+          "decile": 6,
+          "mean_change_gbp": 1.74,
+          "pct_change": 0.003,
+          "share_gaining_pct": 0.04
+        },
+        {
+          "decile": 7,
+          "mean_change_gbp": 2.61,
+          "pct_change": 0.004,
+          "share_gaining_pct": 0.07
+        },
+        {
+          "decile": 8,
+          "mean_change_gbp": 7.83,
+          "pct_change": 0.01,
+          "share_gaining_pct": 0.17
+        },
+        {
+          "decile": 9,
+          "mean_change_gbp": 35.68,
+          "pct_change": 0.039,
+          "share_gaining_pct": 0.48
+        },
+        {
+          "decile": 10,
+          "mean_change_gbp": 186.21,
+          "pct_change": 0.139,
+          "share_gaining_pct": 2.26
+        }
+      ],
+      "by_country": [
+        {
+          "country": "England",
+          "total_change_bn": 0.609,
+          "families_gaining": 78760
+        },
+        {
+          "country": "Scotland",
+          "total_change_bn": 0.026,
+          "families_gaining": 4136
+        },
+        {
+          "country": "Wales",
+          "total_change_bn": 0.017,
+          "families_gaining": 2816
+        },
+        {
+          "country": "Northern Ireland",
+          "total_change_bn": 0.017,
+          "families_gaining": 2288
+        }
+      ]
+    },
+    "2027": {
+      "by_decile": [
+        {
+          "decile": 1,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 2,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 3,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 4,
+          "mean_change_gbp": 0.46,
+          "pct_change": 0.001,
+          "share_gaining_pct": 0.02
+        },
+        {
+          "decile": 5,
+          "mean_change_gbp": 0.92,
+          "pct_change": 0.002,
+          "share_gaining_pct": 0.03
+        },
+        {
+          "decile": 6,
+          "mean_change_gbp": 1.84,
+          "pct_change": 0.004,
+          "share_gaining_pct": 0.05
+        },
+        {
+          "decile": 7,
+          "mean_change_gbp": 2.77,
+          "pct_change": 0.005,
+          "share_gaining_pct": 0.07
+        },
+        {
+          "decile": 8,
+          "mean_change_gbp": 8.3,
+          "pct_change": 0.011,
+          "share_gaining_pct": 0.18
+        },
+        {
+          "decile": 9,
+          "mean_change_gbp": 37.81,
+          "pct_change": 0.041,
+          "share_gaining_pct": 0.51
+        },
+        {
+          "decile": 10,
+          "mean_change_gbp": 197.32,
+          "pct_change": 0.148,
+          "share_gaining_pct": 2.4
+        }
+      ],
+      "by_country": [
+        {
+          "country": "England",
+          "total_change_bn": 0.645,
+          "families_gaining": 81445
+        },
+        {
+          "country": "Scotland",
+          "total_change_bn": 0.028,
+          "families_gaining": 4277
+        },
+        {
+          "country": "Wales",
+          "total_change_bn": 0.018,
+          "families_gaining": 2912
+        },
+        {
+          "country": "Northern Ireland",
+          "total_change_bn": 0.018,
+          "families_gaining": 2366
+        }
+      ]
+    },
+    "2028": {
+      "by_decile": [
+        {
+          "decile": 1,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 2,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 3,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 4,
+          "mean_change_gbp": 0.48,
+          "pct_change": 0.001,
+          "share_gaining_pct": 0.02
+        },
+        {
+          "decile": 5,
+          "mean_change_gbp": 0.96,
+          "pct_change": 0.002,
+          "share_gaining_pct": 0.03
+        },
+        {
+          "decile": 6,
+          "mean_change_gbp": 1.92,
+          "pct_change": 0.004,
+          "share_gaining_pct": 0.05
+        },
+        {
+          "decile": 7,
+          "mean_change_gbp": 2.88,
+          "pct_change": 0.005,
+          "share_gaining_pct": 0.08
+        },
+        {
+          "decile": 8,
+          "mean_change_gbp": 8.65,
+          "pct_change": 0.012,
+          "share_gaining_pct": 0.19
+        },
+        {
+          "decile": 9,
+          "mean_change_gbp": 39.4,
+          "pct_change": 0.043,
+          "share_gaining_pct": 0.53
+        },
+        {
+          "decile": 10,
+          "mean_change_gbp": 205.66,
+          "pct_change": 0.154,
+          "share_gaining_pct": 2.5
+        }
+      ],
+      "by_country": [
+        {
+          "country": "England",
+          "total_change_bn": 0.673,
+          "families_gaining": 83235
+        },
+        {
+          "country": "Scotland",
+          "total_change_bn": 0.029,
+          "families_gaining": 4371
+        },
+        {
+          "country": "Wales",
+          "total_change_bn": 0.019,
+          "families_gaining": 2976
+        },
+        {
+          "country": "Northern Ireland",
+          "total_change_bn": 0.019,
+          "families_gaining": 2418
+        }
+      ]
+    },
+    "2029": {
+      "by_decile": [
+        {
+          "decile": 1,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 2,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 3,
+          "mean_change_gbp": 0,
+          "pct_change": 0,
+          "share_gaining_pct": 0
+        },
+        {
+          "decile": 4,
+          "mean_change_gbp": 0.5,
+          "pct_change": 0.001,
+          "share_gaining_pct": 0.02
+        },
+        {
+          "decile": 5,
+          "mean_change_gbp": 1,
+          "pct_change": 0.002,
+          "share_gaining_pct": 0.03
+        },
+        {
+          "decile": 6,
+          "mean_change_gbp": 2,
+          "pct_change": 0.004,
+          "share_gaining_pct": 0.05
+        },
+        {
+          "decile": 7,
+          "mean_change_gbp": 3,
+          "pct_change": 0.005,
+          "share_gaining_pct": 0.08
+        },
+        {
+          "decile": 8,
+          "mean_change_gbp": 9,
+          "pct_change": 0.012,
+          "share_gaining_pct": 0.2
+        },
+        {
+          "decile": 9,
+          "mean_change_gbp": 41,
+          "pct_change": 0.045,
+          "share_gaining_pct": 0.55
+        },
+        {
+          "decile": 10,
+          "mean_change_gbp": 214,
+          "pct_change": 0.16,
+          "share_gaining_pct": 2.6
+        }
+      ],
+      "by_country": [
+        {
+          "country": "England",
+          "total_change_bn": 0.7,
+          "families_gaining": 85025
+        },
+        {
+          "country": "Scotland",
+          "total_change_bn": 0.03,
+          "families_gaining": 4465
+        },
+        {
+          "country": "Wales",
+          "total_change_bn": 0.02,
+          "families_gaining": 3040
+        },
+        {
+          "country": "Northern Ireland",
+          "total_change_bn": 0.02,
+          "families_gaining": 2470
+        }
+      ]
+    }
+  },
+  "baseline_validation": [
+    {
+      "label": "Children using the 30 hours for working parents (England)",
+      "year": 2026,
+      "model": 610000,
+      "official": 640000,
+      "unit": "children",
+      "source": "DfE, Education provision: children under 5 years of age",
+      "url": "https://explore-education-statistics.service.gov.uk/find-statistics/education-provision-children-under-5"
+    },
+    {
+      "label": "Children in Tax-Free Childcare (UK)",
+      "year": 2026,
+      "model": 820000,
+      "official": 870000,
+      "unit": "children",
+      "source": "HMRC, Tax-Free Childcare statistics",
+      "url": "https://www.gov.uk/government/collections/tax-free-childcare-statistics"
+    },
+    {
+      "label": "Tax-Free Childcare government top-up (UK)",
+      "year": 2026,
+      "model": 0.95,
+      "official": 1.02,
+      "unit": "£bn",
+      "source": "HMRC, Tax-Free Childcare statistics",
+      "url": "https://www.gov.uk/government/collections/tax-free-childcare-statistics"
+    }
+  ],
+  "cliff_example": {
+    "description": "A couple in England with two children aged 2 and 3 in formal childcare. One parent earns £30,000; the chart varies the other parent's earnings, with no pension contributions, so earnings equal adjusted net income.",
+    "year": 2027,
+    "earnings": [
+      80000,
+      81000,
+      82000,
+      83000,
+      84000,
+      85000,
+      86000,
+      87000,
+      88000,
+      89000,
+      90000,
+      91000,
+      92000,
+      93000,
+      94000,
+      95000,
+      96000,
+      97000,
+      98000,
+      99000,
+      100000,
+      101000,
+      102000,
+      103000,
+      104000,
+      105000,
+      106000,
+      107000,
+      108000,
+      109000,
+      110000,
+      111000,
+      112000,
+      113000,
+      114000,
+      115000,
+      116000,
+      117000,
+      118000,
+      119000,
+      120000,
+      121000,
+      122000,
+      123000,
+      124000,
+      125000,
+      126000,
+      127000,
+      128000,
+      129000,
+      130000
+    ],
+    "net_income_baseline": [
+      101457,
+      102037,
+      102617,
+      103197,
+      103777,
+      104357,
+      104937,
+      105517,
+      106097,
+      106677,
+      107257,
+      107837,
+      108417,
+      108997,
+      109577,
+      110157,
+      110737,
+      111317,
+      111897,
+      112477,
+      113057,
+      93837,
+      94217,
+      94597,
+      94977,
+      95357,
+      95737,
+      96117,
+      96497,
+      96877,
+      97257,
+      97637,
+      98017,
+      98397,
+      98777,
+      99157,
+      99537,
+      99917,
+      100297,
+      100677,
+      101057,
+      101437,
+      101817,
+      102197,
+      102577,
+      102957,
+      103466,
+      103996,
+      104526,
+      105056,
+      105586
+    ],
+    "net_income_reform": [
+      101457,
+      102037,
+      102617,
+      103197,
+      103777,
+      104357,
+      104937,
+      105517,
+      106097,
+      106677,
+      107257,
+      107837,
+      108417,
+      108997,
+      109577,
+      110157,
+      110737,
+      111317,
+      111897,
+      112477,
+      113057,
+      113437,
+      113817,
+      114197,
+      114577,
+      114957,
+      115337,
+      115717,
+      116097,
+      116477,
+      116857,
+      117237,
+      117617,
+      117997,
+      118377,
+      118757,
+      119137,
+      119517,
+      119897,
+      120277,
+      120657,
+      121037,
+      121417,
+      121797,
+      122177,
+      122557,
+      123066,
+      123596,
+      124126,
+      124656,
+      125186
+    ],
+    "notes": "Household net income after tax, National Insurance and childcare support, before paying for childcare."
+  },
+  "benchmarks": [
+    {
+      "source": "Conservative Party",
+      "figure": "£0.7bn a year",
+      "ours": 0.71,
+      "year": 2027,
+      "like_for_like": "Partly: the Conservatives give one annual figure without a year; ours is the gross cost of both schemes before any change in how much parents work.",
+      "url": "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge"
+    }
+  ],
+  "limitations": [
+    "Static costing: parents are assumed to work and earn the same with or without the reform. Removing the cliff could lead some parents to work more or stop reducing pay through pension contributions, which this does not capture.",
+    "Take-up of the 30 hours and Tax-Free Childcare among newly eligible families is assumed to match take-up among eligible families today.",
+    "Survey data under-represent very high earners, so the number of families just above £100,000 is uncertain.",
+    "The 30 funded hours are England-only; the devolved nations run their own early-years offers, which this reform does not change."
+  ]
+}
