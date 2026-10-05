@@ -103,7 +103,7 @@ export function Dashboard({ data }) {
             <a href={ANNOUNCEMENT_URL} target="_blank" rel="noreferrer" className="underline">
               pledged
             </a>{" "}
-            to remove this limit, funded by cutting civil service jobs. We cost removing it from both schemes with{" "}
+            to remove this limit, paid for by savings elsewhere in public spending. We cost removing it from both schemes with{" "}
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
             </a>

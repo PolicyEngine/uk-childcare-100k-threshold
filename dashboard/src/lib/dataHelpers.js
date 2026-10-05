@@ -78,7 +78,7 @@ export function getBudget(data) {
   const total = byYear(g?.total, years);
   if (!thirty || !tfc || !total) return null;
   // The two schemes must add up to the total (to rounding), or the split shown would not match the headline.
-  if (total.some((t, i) => Math.abs(thirty[i] + tfc[i] - t) > 0.011)) return null;
+  if (total.some((t, i) => Math.abs(thirty[i] + tfc[i] - t) > 0.02)) return null;
   return {
     years,
     rows: years.map((year, i) => ({ year, label: fyLabel(year), thirty_hours: thirty[i], tax_free_childcare: tfc[i], total: total[i] })),

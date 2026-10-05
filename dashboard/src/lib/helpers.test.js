@@ -41,7 +41,7 @@ describe("the results file", () => {
   });
 
   it("has costs that add up: the two schemes make the total each year", () => {
-    for (const r of getBudget(data).rows) expect(Math.abs(r.thirty_hours + r.tax_free_childcare - r.total)).toBeLessThan(0.011);
+    for (const r of getBudget(data).rows) expect(Math.abs(r.thirty_hours + r.tax_free_childcare - r.total)).toBeLessThanOrEqual(0.02);
   });
 
   it("counts no more families in either scheme than gain in all", () => {

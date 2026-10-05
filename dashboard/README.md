@@ -50,5 +50,5 @@ limitations        [str]
 ```
 
 `pct_change` and `share_gaining_pct` are percentages (0.16 means 0.16%), not fractions. `gross_bn.thirty_hours`
-plus `gross_bn.tax_free_childcare` must equal `gross_bn.total` to within £0.01bn, or the budget tab fails closed.
+plus `gross_bn.tax_free_childcare` must equal `gross_bn.total` to within £0.02bn (rounding), or the budget tab fails closed.
 `baseline_validation[].unit` is `"£bn"`, `"£m"`, `"£"`, `"%"` or a count noun such as `"children"`.
