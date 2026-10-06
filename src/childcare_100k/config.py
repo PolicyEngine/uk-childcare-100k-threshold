@@ -12,21 +12,23 @@ DATA = REPO / "data"
 OUTPUT = DATA / "results.json"
 CACHE = REPO / ".cache"
 RUNS = CACHE / "runs"  # record-level arrays per run: gitignored, never published
-WORKER = CACHE / "worker"  # policyengine materialises datasets into WORKER/data
 
 # Fiscal years named by start year ("2026" = 2026-27).
 YEARS = [2026, 2027, 2028, 2029]
 # Baseline-only year for validation against 2025-26 official statistics.
 VALIDATION_YEAR = 2025
-HEADLINE_YEAR = 2029
+# The year compared with CenTax's 2030 static cost (the nearest fiscal year).
+BENCHMARK_YEAR = 2029
+# The year the dashboard leads with: 2026-27 is already half over and the proposal
+# gives no start date, so 2026-27 is shown as illustrative.
+LEAD_YEAR = 2027
 
-# Datasets (names in the policyengine.py release bundle).
-# The Enhanced FRS is the headline: the cost turns on how many parents earn over
-# £100,000, and it holds 1.70m people at £100,000+ in 2025-26 against HMRC's
-# projected 1.96m; Microcosm holds 2.87m (see baseline_validation).
-PRIMARY_DATASET = "enhanced_frs_2024_25"
-CROSS_CHECK_DATASET = "populace_uk_2023"  # "Microcosm"
-DATASET_LABELS = {"populace_uk_2023": "Microcosm (populace_uk_2023)", "enhanced_frs_2024_25": "Enhanced FRS 2024-25"}
+# Dataset: the certified Microcosm UK 2024-25 national release, pinned by revision
+# and sha256 in datasets.py (policyengine.py 6.2.1's bundle does not register it,
+# so the runs pass the verified file to managed_microsimulation as an unmanaged
+# dataset). It is the only dataset.
+PRIMARY_DATASET = "microcosm_uk_2024_25"
+DATASET_LABELS = {PRIMARY_DATASET: "Microcosm UK 2024-25 (national release)"}
 
 # The two parameters the reform touches, and nothing else.
 THIRTY_HOURS_LIMIT = "gov.dfe.extended_childcare_entitlement.income.limit"
