@@ -149,7 +149,7 @@ def data_limitations(rows):
         rows, "Free early years entitlements spending if every family used all 30 extended hours", 2026)
     high = _validation_value(rows, "People with income of £100,000 or more", 2025)
     return [
-        f"The central figure likely sits low on funded hours: the central baseline spends £{free['model']:.1f}bn on "
+        f"Funded hours, baseline context: the central baseline spends £{free['model']:.1f}bn on "
         f"free hours in 2026-27 against DfE's £{free['official']:.1f}bn, while full 30-hour use gives "
         f"£{free30['model']:.1f}bn. DfE's total is illustrative (based partly on forecasts) and is context only: "
         "bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above "
