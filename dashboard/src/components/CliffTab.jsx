@@ -78,8 +78,9 @@ export default function CliffTab({ data }) {
           <p>
             Today a family loses the working-parent funded hours and Tax-Free Childcare in full as soon as either
             parent&apos;s adjusted net income goes above £100,000, even by £1. Nothing tapers: the support stops all at
-            once. A child under 3 loses all 30 funded hours; a 3- or 4-year-old loses the additional 15 hours and keeps
-            the universal 15, which have no income test.
+            once. A child under 3 loses up to 30 funded hours: a 2-year-old who also qualifies for the targeted 15
+            hours (through a low-income benefit, an EHC plan or Disability Living Allowance) keeps those. A 3- or
+            4-year-old loses the additional 15 hours and keeps the universal 15, which have no income test.
           </p>
           {s.drop > 0 ? (
             <p data-testid="cliff-drop">
