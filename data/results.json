@@ -26,8 +26,8 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-06T13:56:12+00:00",
-  "git_revision": "9d5c7fd0e884eb3998315fbfa14a4b5cf9859d76",
+  "generated_at": "2026-10-06T15:34:46+00:00",
+  "git_revision": "78fe5f84d2d5df20620e8e69ff3c278ae7ab99d7",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 13.4,
@@ -1341,7 +1341,7 @@
   "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), 1-6% below DfE's 2026-27 national average rates (see baseline_validation), so the 30-hours leg is slightly understated.",
   "The high end adds the full-usage and under-1s adjustments; their interaction is ignored.",
   "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), so no suppressed cell can be recovered from the published UK totals.",
-  "The central figure likely sits low on funded hours: the central baseline spends £5.8bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives £9.7bn. DfE's total is illustrative (based partly on forecasts) and is context only: bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ.",
+  "Funded hours, baseline context: the central baseline spends £5.8bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives £9.7bn. DfE's total is illustrative (based partly on forecasts) and is context only: bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ.",
   "Microcosm holds 1.89 million people with income of £100,000 or more in 2025-26 against HMRC's projected 1.95 million (see baseline_validation).",
   "Policy assumed in force for the whole of each fiscal year from 2026-27; the proposal's start date is not given, and 2026-27 is already half over, so its figures are illustrative."
  ]
