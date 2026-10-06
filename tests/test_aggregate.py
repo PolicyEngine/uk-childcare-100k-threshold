@@ -179,3 +179,35 @@ def test_a_child_counts_as_gaining_only_from_their_own_entitlement():
     assert out["children_by_scheme"]["thirty_hours"] == 1_000
     assert out["children_gaining_by_age"]["2"] == 1_000
     assert out["children_gaining_by_age"]["3-4"] == 0
+
+
+def _multi_unit_country_runs(year=2026):
+    """Households holding several benefit units: England, Scotland and Northern Ireland have
+    20 one-family households each; Wales has five households of two benefit units each, so
+    ten Welsh families gain but only five Welsh households change."""
+    countries = ["ENGLAND"] * 20 + ["SCOTLAND"] * 20 + ["WALES"] * 5 + ["NORTHERN_IRELAND"] * 20
+    n_hh = len(countries)
+    order = list(A.COUNTRIES)
+    bu_household = np.concatenate([np.arange(0, 40), np.repeat(np.arange(40, 45), 2), np.arange(45, 65)])
+    n_bu = len(bu_household)
+    bu_country = np.array([order.index(countries[h]) for h in bu_household])
+    d_bu = np.full(n_bu, 1_000.0)
+    d_hh = np.bincount(bu_household, weights=d_bu, minlength=n_hh)
+    hw, bw = np.ones(n_hh), np.ones(n_bu)
+    zero_hh, zero_bu = np.zeros(n_hh), np.zeros(n_bu)
+    common = dict(hh_weight=hw, bu_weight=bw, hh_decile=np.tile(np.arange(1, 11), 7)[:n_hh],
+                  hh_country=np.array(countries), bu_country=bu_country)
+    base = FakeRun(year, **common, hh_net_income=np.full(n_hh, 50_000.0), hh_free=zero_hh, hh_tfc=zero_hh,
+                   bu_free=zero_bu, bu_tfc=zero_bu)
+    ref = FakeRun(year, **common, hh_net_income=50_000.0 + d_hh, hh_free=d_hh, hh_tfc=zero_hh,
+                  bu_free=d_bu, bu_tfc=zero_bu)
+    return {"baseline": base, "reform": ref}
+
+
+def test_country_gate_counts_each_measures_own_records():
+    """Ten gaining Welsh families in five households: the household-weighted total rests on
+    five records, so Wales is suppressed, and a second country is suppressed with it."""
+    cells = {c["country"]: c for c in A.distribution(_multi_unit_country_runs(), years=[2026])["2026"]["by_country"]}
+    assert cells["Wales"]["suppressed"] and cells["Wales"]["total_change_bn"] is None
+    assert cells["Wales"]["families_gaining"] is None
+    assert sum(c["suppressed"] for c in cells.values()) == 2

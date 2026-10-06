@@ -308,10 +308,14 @@ def distribution(runs, years=YEARS):
         for i, (code, name) in enumerate(COUNTRIES.items()):
             m = hh_country == code
             mb = bu_country == i
-            n = _records(bu_gain & mb)
-            n_changed = max(_records(bu_changed & mb), _records(hh_changed & m))
-            country_sizes.append(n_changed)
-            if not _cell_ok(n, n_changed):
+            # Each published measure rests on its own records: families_gaining on
+            # benefit units, total_change_bn on households (a household can hold
+            # several benefit units). Gate on every count, not the larger of them.
+            n_bu_gain = _records(bu_gain & mb)
+            n_bu_changed = _records(bu_changed & mb)
+            n_hh_changed = _records(hh_changed & m)
+            country_sizes.append(max(n_bu_changed, n_hh_changed))
+            if not _cell_ok(n_bu_gain, n_bu_changed, n_hh_changed):
                 by_country.append({"country": name, "total_change_bn": None, "families_gaining": None, "suppressed": True})
                 continue
             by_country.append({
