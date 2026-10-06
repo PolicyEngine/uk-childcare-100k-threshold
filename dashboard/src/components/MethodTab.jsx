@@ -206,7 +206,7 @@ export default function MethodTab({ data }) {
       <Section
         id="take-up"
         title="Take-up"
-        lead="Families newly eligible take up the schemes at the model's existing rates, the same above and below £100,000."
+        lead="Each dataset's existing take-up draws are held fixed for newly eligible families. The rates differ above and below £100,000, as the table shows."
       >
         {assumptions ? <AssumptionsTable rows={assumptions} /> : <Unavailable what="The take-up assumptions" plural />}
       </Section>

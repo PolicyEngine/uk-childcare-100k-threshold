@@ -77,8 +77,10 @@ export default function CliffTab({ data }) {
       <Section id="what-changes" title="What the reform changes" lead="Why income falls at £100,000 today, and what happens without the limit.">
         <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid="cliff-explainer">
           <p>
-            Today a family loses both the 30 funded hours and Tax-Free Childcare in full as soon as either parent&apos;s
-            adjusted net income goes above £100,000, even by £1. Nothing tapers: the support stops all at once.
+            Today a family loses the working-parent funded hours and Tax-Free Childcare in full as soon as either
+            parent&apos;s adjusted net income goes above £100,000, even by £1. Nothing tapers: the support stops all at
+            once. A child under 3 loses all 30 funded hours; a 3- or 4-year-old loses the additional 15 hours and keeps
+            the universal 15, which have no income test.
           </p>
           {s && s.drop > 0 ? (
             <p data-testid="cliff-drop">

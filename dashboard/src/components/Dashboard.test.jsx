@@ -87,7 +87,19 @@ describe("budget impact", () => {
     const card = screen.getByTestId("card-benchmark");
     expect(card.textContent).toContain(b.figure);
     expect(card.textContent).toMatch(/party's estimate as reported/);
+    expect(card.textContent).toMatch(/based on CenTax.*not like for like/);
     expect(within(card).getByRole("link").getAttribute("href")).toBe(b.url);
+  });
+
+  it("attributes the figure to CenTax's estimate and says it is not like for like", () => {
+    render(<LandingTab data={data} />);
+    const panel = screen.getByTestId("comparisons");
+    fireEvent.click(within(panel).getByRole("tab", { name: /Conservatives' figure/ }));
+    const topic = screen.getByTestId("benchmark");
+    expect(topic.textContent).toMatch(/based on CenTax's report/);
+    expect(within(topic).getByRole("link", { name: /CenTax's report/ }).getAttribute("href")).toBe(data.benchmarks[0].underlying_source_url);
+    expect(screen.getByTestId("benchmark-centax").textContent).toMatch(/£640m in 2030.*free childcare hours only/);
+    expect(screen.getByTestId("benchmark-where").textContent).toMatch(/not like for like/);
   });
 
   it("shows every sensitivity, signed in £m, from the file", () => {
@@ -160,6 +172,13 @@ describe("who gains", () => {
     expect(s[1].textContent).toContain(data.recipients[final].by_scheme.tax_free_childcare.toLocaleString("en-GB"));
   });
 
+  it("never shows a single suppressed nation, so none can be worked out from the UK total", () => {
+    for (const y of Object.keys(data.distribution)) {
+      const n = data.distribution[y].by_country.filter((c) => c.suppressed).length;
+      expect(n, y).not.toBe(1);
+    }
+  });
+
   it("names the suppressed deciles instead of drawing them as zero", () => {
     render(<WhoGainsTab data={data} />);
     const hidden = data.distribution[final].by_decile.filter((r) => r.suppressed).map((r) => r.decile);
@@ -182,6 +201,19 @@ describe("who gains", () => {
 });
 
 describe("the cliff", () => {
+  it("says the universal 15 hours stay when the limit is crossed", () => {
+    render(<CliffTab data={data} />);
+    const text = screen.getByTestId("cliff-explainer").textContent;
+    expect(text).toMatch(/keeps\s+the universal 15/);
+    expect(text).not.toMatch(/both the 30 funded hours/);
+  });
+
+  it("does not call the take-up rates equal above and below £100,000", () => {
+    render(<MethodTab data={data} />);
+    expect(document.body.textContent).not.toMatch(/the same above and below £100,000/);
+    expect(document.body.textContent).toMatch(/held fixed/);
+  });
+
   it("states the drop at £100,000 from the file", () => {
     render(<CliffTab data={data} />);
     const s = cliffSummary(getCliff(data));

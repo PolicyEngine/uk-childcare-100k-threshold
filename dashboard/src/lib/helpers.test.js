@@ -124,6 +124,12 @@ describe("readers fail closed", () => {
     expect(getSensitivities(mutate("budget.sensitivities.low", []))).toBeNull();
   });
 
+  it("on a sensitivity side that is not a list of ids", () => {
+    expect(getSensitivities(mutate("budget.sensitivities.low", 42))).toBeNull();
+    expect(getSensitivities(mutate("budget.sensitivities.high", {}))).toBeNull();
+    expect(getSensitivities(mutate("budget.sensitivities.high", [1, 2]))).toBeNull();
+  });
+
   it("on a missing value that is not marked suppressed", () => {
     expect(getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, null), final)).toBeNull();
     expect(getCountries(mutate(`distribution.${final}.by_country.0.total_change_bn`, null), final)).toBeNull();

@@ -120,7 +120,7 @@ function SplitBar({ thirty, tfc }) {
 }
 
 /** Our low-high range as a band with the central estimate, and a published figure marked against it. */
-function RangeStrip({ low, central, high, theirs }) {
+function RangeStrip({ low, central, high, theirs, caption }) {
   const W = 240;
   const H = 30;
   const max = Math.max(high, theirs) * 1.08;
@@ -133,6 +133,7 @@ function RangeStrip({ low, central, high, theirs }) {
         <line x1={x(central)} x2={x(central)} y1={H / 2 - 9} y2={H / 2 + 9} stroke={colors.primary[800]} strokeWidth={3} />
         <line x1={x(theirs)} x2={x(theirs)} y1={0} y2={H} stroke={colors.gray[500]} strokeWidth={2} strokeDasharray="3 2" />
       </svg>
+      {caption ? <p className="mt-1 text-xs text-slate-500">{caption}</p> : null}
       <StripLegend
         items={[
           { label: "Our range", color: colors.primary[200] },
@@ -264,7 +265,9 @@ function ComparisonTopics({ data, range }) {
   const comps = getThirtyHoursComponents(data);
   const years = range.years;
   const theirs = parseBn(benchmark?.figure);
-  const first = { low: range.low[0], central: range.central[0], high: range.high[0] };
+  // CenTax's estimate, which the reported figure is based on, is for 2030: compare with our last year.
+  const last = range.years.length - 1;
+  const first = { low: range.low[last], central: range.central[last], high: range.high[last] };
   const microGap = highEarnerGap(data, /microcosm|populace/i);
   const efrsGap = highEarnerGap(data, /enhanced/i);
   const where = !isNum(theirs)
@@ -290,7 +293,15 @@ function ComparisonTopics({ data, range }) {
             <a href={benchmark.url} target="_blank" rel="noreferrer">
               City AM
             </a>{" "}
-            reports the figure as the party&apos;s own estimate. The party&apos;s{" "}
+            reports the cost of the party&apos;s plan as about £700m a year and says it is based on{" "}
+            {benchmark.underlying_source_url ? (
+              <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
+                CenTax&apos;s report
+              </a>
+            ) : (
+              "CenTax's report"
+            )}
+            . The party&apos;s{" "}
             {benchmark.announcement_url ? (
               <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
                 announcement
@@ -300,14 +311,15 @@ function ComparisonTopics({ data, range }) {
             )}{" "}
             gives no figure, year or method.
           </p>
-          {where ? (
-            <p data-testid="benchmark-where">
-              If it is a first-year figure, it sits {where} for {nb(years[0])}.
-            </p>
-          ) : null}
-          <p>
-            Ours is the static cost of both schemes, before any change in how much parents work and before the
-            civil service savings the party proposes to pay for it.
+          <p data-testid="benchmark-centax">
+            CenTax estimate a net cost of £640m in 2030 for removing the limit on the free childcare hours only: a
+            static cost of £980m, less £340m of tax from parents who stop holding their income below £100,000. Their
+            figure does not include Tax-Free Childcare.
+          </p>
+          <p data-testid="benchmark-where">
+            Ours is the static cost of both schemes, before any change in how much parents work and before the civil
+            service savings the party proposes to pay for it, so the figures are not like for like.
+            {where ? ` Against our range for ${nb(years[last])}, the year nearest 2030, £0.7bn sits ${where}.` : ""}
           </p>
         </div>
       ) : (
@@ -444,13 +456,21 @@ export default function LandingTab({ data }) {
                   <a href={benchmark.url} target="_blank" rel="noreferrer">
                     City AM
                   </a>
-                  ; no year or method given
+                  , based on CenTax&apos;s net cost of the free hours alone in 2030; not like for like
                 </>
               ) : null
             }
             testId="card-benchmark"
           >
-            {isNum(theirs) ? <RangeStrip low={range.low[0]} central={range.central[0]} high={range.high[0]} theirs={theirs} /> : null}
+            {isNum(theirs) ? (
+              <RangeStrip
+                low={range.low.at(-1)}
+                central={range.central.at(-1)}
+                high={range.high.at(-1)}
+                theirs={theirs}
+                caption={`Against our range for ${nb(range.years.at(-1))}, the year nearest 2030`}
+              />
+            ) : null}
           </Card>
         </div>
       </Section>

@@ -13,8 +13,8 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-05T11:48:39+00:00",
-  "git_revision": "28b9fea87613a5c414f9040823038ec9163fafbb",
+  "generated_at": "2026-10-06T11:32:03+00:00",
+  "git_revision": "3e232484e835d43e80440a73300c4ff83fc7bbd0",
   "min_cell_size": 10,
   "run_seconds": {
    "enhanced_frs_2024_25/baseline": 9.3,
@@ -520,9 +520,9 @@
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.0,
-     "families_gaining": 2000,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     }
    ]
   },
@@ -620,9 +620,9 @@
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.0,
-     "families_gaining": 3000,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     }
    ]
   },
@@ -720,9 +720,9 @@
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.0,
-     "families_gaining": 3000,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     }
    ]
   },
@@ -820,9 +820,9 @@
     },
     {
      "country": "Northern Ireland",
-     "total_change_bn": 0.001,
-     "families_gaining": 3000,
-     "suppressed": false
+     "total_change_bn": null,
+     "families_gaining": null,
+     "suppressed": true
     }
    ]
   }
@@ -1550,15 +1550,18 @@
    "figure": "£0.7bn a year",
    "ours": 0.616,
    "year": 2029,
-   "like_for_like": "The party's own estimate as reported by the press (City AM: 'scrapped at a cost of about £700m per year'); the party's announcement gives no figure, year or method. Ours is the static gross cost of both legs in 2029-30 on the Enhanced FRS (range £0.48bn to £1.26bn), before any behavioural response or the proposed headcount savings. The Microcosm cross-check is higher (£1.14bn) because it holds about 47% more people on £100,000 or more than HMRC projects.",
+   "like_for_like": "Not like for like. City AM reports the cost as 'about £700m per year' and says the costing 'is based on a recent report by the Centre for the Analysis of Taxation'; the party's announcement gives no figure, year or method. CenTax (Removing the childcare cliff-edge: impacts and cost of reform, September 2026, Table 4.2) estimates a net fiscal cost of £640m in 2030 for removing the £100,000 threshold on the free childcare hours only: a static cost of £980m less £340m of tax from parents who stop holding their income below £100,000. It does not cover Tax-Free Childcare. Ours is the static gross cost of both schemes in 2029-30 on the Enhanced FRS (range £0.48bn to £1.26bn), with no behavioural response; its 30 hours leg is £0.44bn, against CenTax's static £0.98bn. The Microcosm cross-check is higher (£1.14bn) because it holds about 47% more people on £100,000 or more than HMRC projects.",
    "url": "https://www.cityam.com/badenoch-vows-to-end-100k-childcare-cliff-edge-introduced-under-last-tory-government/",
    "announcement_url": "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge",
+   "underlying_source": "CenTax, Removing the childcare cliff-edge: impacts and cost of reform (2026)",
+   "underlying_source_url": "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf",
    "difference_bn": -0.084
   }
  ],
  "limitations": [
   "Static costing: no labour-supply or earnings response. Parents just above £100,000 who would work more, and parents now holding income below £100,000 through pension contributions or reduced hours, are not modelled; the Conservatives' claimed growth effects are not scored.",
-  "Take-up for newly eligible families uses the model's existing take-up draws, which are the same for families above and below £100,000 (see assumptions); higher earners may take up funded hours at a higher rate.",
+  "Take-up holds each dataset's existing take-up draws fixed; it is not modelled afresh for newly eligible families. The draw rates differ by income: families with a child under 5 would claim the 30 hours at 78.9% on the Enhanced FRS (66.9% where a parent is over £100,000) and 80.3% on Microcosm (74.2%); families with a child under 12 would claim Tax-Free Childcare at 89.2% (87.4%) and 56.3% (72.4%) respectively (2026-27, see assumptions).",
+  "Eligibility uses each parent's realised annual adjusted net income, while the law tests the income a parent expects when applying or reconfirming (SI 2022/1134 reg 14(3)(c)(i) and 15(3)(b)(i); SI 2015/448 reg 15(1)). A parent who expected to stay under £100,000 but ended the year above it can already receive support, and the model counts it as a reform cost; a parent who expected to exceed £100,000 but ended below it is modelled as eligible today. CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 claimed and received some free childcare (Removing the childcare cliff-edge, September 2026, pp. 5-6 and 59-60). The net direction for the cost is not known, and the range does not include it.",
   "Funded hours use the dataset's draw of weekly extended hours used (mean about 15 of 30). The model also switches off the universal 15 hours when a family becomes eligible for the extended hours, so a newly eligible 3- or 4-year-old with a low draw gains little or loses hours in the model (families_losing). The high end of the range sets usage to the full 30 hours.",
   "Children aged 9-11 months never qualify in the model (whole-year ages, age 0 gets no hours); the high end adds them outside the model.",
   "Adjusted net income in policyengine-uk does not deduct pension contributions or Gift Aid (Income Tax Act 2007 s58), so too many parents sit above £100,000 in the baseline and the reform cost is overstated; the low end removes families who would already qualify on a net-of-pension-contributions measure.",
@@ -1567,7 +1570,7 @@
   "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), close to but not equal to DfE's 2026-27 national average rates (see baseline_validation).",
   "The central figure likely sits low on funded hours: the central baseline spends about £7.0bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives about £11.7bn, so the truth lies between the central and high ends on that leg.",
   "The low and high ends add the separate adjustments; interactions between them are ignored.",
-  "Distributional and recipient figures come from the Enhanced FRS; Microcosm is a cross-check of the budget totals only. Breakdown cells resting on fewer than ten gaining records are suppressed.",
+  "Distributional and recipient figures come from the Enhanced FRS; Microcosm is a cross-check of the budget totals only. Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell would be suppressed a second is suppressed with it, so neither can be recovered from the published UK totals (by country this suppresses Wales and Northern Ireland together).",
   "Microcosm holds about 2.9 million people with income of £100,000 or more in 2025-26 against HMRC's projected 2.0 million (the Enhanced FRS holds 1.7 million), so it likely overstates the pool of families the reform reaches; this is why the Enhanced FRS is the headline and the main reason the Microcosm cross-check is well above it. Microcosm also holds fewer households in Scotland, Wales and Northern Ireland than official estimates, so the by-country split understates the devolved nations (where only Tax-Free Childcare changes).",
   "Policy assumed in force for the whole of each fiscal year from 2026-27; the proposal's start date is not given."
  ]

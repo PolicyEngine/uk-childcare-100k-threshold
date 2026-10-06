@@ -103,6 +103,9 @@ export function getSensitivities(data) {
   const years = getYears(data);
   const s = data?.budget?.sensitivities;
   if (!s || !s.effects_bn || typeof s.effects_bn !== "object") return null;
+  // Each side must be a list of effect ids; any other shape makes the block unavailable.
+  const ids = (v) => v === undefined || (Array.isArray(v) && v.every(isText));
+  if (!ids(s.low) || !ids(s.high)) return null;
   const side = (id) => (s.low?.includes(id) ? "low" : s.high?.includes(id) ? "high" : null);
   const rows = Object.entries(s.effects_bn).map(([id, v]) => ({
     id,
