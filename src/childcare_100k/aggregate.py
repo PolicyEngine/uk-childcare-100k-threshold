@@ -1,8 +1,10 @@
 """Turn the record-level run arrays into the published aggregates.
 
 Nothing record-level leaves this module: every output is a weighted total, a
-weighted mean or a share, and a breakdown cell resting on fewer than
-``MIN_CELL_RECORDS`` gaining records is suppressed (published as null).
+weighted mean or a share. A breakdown cell resting on fewer than
+``MIN_CELL_RECORDS`` gaining or changed records is suppressed (published as
+null), and a second cell is suppressed with it whenever a lone suppressed cell
+could be recovered from a published total.
 """
 
 import numpy as np
@@ -160,8 +162,32 @@ def recipients(runs, years=YEARS):
     return out
 
 
-def _cell_ok(n_records):
-    return n_records == 0 or n_records >= MIN_CELL_RECORDS
+def _cell_ok(*n_records):
+    """A cell is publishable when every count it rests on is zero or at least ``MIN_CELL_RECORDS``.
+
+    Pass the gaining records and the records whose value changes at all (gaining or losing):
+    a cell with no gainers but one losing record would otherwise publish that record's loss.
+    """
+    return all(n == 0 or n >= MIN_CELL_RECORDS for n in n_records)
+
+
+def _complement(cells, sizes):
+    """Complementary suppression across cells that sum to a published total.
+
+    If exactly one cell is suppressed, its value could be recovered as the published total
+    less the others, so the smallest other cell with a nonzero change is suppressed too.
+    ``sizes`` gives each cell's count of changed records (zero-change cells are skipped:
+    suppressing a known zero would not protect anything).
+    """
+    if sum(c["suppressed"] for c in cells) != 1:
+        return cells
+    candidates = [i for i, c in enumerate(cells) if not c["suppressed"] and sizes[i] > 0]
+    if candidates:
+        i = min(candidates, key=lambda j: sizes[j])
+        labels = ("decile", "country")
+        cells[i] = {k: (v if k in labels else None) for k, v in cells[i].items()}
+        cells[i]["suppressed"] = True
+    return cells
 
 
 def distribution(runs, years=YEARS):
@@ -173,11 +199,14 @@ def distribution(runs, years=YEARS):
         d = r(y, "hh_net_income") - base_inc
         gain = d > GAIN_THRESHOLD
         decile = b(y, "hh_decile")
-        rows = []
+        changed = np.abs(d) > GAIN_THRESHOLD
+        rows, row_sizes = [], []
         for dec in range(1, 11):
             m = decile == dec
             n = int((m & gain).sum())
-            if not _cell_ok(n):
+            n_changed = int((m & changed).sum())
+            row_sizes.append(n_changed)
+            if not _cell_ok(n, n_changed):
                 rows.append({"decile": dec, "mean_change_gbp": None, "pct_change": None, "share_gaining_pct": None,
                              "suppressed": True})
                 continue
@@ -193,12 +222,16 @@ def distribution(runs, years=YEARS):
         bu_gain = d_bu > GAIN_THRESHOLD
         bu_country = country[b(y, "bu_household")]
         dh = (r(y, "hh_free") + r(y, "hh_tfc")) - (b(y, "hh_free") + b(y, "hh_tfc"))
-        by_country = []
+        bu_changed = np.abs(d_bu) > GAIN_THRESHOLD
+        hh_changed = np.abs(dh) > GAIN_THRESHOLD
+        by_country, country_sizes = [], []
         for code, name in COUNTRIES.items():
             m = country == code
             mb = bu_country == code
             n = int((bu_gain & mb).sum())
-            if not _cell_ok(n):
+            n_changed = max(int((bu_changed & mb).sum()), int((hh_changed & m).sum()))
+            country_sizes.append(n_changed)
+            if not _cell_ok(n, n_changed):
                 by_country.append({"country": name, "total_change_bn": None, "families_gaining": None, "suppressed": True})
                 continue
             by_country.append({
@@ -207,7 +240,9 @@ def distribution(runs, years=YEARS):
                 "families_gaining": _k((b(y, "bu_weight") * bu_gain * mb).sum()),
                 "suppressed": False,
             })
-        out[str(y)] = {"by_decile": rows, "by_country": by_country}
+        # The deciles' mean changes and the countries' totals add up to published UK totals,
+        # so a lone suppressed cell is protected by suppressing a second one.
+        out[str(y)] = {"by_decile": _complement(rows, row_sizes), "by_country": _complement(by_country, country_sizes)}
     return out
 
 

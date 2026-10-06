@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from . import aggregate as agg
 from .config import (
     BASELINE_LIMIT,
+    CENTAX_REPORT_URL,
     CONSERVATIVE_ANNOUNCEMENT_URL,
     CONSERVATIVE_COST_BN,
     CONSERVATIVE_SOURCE_URL,
@@ -56,8 +57,13 @@ LIMITATIONS = [
     "Static costing: no labour-supply or earnings response. Parents just above £100,000 who would work more, and "
     "parents now holding income below £100,000 through pension contributions or reduced hours, are not modelled; the "
     "Conservatives' claimed growth effects are not scored.",
-    "Take-up for newly eligible families uses the model's existing take-up draws, which are the same for families "
-    "above and below £100,000 (see assumptions); higher earners may take up funded hours at a higher rate.",
+    "Eligibility uses each parent's realised annual adjusted net income, while the law tests the income a parent "
+    "expects when applying or reconfirming (SI 2022/1134 reg 14(3)(c)(i) and 15(3)(b)(i); SI 2015/448 reg 15(1)). "
+    "A parent who expected to stay under £100,000 but ended the year above it can already receive support, and the "
+    "model counts it as a reform cost; a parent who expected to exceed £100,000 but ended below it is modelled as "
+    "eligible today. CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 claimed "
+    "and received some free childcare (Removing the childcare cliff-edge, September 2026, pp. 5-6 and 59-60). The "
+    "net direction for the cost is not known, and the range does not include it.",
     "Funded hours use the dataset's draw of weekly extended hours used (mean about 15 of 30). The model also switches "
     "off the universal 15 hours when a family becomes eligible for the extended hours, so a newly eligible 3- or "
     "4-year-old with a low draw gains little or loses hours in the model (families_losing). The high end of the range "
@@ -78,7 +84,9 @@ LIMITATIONS = [
     "central and high ends on that leg.",
     "The low and high ends add the separate adjustments; interactions between them are ignored.",
     "Distributional and recipient figures come from the Enhanced FRS; Microcosm is a cross-check of the budget totals "
-    "only. Breakdown cells resting on fewer than ten gaining records are suppressed.",
+    "only. Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a "
+    "single cell would be suppressed a second is suppressed with it, so neither can be recovered from the published "
+    "UK totals (by country this suppresses Wales and Northern Ireland together).",
     "Microcosm holds about 2.9 million people with income of £100,000 or more in 2025-26 against HMRC's projected "
     "2.0 million (the Enhanced FRS holds 1.7 million), so it likely overstates the pool of families the reform "
     "reaches; this is why the Enhanced FRS is the headline and the main reason the Microcosm cross-check is well above it. Microcosm "
@@ -86,6 +94,22 @@ LIMITATIONS = [
     "by-country split understates the devolved nations (where only Tax-Free Childcare changes).",
     "Policy assumed in force for the whole of each fiscal year from 2026-27; the proposal's start date is not given.",
 ]
+
+
+def take_up_limitation(a_p, a_x):
+    """The take-up caveat, stated with the draw rates the results report."""
+    e30, x30 = a_p["would_claim_30_hours_pct"], a_x["would_claim_30_hours_pct"]
+    etfc, xtfc = a_p["would_claim_tfc_pct"], a_x["would_claim_tfc_pct"]
+    return (
+        "Take-up holds each dataset's existing take-up draws fixed; it is not modelled afresh for newly eligible "
+        "families. The draw rates differ by income: families with a child under 5 would claim the 30 hours at "
+        f"{e30['families_with_child_under_5']}% on the Enhanced FRS ({e30['of_which_parent_over_100k']}% where a "
+        f"parent is over £100,000) and {x30['families_with_child_under_5']}% on Microcosm "
+        f"({x30['of_which_parent_over_100k']}%); families with a child under 12 would claim Tax-Free Childcare at "
+        f"{etfc['families_with_child_under_12']}% ({etfc['of_which_parent_over_100k']}%) and "
+        f"{xtfc['families_with_child_under_12']}% ({xtfc['of_which_parent_over_100k']}%) respectively "
+        f"({a_p['year']}-{(a_p['year'] + 1) % 100:02d}, see assumptions)."
+    )
 
 
 def build(metas):
@@ -102,6 +126,9 @@ def build(metas):
     bundle_x = metas[f"{CROSS_CHECK_DATASET}/baseline"]["bundle"]
 
     head = budget_p["total"][str(HEADLINE_YEAR)]
+    assumptions_p, assumptions_x = agg.assumptions(p), agg.assumptions(x)
+    limitations = list(LIMITATIONS)
+    limitations.insert(1, take_up_limitation(assumptions_p, assumptions_x))
     results = {
         "meta": {
             "policyengine": importlib.metadata.version("policyengine"),
@@ -176,7 +203,7 @@ def build(metas):
         },
         "distribution": agg.distribution(p),
         "baseline_validation": baseline_validation(PRIMARY_DATASET, p, CROSS_CHECK_DATASET, x),
-        "assumptions": {"enhanced_frs": agg.assumptions(p), "microcosm": agg.assumptions(x)},
+        "assumptions": {"enhanced_frs": assumptions_p, "microcosm": assumptions_x},
         "cliff_example": cliff_example(),
         "benchmarks": [
             {
@@ -185,21 +212,29 @@ def build(metas):
                 "ours": head,
                 "year": HEADLINE_YEAR,
                 "like_for_like": (
-                    "The party's own estimate as reported by the press (City AM: 'scrapped at a cost of about £700m "
-                    "per year'); the party's announcement gives no figure, year or method. Ours is the static gross "
-                    f"cost of both legs in {HEADLINE_YEAR}-{(HEADLINE_YEAR + 1) % 100:02d} on the Enhanced FRS (range "
+                    "Not like for like. City AM reports the cost as 'about £700m per year' and says the costing 'is "
+                    "based on a recent report by the Centre for the Analysis of Taxation'; the party's announcement "
+                    "gives no figure, year or method. CenTax (Removing the childcare cliff-edge: impacts and cost of "
+                    "reform, September 2026, Table 4.2) estimates a net fiscal cost of £640m in 2030 for removing the "
+                    "£100,000 threshold on the free childcare hours only: a static cost of £980m less £340m of tax "
+                    "from parents who stop holding their income below £100,000. It does not cover Tax-Free "
+                    "Childcare. Ours is the static gross cost of both schemes in "
+                    f"{HEADLINE_YEAR}-{(HEADLINE_YEAR + 1) % 100:02d} on the Enhanced FRS (range "
                     f"£{sens_p['range_bn']['low'][str(HEADLINE_YEAR)]:.2f}bn to "
-                    f"£{sens_p['range_bn']['high'][str(HEADLINE_YEAR)]:.2f}bn), before any behavioural response or "
-                    "the proposed headcount savings. The Microcosm cross-check is higher "
+                    f"£{sens_p['range_bn']['high'][str(HEADLINE_YEAR)]:.2f}bn), with no behavioural response; its 30 "
+                    f"hours leg is £{budget_p['thirty_hours'][str(HEADLINE_YEAR)]:.2f}bn, against CenTax's static "
+                    "£0.98bn. The Microcosm cross-check is higher "
                     f"(£{budget_x['total'][str(HEADLINE_YEAR)]:.2f}bn) because it holds about 47% more people on "
                     "£100,000 or more than HMRC projects."
                 ),
                 "url": CONSERVATIVE_SOURCE_URL,
                 "announcement_url": CONSERVATIVE_ANNOUNCEMENT_URL,
+                "underlying_source": "CenTax, Removing the childcare cliff-edge: impacts and cost of reform (2026)",
+                "underlying_source_url": CENTAX_REPORT_URL,
                 "difference_bn": round(head - CONSERVATIVE_COST_BN, 3),
             }
         ],
-        "limitations": LIMITATIONS,
+        "limitations": limitations,
     }
     return results
 

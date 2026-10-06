@@ -207,3 +207,51 @@ def test_counts_are_rounded_aggregates():
 def test_no_data_files_tracked():
     tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True).stdout.split()
     assert not [f for f in tracked if f.endswith((".h5", ".npz", ".h5.metadata.json"))]
+
+
+# ── Disclosure control ─────────────────────────────────────────────────────
+
+
+def test_cell_with_no_gainers_but_one_loser_is_suppressed():
+    from childcare_100k.aggregate import _cell_ok
+
+    assert _cell_ok(0, 0)
+    assert _cell_ok(12, 15)
+    assert not _cell_ok(0, 1)  # no gainers, one losing record: its loss would be published
+    assert not _cell_ok(3, 12)
+
+
+def test_lone_suppressed_cell_gets_a_complement():
+    from childcare_100k.aggregate import _complement
+
+    cells = [
+        {"country": "England", "total_change_bn": 0.5, "families_gaining": 150_000, "suppressed": False},
+        {"country": "Scotland", "total_change_bn": 0.02, "families_gaining": 9_000, "suppressed": False},
+        {"country": "Wales", "total_change_bn": None, "families_gaining": None, "suppressed": True},
+        {"country": "Northern Ireland", "total_change_bn": 0.0, "families_gaining": 0, "suppressed": False},
+    ]
+    out = _complement(cells, [900, 40, 5, 0])
+    # Northern Ireland has no change, so suppressing it protects nothing; Scotland is the next smallest.
+    assert [c["suppressed"] for c in out] == [False, True, True, False]
+    assert out[1]["total_change_bn"] is None and out[1]["families_gaining"] is None
+    assert out[1]["country"] == "Scotland"
+
+
+@pytest.mark.parametrize("year", YEAR_KEYS)
+def test_no_lone_suppressed_cell_in_published_breakdowns(year):
+    """A single suppressed cell could be recovered from the published UK total less the other cells."""
+    dist = RESULTS["distribution"][year]
+    for cells in (dist["by_decile"], dist["by_country"]):
+        assert sum(c["suppressed"] for c in cells) != 1
+        for c in cells:
+            if c["suppressed"]:
+                assert all(v is None for k, v in c.items() if k not in ("decile", "country", "suppressed"))
+
+
+def test_benchmark_and_take_up_wording():
+    b = RESULTS["benchmarks"][0]
+    assert b["like_for_like"].startswith("Not like for like")
+    assert "CenTax" in b["like_for_like"] and b["underlying_source_url"].startswith("https://centax.org.uk/")
+    text = " ".join(RESULTS["limitations"])
+    assert "same for families above and below" not in text
+    assert "expects" in text  # the realised-for-expected income proxy is disclosed

@@ -105,10 +105,16 @@ CLIFF = {
 # ── Benchmark ────────────────────────────────────────────────────────────
 CONSERVATIVE_COST_BN = 0.7
 # The party's announcement (conservatives.com, 4 October 2026) gives no figure;
-# City AM reports it as "scrapped at a cost of about £700m per year".
+# City AM reports it as "scrapped at a cost of about £700m per year" and says the
+# costing "is based on a recent report by the Centre for the Analysis of Taxation":
+# CenTax's net £640m in 2030 for the free hours only (static £980m, Table 4.2).
 CONSERVATIVE_SOURCE_URL = (
     "https://www.cityam.com/badenoch-vows-to-end-100k-childcare-cliff-edge-introduced-under-last-tory-government/"
 )
 CONSERVATIVE_ANNOUNCEMENT_URL = (
     "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge"
+)
+CENTAX_REPORT_URL = (
+    "https://centax.org.uk/wp-content/uploads/2026/09/"
+    "AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf"
 )

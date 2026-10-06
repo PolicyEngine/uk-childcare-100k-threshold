@@ -8,7 +8,7 @@ Written by `childcare-100k-build` (`src/childcare_100k/cli.py`). Year keys are s
 - **Units:** `_bn` = £ billion, 3 dp. `_gbp` = £ a year. `pct_change` and `share_gaining_pct` are **percentages** (0.16 means 0.16%), not fractions.
 - **Counts** (families, children) are weighted population estimates rounded to the nearest 1,000.
 - **Families** are benefit units (one adult or a couple and their dependent children). Households can hold more than one.
-- **Suppression:** a breakdown cell (decile, country) that rests on 1-9 gaining records is published as `null` with `"suppressed": true`. Record counts are never published.
+- **Suppression:** a breakdown cell (decile, country) that rests on 1-9 gaining records, or on 1-9 records whose value changes at all (gaining or losing), is published as `null` with `"suppressed": true`. If that leaves a single suppressed cell in a breakdown, the smallest other cell with a nonzero change is suppressed too (complementary suppression), so no suppressed cell equals a published total less the published cells. Record counts are never published.
 
 Every block except `budget.cross_check`, `recipients_cross_check` and the Microcosm rows of `baseline_validation` comes from the **Enhanced FRS** (the headline dataset; METHOD.md says why). Microcosm is the cross-check.
 
@@ -31,5 +31,5 @@ Every block except `budget.cross_check`, `recipients_cross_check` and the Microc
 | `baseline_validation` | Rows `label`, `year` (fiscal year of the model figure), `model`, `official`, `unit`, `source`, `url`; *extra* `dataset` (which dataset the model figure comes from, or `parameters`) and `note`. |
 | `assumptions` *extra* | Per dataset: the model's take-up draws (share of families with `would_claim_*` true, overall and where a parent is over £100,000) and mean extended hours used. |
 | `cliff_example` | `description`, `year` (2027), `earnings` (one parent's employment income, with £100,001 added next to £100,000), `net_income_baseline`, `net_income_reform` (household net income minus the family's own fixed childcare spending), `notes`. *Extra:* `components` (funded-hours value, TFC top-up, income tax, each baseline and reform). |
-| `benchmarks` | `source`, `figure`, `ours` (our `gross_bn.total` for `year`), `year`, `like_for_like`, `url`; *extra* `announcement_url`, `difference_bn` (ours minus theirs). |
+| `benchmarks` | `source`, `figure`, `ours` (our `gross_bn.total` for `year`), `year`, `like_for_like`, `url`; *extra* `announcement_url`, `underlying_source` and `underlying_source_url` (the study the reported figure is based on), `difference_bn` (ours minus theirs; the figures are not like for like, see `like_for_like`). |
 | `limitations` | Strings. |
