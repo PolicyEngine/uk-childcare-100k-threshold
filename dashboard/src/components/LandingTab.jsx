@@ -261,8 +261,9 @@ function ComparisonTopics({ data }) {
           </p>
           <p data-testid="benchmark-centax">
             CenTax estimate a static cost of {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year} for the free hours, and a
-            net cost of {formatBn(CENTAX.netBn, 2)} after the extra tax from parents who stop holding their income
-            below £100,000. The £0.7bn is close to the net figure.
+            net cost of {formatBn(CENTAX.netBn, 2)} after £0.34bn of extra revenue: £0.21bn of tax from parents who no
+            longer keep their income below £100,000, and £0.13bn of tax and National Insurance from partners who enter
+            work. The £0.7bn is close to the net figure.
           </p>
           <p data-testid="benchmark-like-for-like">
             Like for like, the comparison is our 30 hours cost with CenTax&apos;s static cost, both before any change

@@ -109,7 +109,9 @@ CONSERVATIVE_COST_BN = 0.7
 # The party's announcement (conservatives.com, 4 October 2026) gives no figure;
 # City AM reports it as "scrapped at a cost of about £700m per year" and says the
 # costing "is based on a recent report by the Centre for the Analysis of Taxation":
-# CenTax's net £640m in 2030 for the free hours only (static £980m, Table 4.2).
+# CenTax's net £640m in 2030 for the free hours only (static £980m, Table 4.2; the £340m
+# difference is £210m intensive-margin tax from parents plus £130m tax and NI from partners
+# entering work).
 CONSERVATIVE_SOURCE_URL = (
     "https://www.cityam.com/badenoch-vows-to-end-100k-childcare-cliff-edge-introduced-under-last-tory-government/"
 )

@@ -28,7 +28,7 @@ Static gross cost, £bn a year (positive = extra government spending), led by 20
 - **The net cost equals the gross cost:** no other tax or benefit in the model depends on these limits.
 - **Removing each limit alone gives the same two legs:** the schemes do not interact in the model.
 - **Realised, not expected, income.** The model tests each parent's realised annual adjusted net income; the law tests the income a parent expects when applying. CenTax find that a third of parents who ended the year on £100,000-£120,000 still received some free childcare, which the model would count as a reform cost; parents who expected to exceed £100,000 but ended below it pull the other way. The net direction is unknown and is not in the range.
-- **Against the reported £0.7bn.** City AM reports the Conservatives' plan as costing about £700m a year, based on CenTax's September 2026 report. CenTax covers the free childcare hours only: a static £980m in 2030, or £640m net of £340m of tax from parents who stop holding their income below £100,000, with no Tax-Free Childcare. The like-for-like comparison is our **30-hours leg** against CenTax's static £0.98bn. See [docs/METHOD.md](docs/METHOD.md#the-07bn-benchmark).
+- **Against the reported £0.7bn.** City AM reports the Conservatives' plan as costing about £700m a year, based on CenTax's September 2026 report. CenTax covers the free childcare hours only: a static £980m in 2030, or £640m net after £340m of extra tax: £210m from parents who no longer keep their income below £100,000 and £130m of tax and National Insurance from partners who enter work. It does not cover Tax-Free Childcare. The like-for-like comparison is our **30-hours leg** against CenTax's static £0.98bn. See [docs/METHOD.md](docs/METHOD.md#the-07bn-benchmark).
 
 ### The range
 
@@ -56,7 +56,7 @@ Microcosm against HMRC (people with income of £100,000 or more; Tax-Free Childc
 | Free-entitlements spending, central | 2026-27 | £5.81bn | £9.9bn (DfE) |
 | Same, every family using 30 extended hours | 2026-27 | £9.71bn | £9.9bn (DfE) |
 
-The certified release matches HMRC's high-earner count and Tax-Free Childcare spending closely. Free-hours spending sits between the central run and full 30-hour usage, so on that leg the truth lies between the central and high ends.
+The certified release matches HMRC's high-earner count and Tax-Free Childcare spending closely. DfE's £9.9bn falls between the central run and full 30-hour usage, but it is an illustrative total based partly on forecasts, and bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ. It is context, not a bound.
 
 ## Reproduce
 

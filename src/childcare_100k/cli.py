@@ -151,7 +151,9 @@ def data_limitations(rows):
     return [
         f"The central figure likely sits low on funded hours: the central baseline spends £{free['model']:.1f}bn on "
         f"free hours in 2026-27 against DfE's £{free['official']:.1f}bn, while full 30-hour use gives "
-        f"£{free30['model']:.1f}bn, so on that leg the truth lies between the central and high ends.",
+        f"£{free30['model']:.1f}bn. DfE's total is illustrative (based partly on forecasts) and is context only: "
+        "bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above "
+        "£100,000, whose take-up and hours may differ.",
         f"Microcosm holds {high['model'] / 1e6:.2f} million people with income of £100,000 or more in 2025-26 "
         f"against HMRC's projected {high['official'] / 1e6:.2f} million (see baseline_validation).",
     ]
@@ -254,8 +256,9 @@ def build(metas):
                     "report by the Centre for the Analysis of Taxation'; the party's announcement gives no figure, "
                     "year or method. CenTax (Removing the childcare cliff-edge: impacts and cost of reform, September "
                     "2026, Table 4.2) estimates a static cost of £980m in 2030 for removing the £100,000 threshold "
-                    "on the free childcare hours only, and a net cost of £640m after tax from parents who stop "
-                    "holding their income below £100,000. It does not cover Tax-Free Childcare. The like-for-like "
+                    "on the free childcare hours only, and a net cost of £640m after £340m of extra revenue: £210m "
+                    "of tax from parents who no longer keep their income below £100,000 and £130m of tax and "
+                    "National Insurance from partners who enter work. It does not cover Tax-Free Childcare. The like-for-like "
                     f"comparison is our static cost of the 30 funded hours in {_fy(BENCHMARK_YEAR)}, "
                     f"£{thirty:.2f}bn, against CenTax's static £0.98bn. Our total for both schemes is "
                     f"£{budget['total'][y]:.2f}bn (range £{sens['range_bn']['low'][y]:.2f}bn to "
