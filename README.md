@@ -19,12 +19,13 @@ Static gross cost, £bn a year (positive = extra government spending), led by 20
 
 | | 2026-27 | 2027-28 | 2028-29 | 2029-30 |
 |---|---|---|---|---|
-| **Total** | 0.54 | 0.57 | 0.63 | 0.68 |
-| 30 funded hours | 0.39 | 0.41 | 0.46 | 0.49 |
-| Tax-Free Childcare | 0.15 | 0.16 | 0.17 | 0.19 |
-| Range (low to high) | 0.52-1.16 | 0.56-1.24 | 0.62-1.37 | 0.63-1.46 |
+| **Total** | 0.54 | 0.57 | 0.63 | 0.66 |
+| 30 funded hours | 0.39 | 0.41 | 0.46 | 0.48 |
+| Tax-Free Childcare | 0.15 | 0.16 | 0.17 | 0.17 |
+| Range (low to high) | 0.52-1.16 | 0.56-1.24 | 0.62-1.37 | 0.63-1.43 |
 
-- **Who gains, 2027-28:** 277,000 families (340,000 children), on average £2,111 a year; 90,000 through the 30 hours and 228,000 through Tax-Free Childcare (families can gain from both). About 10,000 families lose a little, where newly eligible 3- and 4-year-olds move off the universal hours.
+- **Who gains, 2027-28:** 277,000 families (338,000 children), on average £2,111 a year; 90,000 through the 30 hours and 228,000 through Tax-Free Childcare (families can gain from both). About 10,000 families lose a little, where newly eligible 3- and 4-year-olds move off the universal hours.
+- **The 2029 salary-sacrifice cap is corrected in the income tests.** From 2029-30 the childcare income tests ignore pension salary sacrifice that policyengine-uk adds back to pay under the new £2,000 National Insurance cap, because HMRC says the cap leaves adjusted net income unchanged. This is a local correction (`src/childcare_100k/corrections.py`) pending an upstream fix, and it lowers the 2029-30 cost by £0.02bn.
 - **The net cost equals the gross cost:** no other tax or benefit in the model depends on these limits.
 - **Removing each limit alone gives the same two legs:** the schemes do not interact in the model.
 - **Realised, not expected, income.** The model tests each parent's realised annual adjusted net income; the law tests the income a parent expects when applying. CenTax find that a third of parents who ended the year on £100,000-£120,000 still received some free childcare, which the model would count as a reform cost; parents who expected to exceed £100,000 but ended below it pull the other way. The net direction is unknown and is not in the range.
@@ -38,7 +39,7 @@ Static gross cost, £bn a year (positive = extra government spending), led by 20
 | Add 9-11-month-olds, from the term after they turn 9 months | + | The model's whole-year ages give age 0 no hours |
 | Deduct pension contributions from adjusted net income, and route 58% of childcare spending through TFC accounts (one joint run) | − | The model's measure leaves pension contributions in, unlike the law, and assumes all spending goes through the account |
 
-In 2029-30 full 30-hour usage adds £0.73bn, the under-1s £0.06bn, and the joint pension and routing adjustment removes £0.04bn. See [docs/METHOD.md](docs/METHOD.md) for every model-versus-law difference and [data/results.json](data/results.json) for the full output ([schema](docs/RESULTS_SCHEMA.md)).
+In 2029-30 full 30-hour usage adds £0.72bn, the under-1s £0.06bn, and the joint pension and routing adjustment removes £0.02bn. See [docs/METHOD.md](docs/METHOD.md) for every model-versus-law difference and [data/results.json](data/results.json) for the full output ([schema](docs/RESULTS_SCHEMA.md)).
 
 ### Baseline validation
 

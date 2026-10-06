@@ -195,8 +195,8 @@ def _multi_unit_country_runs(year=2026):
     d_hh = np.bincount(bu_household, weights=d_bu, minlength=n_hh)
     hw, bw = np.ones(n_hh), np.ones(n_bu)
     zero_hh, zero_bu = np.zeros(n_hh), np.zeros(n_bu)
-    common = dict(hh_weight=hw, bu_weight=bw, hh_decile=np.tile(np.arange(1, 11), 7)[:n_hh],
-                  hh_country=np.array(countries), bu_country=bu_country)
+    common = {"hh_weight": hw, "bu_weight": bw, "hh_decile": np.tile(np.arange(1, 11), 7)[:n_hh],
+              "hh_country": np.array(countries), "bu_country": bu_country}
     base = FakeRun(year, **common, hh_net_income=np.full(n_hh, 50_000.0), hh_free=zero_hh, hh_tfc=zero_hh,
                    bu_free=zero_bu, bu_tfc=zero_bu)
     ref = FakeRun(year, **common, hh_net_income=50_000.0 + d_hh, hh_free=d_hh, hh_tfc=zero_hh,

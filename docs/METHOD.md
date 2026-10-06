@@ -69,14 +69,29 @@ The low and high ends add the sensitivities above to the central estimate. The h
 
 | £bn | 2026-27 | 2027-28 | 2028-29 | 2029-30 |
 |---|---|---|---|---|
-| Full 30-hour usage | +0.57 | +0.62 | +0.69 | +0.73 |
+| Full 30-hour usage | +0.57 | +0.62 | +0.69 | +0.72 |
 | Under-1s (from the term after 9 months) | +0.05 | +0.05 | +0.05 | +0.06 |
-| Pension contributions and TFC routing, joint | -0.01 | -0.02 | -0.02 | -0.04 |
+| Pension contributions and TFC routing, joint | -0.01 | -0.02 | -0.02 | -0.02 |
 | **Low** | 0.52 | 0.56 | 0.62 | 0.63 |
-| **Central** | 0.54 | 0.57 | 0.63 | 0.68 |
-| **High** | 1.16 | 1.24 | 1.37 | 1.46 |
+| **Central** | 0.54 | 0.57 | 0.63 | 0.66 |
+| **High** | 1.16 | 1.24 | 1.37 | 1.43 |
 
-The routing adjustment is small because the release already routes 59.3% of childcare spending through Tax-Free Childcare accounts (`tax_free_childcare_spend_routed_share` = 0.593 for every record), close to the 58% the low end assumes. The joint adjustment steps up in 2029-30 because policyengine-uk applies the salary-sacrifice cap from April 2029: sacrifice above £2,000 is treated as pay, which raises adjusted net income (pension relief on Microcosm rises from £48.0bn to £62.8bn) and puts more parents over £100,000 only before their pension contributions are deducted.
+The routing adjustment is small because the release already routes 59.3% of childcare spending through Tax-Free Childcare accounts (`tax_free_childcare_spend_routed_share` = 0.593 for every record), close to the 58% the low end assumes. An earlier version of this analysis showed a step in this adjustment in 2029-30 (−£0.044bn) and described it as a policy effect; it came from the model counting salary sacrifice returned to pay under the 2029 National Insurance cap in adjusted net income, which the correction below removes from the income tests. With the correction the joint adjustment is −£0.024bn in 2029-30.
+
+
+## Salary sacrifice above the 2029 National Insurance cap (model correction)
+
+From 6 April 2029, pension contributions made through salary sacrifice above £2,000 a year are subject to Class 1 National Insurance. HMRC's [policy paper](https://www.gov.uk/government/publications/salary-sacrifice-reform-for-pension-contributions-effective-from-6-april-2029/salary-sacrifice-reform-for-pension-contributions) says the measure changes National Insurance only and leaves salary sacrifice's effect on adjusted net income unchanged, naming Tax-Free Childcare among the schemes unaffected.
+
+policyengine-uk 2.102.3 models the cap by adding the excess (`salary_sacrifice_returned_to_income`) to `employment_income`, so it also raises `adjusted_net_income`. For example, a parent on £97,000 after £10,000 of sacrifice reads £104,844.80 in 2029-30 and fails both childcare income tests.
+
+`src/childcare_100k/corrections.py` corrects this in every run, baseline and reform alike:
+- **What changes:** both income tests, `extended_childcare_entitlement_meets_income_requirements` and `tax_free_childcare_meets_income_requirements`, compare adjusted net income *less* the returned salary sacrifice with £100,000.
+- **What doesn't:** `adjusted_net_income`, income tax and National Insurance are left as the model computes them. Correcting ANI itself would deduct the amount twice, because the model also gives it as pension relief.
+- **Guard:** the replaced formulas are fingerprinted against policyengine-uk 2.102.3, so a change upstream stops the build instead of being silently overwritten, and the engine checks the correction reached each simulation.
+- **Before 2029-30:** the correction does nothing.
+
+It stays until policyengine-uk is fixed upstream. It lowers the 2029-30 central cost from £0.675bn to £0.655bn (30 hours £0.489bn → £0.482bn; Tax-Free Childcare £0.186bn → £0.173bn) and the high end from £1.46bn to £1.43bn; 2026-27 to 2028-29 are unchanged.
 
 ## Behaviour
 
@@ -99,7 +114,7 @@ Take-up holds Microcosm's existing `would_claim_extended_childcare` and `would_c
 
 City AM and PA report the plan as costing "about £700m per year"; City AM says the costing "is based on a recent report by the Centre for the Analysis of Taxation". The party's own announcement gives no figure, year or method, and covers both the free hours and Tax-Free Childcare. CenTax's report ([*Removing the childcare cliff-edge: impacts and cost of reform*](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf), September 2026, Table 4.2) covers the **free childcare hours only**: a **static** cost of £980m in 2030, and a **net** cost of £640m after £340m of extra revenue: £210m of tax from parents who no longer keep their income below £100,000 (the intensive margin) and £130m of tax and National Insurance from partners who enter work (the extensive margin; Table 4.2 and the sentence after it). It does not cover Tax-Free Childcare.
 
-The like-for-like comparison is therefore **our 30-hours leg against CenTax's static £0.98bn** (both static, both the free hours only). Our 30-hours leg is £0.49bn in 2029-30, half CenTax's static £0.98bn; with full 30-hour usage it rises to roughly £1.2bn. Much of the gap is free-hours usage: the central run draws a mean of about 15 extended hours a week and spends £5.81bn on all free hours against DfE's £9.9bn. Our total adds Tax-Free Childcare and is not comparable with the £0.7bn.
+The like-for-like comparison is therefore **our 30-hours leg against CenTax's static £0.98bn** (both static, both the free hours only). Our 30-hours leg is £0.48bn in 2029-30, half CenTax's static £0.98bn; with full 30-hour usage it rises to roughly £1.2bn. Much of the gap is free-hours usage: the central run draws a mean of about 15 extended hours a week and spends £5.81bn on all free hours against DfE's £9.9bn. Our total adds Tax-Free Childcare and is not comparable with the £0.7bn.
 
 ## Cliff example
 
