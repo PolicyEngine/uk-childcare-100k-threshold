@@ -29,12 +29,16 @@ def test_top_level_keys():
 
 def test_meta():
     m = RESULTS["meta"]
-    for key in ("policyengine", "policyengine_uk", "dataset", "dataset_revision", "cross_check_dataset",
-                "generated_at", "git_revision"):
+    for key in ("policyengine", "policyengine_uk", "dataset", "dataset_release", "dataset_repo", "dataset_revision",
+                "dataset_sha256", "dataset_management", "generated_at", "git_revision"):
         assert isinstance(m[key], str) and m[key]
     assert m["years"] == YEARS
-    assert m["dataset"] == "enhanced_frs_2024_25"
-    assert m["cross_check_dataset"] == "populace_uk_2023"
+    assert m["lead_year"] == 2027
+    assert m["run_provenance"]["dataset_sha256"] == m["dataset_sha256"]
+    assert m["dataset"] == "microcosm_uk_2024_25"
+    assert m["dataset_revision"] == "f9d1922cddab6b54a0dd37794a9bac74e3780c88"
+    assert m["dataset_sha256"] == "aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af"
+    assert not any("cross_check" in k for k in m)
     assert "sample" not in m  # the dashboard fixture's flag; never set on real results
 
 
@@ -58,7 +62,7 @@ def test_budget_shape():
     _by_year(b["net_bn"]["total"])
     _by_year(b["variants"]["thirty_hours_only"])
     _by_year(b["variants"]["tfc_only"])
-    _by_year(b["cross_check"]["total"])
+    assert not any("cross_check" in k for k in b)
     for k in ("low", "central", "high"):
         _by_year(b["range_bn"][k])
 
@@ -98,9 +102,8 @@ def test_validation_benchmarks_cliff():
 # ── Totals add up ──────────────────────────────────────────────────────────
 
 
-@pytest.mark.parametrize("block", ["primary", "cross_check"])
-def test_total_is_sum_of_schemes(block):
-    b = RESULTS["budget"]["gross_bn"] if block == "primary" else RESULTS["budget"]["cross_check"]
+def test_total_is_sum_of_schemes():
+    b = RESULTS["budget"]["gross_bn"]
     for y in YEAR_KEYS:
         assert abs(b["thirty_hours"][y] + b["tax_free_childcare"][y] - b["total"][y]) <= 0.002
 
@@ -124,7 +127,7 @@ def test_range_brackets_central():
     for y in YEAR_KEYS:
         assert r["central"][y] == RESULTS["budget"]["gross_bn"]["total"][y]
         assert r["low"][y] <= r["central"][y] <= r["high"][y]
-        low = r["central"][y] + eff["ani_net_of_pension_contributions"][y] + eff["tfc_routed_share"][y]
+        low = r["central"][y] + eff["ani_net_of_pension_contributions_and_tfc_routed_share"][y]
         high = r["central"][y] + eff["full_30_hour_usage"][y] + eff["under_ones"][y]
         assert abs(low - r["low"][y]) <= 0.004 and abs(high - r["high"][y]) <= 0.004
 
@@ -205,7 +208,7 @@ def test_counts_are_rounded_aggregates():
 
 
 def test_no_data_files_tracked():
-    tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True).stdout.split()
+    tracked = subprocess.run(["git", "ls-files"], cwd=REPO, capture_output=True, text=True, check=True).stdout.split()
     assert not [f for f in tracked if f.endswith((".h5", ".npz", ".h5.metadata.json"))]
 
 
@@ -250,7 +253,8 @@ def test_no_lone_suppressed_cell_in_published_breakdowns(year):
 
 def test_benchmark_and_take_up_wording():
     b = RESULTS["benchmarks"][0]
-    assert b["like_for_like"].startswith("Not like for like")
+    assert "like-for-like comparison is our static cost of the 30 funded hours" in b["like_for_like"]
+    assert b["ours"] == RESULTS["budget"]["gross_bn"]["thirty_hours"][str(b["year"])]
     assert "CenTax" in b["like_for_like"] and b["underlying_source_url"].startswith("https://centax.org.uk/")
     text = " ".join(RESULTS["limitations"])
     assert "same for families above and below" not in text

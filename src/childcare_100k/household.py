@@ -1,46 +1,64 @@
-"""The £100,000 cliff for one illustrative family (policyengine-uk household simulation)."""
+"""The £100,000 cliff for one illustrative family, through policyengine.py's household API."""
 
-import numpy as np
+from .config import CLIFF, REFORM_PARAMETERS, REMOVED
 
-from .config import CLIFF, REFORM_PARAMETERS, parameter_changes
+FREE_HOURS_VARIABLES = (
+    "extended_childcare_entitlement",
+    "universal_childcare_entitlement",
+    "targeted_childcare_entitlement",
+)
+OUTPUT_VARIABLES = (
+    "household_net_income",
+    *FREE_HOURS_VARIABLES,
+    "tax_free_childcare",
+    "income_tax",
+    "childcare_expenses",
+)
 
 
-def _situation(earnings, year):
+def _people(earnings):
     c = CLIFF
-    people = {
-        "parent_1": {"age": {year: 35}, "employment_income": {year: earnings}, "is_parent": {year: True}},
-        "parent_2": {"age": {year: 35}, "employment_income": {year: c["partner_earnings"]}, "is_parent": {year: True}},
-    }
-    children = []
-    for i, a in enumerate(c["child_ages"]):
-        name = f"child_{i + 1}"
-        people[name] = {"age": {year: a}, "childcare_expenses": {year: c["childcare_spend_per_child"]}}
-        children.append(name)
-    members = list(people)
-    return {
-        "people": people,
-        "benunits": {"family": {"members": members}},
-        "households": {"household": {"members": members, "region": {year: c["region"]}}},
-    }
+    people = [
+        {"age": 35, "employment_income": earnings, "is_parent": True},
+        {"age": 35, "employment_income": c["partner_earnings"], "is_parent": True},
+    ]
+    people += [{"age": a, "childcare_expenses": c["childcare_spend_per_child"]} for a in c["child_ages"]]
+    return people
+
+
+def _reform(year):
+    """Each limit removed from 1 January of the example year, as policyengine.py dates scalar reforms."""
+    return {p: {f"{year}-01-01": REMOVED} for p in REFORM_PARAMETERS}
+
+
+def _household_total(result, variable):
+    """The household total of a variable, from whichever entity policyengine.py returns it on."""
+    if variable in result.household:
+        return float(result.household[variable])
+    if variable in result.benunit:
+        return float(result.benunit[variable])
+    if all(variable in person for person in result.person):
+        return float(sum(person[variable] for person in result.person))
+    raise KeyError(f"{variable} is not in the household result")
 
 
 def _run(earnings, year, reform):
-    from policyengine_uk import Simulation
-    from policyengine_uk.utils.scenario import Scenario
+    from policyengine.tax_benefit_models.uk import calculate_household
 
-    kwargs = {}
-    if reform:
-        kwargs["scenario"] = Scenario(parameter_changes=parameter_changes(REFORM_PARAMETERS))
-    sim = Simulation(situation=_situation(earnings, year), **kwargs)
+    result = calculate_household(
+        people=_people(earnings),
+        household={"region": CLIFF["region"]},
+        year=year,
+        reform=_reform(year) if reform else None,
+        extra_variables=list(OUTPUT_VARIABLES),
+    )
 
     def hh(v):
-        return float(np.asarray(sim.calculate(v, year, map_to="household"))[0])
+        return _household_total(result, v)
 
-    free = sum(hh(v) for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
-                               "targeted_childcare_entitlement"))
     return {
         "net_income": hh("household_net_income"),
-        "free_hours_value": free,
+        "free_hours_value": sum(hh(v) for v in FREE_HOURS_VARIABLES),
         "tfc": hh("tax_free_childcare"),
         "income_tax": hh("income_tax"),
         "childcare_spend": hh("childcare_expenses"),
@@ -81,14 +99,16 @@ def cliff_example():
             "income_tax_reform": [round(r["income_tax"]) for r in ref],
         },
         "notes": (
-            "Net income is policyengine-uk household net income (after tax and benefits, including the value of "
-            "funded hours at the local-authority funding rate and the Tax-Free Childcare top-up) minus the family's "
-            f"own childcare spending of £{spend:,} a year (£{c['childcare_spend_per_child']:,} per child), held fixed "
-            "in both scenarios as in the population run. Both parents are under 40, work, pass the minimum income "
-            "test and make no pension contributions, so adjusted net income equals employment income. Funded hours "
-            "are valued at 30 hours x 38 weeks for each child (the model's default usage for a single household). "
-            "The personal allowance taper between £100,000 and £125,140 applies in both scenarios. At exactly "
-            "£100,000 the model already withdraws the 30 hours (it tests income < £100,000, where the law allows "
-            "up to and including £100,000) but keeps Tax-Free Childcare."
+            "Computed with policyengine.py's household calculator (calculate_household), the same model "
+            "release as the population runs. Net income is household net income (after tax and benefits, "
+            "including the value of funded hours at the local-authority funding rate and the Tax-Free "
+            f"Childcare top-up) minus the family's own childcare spending of £{spend:,} a year "
+            f"(£{c['childcare_spend_per_child']:,} per child), held fixed in both scenarios as in the population "
+            "run. Both parents are under 40, work, pass the minimum income test and make no pension "
+            "contributions, so adjusted net income equals employment income. Funded hours are valued at 30 "
+            "hours x 38 weeks for each child (the model's default usage for a single household). The personal "
+            "allowance taper between £100,000 and £125,140 applies in both scenarios. At exactly £100,000 the "
+            "model already withdraws the 30 hours (it tests income < £100,000, where the law allows up to and "
+            "including £100,000) but keeps Tax-Free Childcare."
         ),
     }
