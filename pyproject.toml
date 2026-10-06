@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "uk-childcare-100k-threshold"
+version = "0.1.0"
+description = "Removing the £100,000 income limit on 30 funded hours and Tax-Free Childcare: a PolicyEngine UK costing"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+  "numpy>=1.26",
+  # policyengine.py is the only modelling dependency: its release bundle
+  # certifies policyengine-uk (2.102.3) and both datasets' sha256.
+  # Do not pin policyengine-uk directly.
+  "policyengine[uk]==6.2.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+childcare-100k-build = "childcare_100k.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/childcare_100k"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
