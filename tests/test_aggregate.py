@@ -40,11 +40,13 @@ def _pair(year=2026, n=4, d_free=None, d_tfc=None, over_law=None, newly=None, n_
     )
     base = FakeRun(year, **common, hh_free=zero, hh_tfc=zero, bu_free=zero, bu_tfc=zero,
                    p_bu_free=zero, p_bu_tfc=zero, p_extended=np.zeros(n, bool), p_tfc=np.zeros(n, bool),
+                   p_free_value=zero, p_tfc_value=zero,
                    bu_ext_eligible=np.zeros(n, bool))
     ref = FakeRun(year, **{**common, "hh_gov_balance": -(d_free + d_tfc),
                            "hh_net_income": 50_000.0 + d_free + d_tfc},
                   hh_free=d_free, hh_tfc=d_tfc, bu_free=d_free, bu_tfc=d_tfc,
                   p_bu_free=d_free, p_bu_tfc=d_tfc, p_extended=d_free > 0, p_tfc=d_tfc > 0,
+                  p_free_value=d_free, p_tfc_value=d_tfc,
                   bu_ext_eligible=newly)
     return base, ref
 
@@ -145,3 +147,35 @@ def test_routed_runs_with_different_weights_raise():
     runs["reform_routed"].arrays["bu_weight"] = runs["reform_routed"].arrays["bu_weight"] * 2
     with pytest.raises(ValueError):
         A.sensitivities(runs, years=[2026])
+
+
+def test_a_child_counts_as_gaining_only_from_their_own_entitlement():
+    """One family, two children: the three-year-old moves from universal to extended hours
+    with the same value; only the two-year-old's hours rise. Only the two-year-old gains."""
+    year = 2026
+    fam = dict(  # noqa: C408 - keyword arrays read like engine.extract's output
+        hh_weight=np.full(1, 1_000.0), bu_weight=np.full(1, 1_000.0), p_weight=np.full(2, 1_000.0),
+        hh_gov_balance=np.zeros(1), hh_net_income=np.full(1, 50_000.0), hh_decile=np.array([10]),
+        hh_country=np.array(["ENGLAND"]), bu_country=np.zeros(1, int),
+        bu_any_over_law=np.ones(1, bool), bu_n_age0=np.zeros(1),
+        rate_by_age=np.array([11.0, 11.0, 8.0, 6.0, 6.0]),
+        p_age=np.array([3.0, 2.0]), p_is_child=np.ones(2, bool),
+        bu_ext_eligible=np.zeros(1, bool),
+    )
+    zero2 = np.zeros(2)
+    base = FakeRun(year, **fam, hh_free=np.array([3_000.0]), hh_tfc=np.zeros(1), bu_free=np.array([3_000.0]),
+                   bu_tfc=np.zeros(1), p_bu_free=np.full(2, 3_000.0), p_bu_tfc=zero2,
+                   p_extended=np.array([False, False]), p_tfc=np.array([False, False]),
+                   p_free_value=np.array([3_000.0, 0.0]), p_tfc_value=zero2)
+    ref = FakeRun(year, **{**fam, "hh_gov_balance": np.array([-2_000.0]), "hh_net_income": np.full(1, 52_000.0),
+                           "bu_ext_eligible": np.ones(1, bool)},
+                  hh_free=np.array([5_000.0]), hh_tfc=np.zeros(1), bu_free=np.array([5_000.0]), bu_tfc=np.zeros(1),
+                  p_bu_free=np.full(2, 5_000.0), p_bu_tfc=zero2,
+                  p_extended=np.array([True, True]), p_tfc=np.array([False, False]),
+                  p_free_value=np.array([3_000.0, 2_000.0]), p_tfc_value=zero2)
+    out = A.recipients({"baseline": base, "reform": ref}, years=[year])[str(year)]
+    assert out["families_gaining"] == 1_000
+    assert out["children_gaining"] == 1_000  # the two-year-old only; projecting the family change gave 2,000
+    assert out["children_by_scheme"]["thirty_hours"] == 1_000
+    assert out["children_gaining_by_age"]["2"] == 1_000
+    assert out["children_gaining_by_age"]["3-4"] == 0

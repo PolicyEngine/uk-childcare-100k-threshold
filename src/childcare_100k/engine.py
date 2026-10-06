@@ -44,6 +44,7 @@ from .config import (
     YEARS,
     parameter_changes,
 )
+from .corrections import apply_corrections, is_applied
 from .datasets import MICROCOSM, dataset_path
 
 SOURCE_DIR = Path(__file__).resolve().parent
@@ -70,7 +71,7 @@ def run_definition_hash():
         "removed": repr(config.REMOVED),
     }
     digest = hashlib.sha256()
-    for name in ("engine.py", "datasets.py"):
+    for name in ("engine.py", "datasets.py", "corrections.py"):
         digest.update((SOURCE_DIR / name).read_bytes())
     digest.update(json.dumps(settings, sort_keys=True).encode())
     return digest.hexdigest()
@@ -97,10 +98,15 @@ def _simulation(scenario):
     spec = SCENARIOS[scenario]
     params = spec["params"]
     assert set(params) <= set(REFORM_PARAMETERS)
-    kwargs = {}
-    if params:
-        kwargs["scenario"] = Scenario(parameter_changes=parameter_changes(params), applied_before_data_load=True)
-    sim = managed_microsimulation(dataset=str(dataset_path()), allow_unmanaged=True, **kwargs)
+    # Every run, baseline and reform alike, carries the model corrections (corrections.py).
+    run_scenario = Scenario(
+        parameter_changes=parameter_changes(params) if params else None,
+        simulation_modifier=apply_corrections,
+        applied_before_data_load=True,
+    )
+    sim = managed_microsimulation(dataset=str(dataset_path()), allow_unmanaged=True, scenario=run_scenario)
+    if not is_applied(sim.tax_benefit_system):
+        raise RuntimeError(f"{scenario}: the childcare income-test correction did not reach the simulation")
     sim.baseline = None  # nothing in this analysis compares against the scenario's comparator
     for variable, value in spec["inputs"].items():
         entity = sim.tax_benefit_system.variables[variable].entity.key
@@ -117,6 +123,21 @@ def _index(ids, values):
     if not np.array_equal(ids[pos], values):
         raise ValueError("entity id mapping failed: a member's group id is not among the group ids")
     return pos
+
+
+PERSON_FREE_HOURS_VARIABLES = ("universal_childcare_entitlement", "targeted_childcare_entitlement")
+
+
+def extended_per_person(sim, year, p_benunit, bu_eligible):
+    """Each person's term in ``extended_childcare_entitlement`` (a benefit-unit sum over its members)."""
+    p = sim.tax_benefit_system.parameters(str(year)).gov.dfe
+    age = np.asarray(sim.calculate("age", year), dtype=float)
+    hours_cap = np.asarray(p.extended_childcare_entitlement.hours.calc(age), dtype=float)
+    used = np.asarray(sim.calculate("max_free_entitlement_hours_used", year), dtype=float)
+    bu_usage = np.asarray(sim.calculate(HOURS_USAGE_VARIABLE, year), dtype=float)
+    weekly_hours = np.minimum(np.minimum(used, hours_cap), bu_usage[p_benunit])
+    rate = np.asarray(p.childcare_funding_rate.calc(age), dtype=float)
+    return weekly_hours * rate * p.weeks_per_year * np.asarray(bu_eligible, dtype=float)[p_benunit]
 
 
 def extract(sim, year, baseline_extras=False):
@@ -194,12 +215,32 @@ def extract(sim, year, baseline_extras=False):
     out["p_bu_free"] = project(bu_free)  # the family's free hours, on each member
     out["p_bu_tfc"] = project(out["bu_tfc"])
 
+    # Each person's own free-hours and Tax-Free Childcare value, so a child is counted as
+    # gaining only if their own entitlement rises (not a sibling's). Universal, targeted and
+    # TFC are person-level in the model. The extended entitlement is computed per benefit
+    # unit as a sum over its children; its per-child terms are rebuilt here with the
+    # model's own inputs and checked to sum back to the model's benefit-unit value.
+    out["p_free_value"] = extended_per_person(sim, year, out["p_benunit"], out["bu_ext_eligible"]) + sum(
+        calc(v) for v in PERSON_FREE_HOURS_VARIABLES
+    ).astype(float)
+    if not np.allclose(np.bincount(out["p_benunit"], weights=out["p_free_value"], minlength=len(bu_ids)), bu_free, atol=0.01):
+        raise ValueError(f"{year}: per-person free-hours values do not sum to the benefit units' values")
+    out["p_tfc_value"] = calc(TFC_VARIABLE).astype(float)
+    if not np.allclose(np.bincount(out["p_benunit"], weights=out["p_tfc_value"], minlength=len(bu_ids)), out["bu_tfc"], atol=0.01):
+        raise ValueError(f"{year}: per-person TFC values do not sum to the benefit units' values")
+
     ani = calc("adjusted_net_income").astype(float)
     relief = calc("pension_contributions_relief").astype(float)
-    out["p_ani"] = ani
+    returned = calc("salary_sacrifice_returned_to_income").astype(float)
+    # The income the childcare limits test (corrections.py): ANI less salary sacrifice
+    # returned to pay under the April 2029 NI cap. Zero before 2029-30.
+    limit_income = ani - returned
+    out["p_ani"] = limit_income
     out["p_pension_relief"] = relief
-    out["p_ani_over"] = ani > 100_000
-    out["p_ani_at_least"] = ani >= 100_000
+    out["p_ani_over"] = limit_income > 100_000
+    out["p_ani_at_least"] = limit_income >= 100_000
+    # Net of pension contributions as well. The returned amount is in both ANI and the
+    # model's pension relief, so this equals ANI less relief, as before.
     out["p_ani_net_pension_over"] = (ani - relief) > 100_000
     out["bu_any_over"] = any_member(out["p_ani_over"])
     out["bu_any_over_law"] = any_member(out["p_ani_net_pension_over"])  # ANI net of pension contributions

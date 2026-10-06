@@ -150,13 +150,9 @@ def sensitivities(runs, years=YEARS):
         _, _, d = family_changes(b, r, y)
         # ANI net of pension contributions: a family with no adult above £100,000 on that
         # measure already qualifies in law, so its modelled gain is not a cost of the reform.
-        # The flag is each year's own. The adjustment steps up in 2029-30 because
-        # policyengine-uk's April 2029 salary-sacrifice rule moves sacrifice above £2,000
-        # back into pay: adjusted net income (which in the model never deducts pension
-        # contributions) rises, and with it the number of parents the model puts over
-        # £100,000 whom the law, deducting those contributions, would not (on Microcosm,
-        # pension relief rises from £48.0bn in 2028-29 to £62.8bn in 2029-30 and the
-        # families over £100,000 only before the deduction from 167k to 242k).
+        # The flag is each year's own. Salary sacrifice returned to pay under the April 2029
+        # National Insurance cap is excluded from adjusted net income in every run
+        # (corrections.py), as HMRC says the cap leaves adjusted net income unchanged.
         over_law = b(y, "bu_any_over_law")
         pension = -MicroSeries(d, weights=bw)[~over_law].sum()
 
@@ -194,12 +190,12 @@ def recipients(runs, years=YEARS):
         pw = _weights(b, r, y, "p")
         d_free, d_tfc, d = family_changes(b, r, y)
         gain = d > GAIN_THRESHOLD
-        # The family's change on each member, as the simulation mapped it.
-        p_d_free = r(y, "p_bu_free") - b(y, "p_bu_free")
-        p_d_tfc = r(y, "p_bu_tfc") - b(y, "p_bu_tfc")
+        # Each child's own change in funded hours and in TFC top-up. A child counts as gaining
+        # only if their own value rises: a three-year-old switched from the universal to the
+        # extended entitlement with the same hours does not gain, even if a sibling does.
         child = b(y, "p_is_child")
-        new_ext = r(y, "p_extended") & ~b(y, "p_extended") & (p_d_free > GAIN_THRESHOLD)
-        new_tfc = r(y, "p_tfc") & ~b(y, "p_tfc") & (p_d_tfc > GAIN_THRESHOLD)
+        new_ext = (r(y, "p_free_value") - b(y, "p_free_value")) > GAIN_THRESHOLD
+        new_tfc = (r(y, "p_tfc_value") - b(y, "p_tfc_value")) > GAIN_THRESHOLD
         kid_gain = child & (new_ext | new_tfc)
         age = b(y, "p_age")
 

@@ -112,6 +112,12 @@ LIMITATIONS = [
     "Adjusted net income in policyengine-uk does not deduct pension contributions or Gift Aid (Income Tax Act 2007 "
     "s58), so too many parents sit above £100,000 in the baseline and the reform cost is overstated; the low end "
     "removes families who would already qualify on a net-of-pension-contributions measure.",
+    "From 2029-30, policyengine-uk adds pension salary sacrifice above the new £2,000 National Insurance cap back "
+    "into pay, which raises adjusted net income. HMRC says the cap changes National Insurance only and leaves "
+    "adjusted net income, and so the childcare limits, unchanged. Both childcare income tests here therefore use "
+    "adjusted net income less the returned salary sacrifice in every run, baseline and reform. Income tax and "
+    "National Insurance are left as the model computes them. This correction is pending an upstream fix in "
+    "policyengine-uk.",
     "Tax-Free Childcare uses the Microcosm release's share of each person's childcare spending paid through an "
     f"account (0.593 for every record); the low end sets it to {ROUTED_SHARE_LOW}, counted jointly with the pension "
     "adjustment so the two are not double-counted.",
