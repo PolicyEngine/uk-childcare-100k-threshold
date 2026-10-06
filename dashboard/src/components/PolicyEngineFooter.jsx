@@ -1,4 +1,4 @@
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+import { basePath as BASE_PATH } from "../lib/basePath.json";
 
 // PolicyEngine site footer, rendered by the dashboard itself. Multizone
 // rewrites proxy this app under policyengine.org/uk/childcare-100k-threshold but do

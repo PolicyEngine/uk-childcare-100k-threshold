@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "data": "cp ../data/results.json public/data/results.json",
+    "data": "cp ../data/results.json public/data/results.json && bun scripts/validate-results.mjs",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "validate": "bun scripts/validate-results.mjs",
+    "prebuild": "bun scripts/validate-results.mjs"
   },
   "dependencies": {
     "react": "19.2.6",

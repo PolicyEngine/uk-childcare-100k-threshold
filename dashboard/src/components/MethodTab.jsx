@@ -1,9 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { fyLabel, getAssumptions, getLimitations, getMeta, getReform, getValidation, isText } from "../lib/dataHelpers";
+import { fyLabel, getAssumptions, getLimitations, getMeta, getReform, getValidation, META_PROVENANCE } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
-import { Section, Select, Unavailable } from "./ui";
+import { Section } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
 export function formatUnit(value, unit) {
@@ -20,7 +19,7 @@ function VersionsTable({ meta }) {
     ["policyengine.py", meta.policyengine],
     ["PolicyEngine UK", meta.policyengine_uk],
     ["Dataset", `${meta.dataset} (revision ${meta.dataset_revision})`],
-    ["Cross-check dataset (Microcosm)", isText(meta.cross_check_dataset_revision) ? `${meta.cross_check_dataset} (revision ${meta.cross_check_dataset_revision})` : meta.cross_check_dataset],
+    ...META_PROVENANCE.filter(([k]) => k in meta).map(([k, label]) => [label, meta[k]]),
     ["Results generated", meta.generated_at],
     ["Code revision", meta.git_revision],
   ];
@@ -41,54 +40,51 @@ function VersionsTable({ meta }) {
 }
 
 function ValidationTable({ rows }) {
-  const datasets = [...new Set(rows.map((r) => r.dataset))];
-  const [dataset, setDataset] = useState(datasets[0]);
-  const shown = rows.filter((r) => r.dataset === dataset);
+  // One dataset in the file: the dataset column appears only if rows from more than one are present.
+  const datasets = [...new Set(rows.filter((r) => "dataset" in r).map((r) => r.dataset))];
+  const showDataset = datasets.length > 1;
   return (
-    <>
-      {datasets.length > 1 ? (
-        <div className="mb-4">
-          <Select label="Source of the model figures" options={datasets.map((d) => ({ id: d, label: d }))} value={dataset} onChange={setDataset} />
-        </div>
-      ) : null}
-      <div className="overflow-x-auto">
-        <table className="data-table" data-testid="validation-table">
-          <thead>
-            <tr>
-              <th>Measure</th>
-              <th>Year</th>
-              <th>PolicyEngine</th>
-              <th>Official</th>
-              <th>Ratio</th>
-              <th>Source</th>
+    <div className="overflow-x-auto">
+      <table className="data-table" data-testid="validation-table">
+        <thead>
+          <tr>
+            <th>Measure</th>
+            {showDataset ? <th>Dataset</th> : null}
+            <th>Year</th>
+            <th>PolicyEngine</th>
+            <th>Official</th>
+            <th>Ratio</th>
+            <th>Source</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={`${r.label}-${r.year}-${r.dataset}`}>
+              <td>
+                {r.label}
+                {"note" in r ? <span className="mt-1 block text-xs leading-5 text-slate-500">{r.note}</span> : null}
+              </td>
+              {showDataset ? <td>{r.dataset}</td> : null}
+              <td className="whitespace-nowrap">{fyLabel(r.year)}</td>
+              <td className="tabular-nums">{formatUnit(r.model, r.unit)}</td>
+              <td className="tabular-nums">{formatUnit(r.official, r.unit)}</td>
+              <td className="tabular-nums">{r.official === 0 ? "n/a" : (r.model / r.official).toFixed(2)}</td>
+              <td className="min-w-[220px]">
+                <a href={r.url} target="_blank" rel="noreferrer">
+                  {r.source}
+                </a>
+              </td>
             </tr>
-          </thead>
-          <tbody>
-            {shown.map((r) => (
-              <tr key={`${r.label}-${r.year}`}>
-                <td>
-                  {r.label}
-                  {r.note ? <span className="mt-1 block text-xs leading-5 text-slate-500">{r.note}</span> : null}
-                </td>
-                <td className="whitespace-nowrap">{fyLabel(r.year)}</td>
-                <td className="tabular-nums">{formatUnit(r.model, r.unit)}</td>
-                <td className="tabular-nums">{formatUnit(r.official, r.unit)}</td>
-                <td className="tabular-nums">{r.official ? (r.model / r.official).toFixed(2) : "n/a"}</td>
-                <td className="min-w-[220px]">
-                  <a href={r.url} target="_blank" rel="noreferrer">
-                    {r.source}
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 
-const DATASET_NAMES = { enhanced_frs: "Enhanced FRS", microcosm: "Microcosm" };
+/** Column heading for a dataset's assumptions: Microcosm is the only dataset the analysis now publishes. */
+const DATASET_NAMES = { microcosm: "Microcosm" };
+const datasetName = (id) => (id in DATASET_NAMES ? DATASET_NAMES[id] : id);
 
 function AssumptionsTable({ rows }) {
   const lines = [
@@ -104,7 +100,7 @@ function AssumptionsTable({ rows }) {
           <tr>
             <th>Take-up, {fyLabel(rows[0].year)}</th>
             {rows.map((r) => (
-              <th key={r.id}>{DATASET_NAMES[r.id] ?? r.id}</th>
+              <th key={r.id}>{datasetName(r.id)}</th>
             ))}
           </tr>
         </thead>
@@ -147,7 +143,7 @@ export default function MethodTab({ data }) {
         title="Data and model"
         lead="Every figure comes from PolicyEngine UK, a microsimulation model of UK taxes and benefits, run on survey data reweighted to official totals."
       >
-        {meta ? <VersionsTable meta={meta} /> : <Unavailable what="The model and data versions" plural />}
+        <VersionsTable meta={meta} />
       </Section>
 
       <Section
@@ -155,9 +151,8 @@ export default function MethodTab({ data }) {
         title="How the limits work"
         lead="Both schemes are withdrawn when either parent's adjusted net income is above £100,000."
         details={
-          reform ? (
-            <>
-              <div className="overflow-x-auto">
+          <>
+            <div className="overflow-x-auto">
                 <table className="data-table" data-testid="parameters-table">
                   <thead>
                     <tr>
@@ -177,10 +172,7 @@ export default function MethodTab({ data }) {
                   </tbody>
                 </table>
               </div>
-            </>
-          ) : (
-            <Unavailable what="The reform's parameters" plural />
-          )
+          </>
         }
         detailsTitle="The parameters changed"
       >
@@ -206,9 +198,9 @@ export default function MethodTab({ data }) {
       <Section
         id="take-up"
         title="Take-up"
-        lead="Each dataset's existing take-up draws are held fixed for newly eligible families. The rates differ above and below £100,000, as the table shows."
+        lead="The dataset's existing take-up draws are held fixed for newly eligible families. The rates differ above and below £100,000, as the table shows."
       >
-        {assumptions ? <AssumptionsTable rows={assumptions} /> : <Unavailable what="The take-up assumptions" plural />}
+        <AssumptionsTable rows={assumptions} />
       </Section>
 
       <Section
@@ -217,26 +209,21 @@ export default function MethodTab({ data }) {
         lead="How the model's take-up and spending under current policy compare with official statistics."
         details={
           <p>
-            The Enhanced FRS overstates Tax-Free Childcare spending today because the model assumes all of a
-            family&apos;s childcare spending goes through the account; the low end of the range corrects for this. It
-            understates spending on the funded hours, because families in the data use about half of the 30 hours;
-            the high end assumes full use.
+            The two largest gaps against official statistics are spending through Tax-Free Childcare accounts, which
+            the model takes to cover all of a family&apos;s childcare spending, and use of the funded hours, where
+            families in the data use about half of the 30 hours. The low and high ends of the range adjust for each.
           </p>
         }
       >
-        {validation ? <ValidationTable rows={validation} /> : <Unavailable what="The baseline validation" />}
+        <ValidationTable rows={validation} />
       </Section>
 
       <Section id="limitations" title="Limitations" lead="What the costing does not capture.">
-        {limitations ? (
-          <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="limitations">
-            {limitations.map((l) => (
-              <li key={l}>{l}</li>
-            ))}
-          </ul>
-        ) : (
-          <Unavailable what="The limitations" plural />
-        )}
+        <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="limitations">
+          {limitations.map((l) => (
+            <li key={l}>{l}</li>
+          ))}
+        </ul>
       </Section>
     </div>
   );

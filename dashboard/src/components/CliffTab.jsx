@@ -6,7 +6,7 @@ import { cliffSummary, fyLabel, getCliff } from "../lib/dataHelpers";
 import { formatCurrency } from "../lib/formatters";
 import { niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Unavailable } from "./ui";
+import { AXIS_STYLE, CustomTooltip, LegendSwatches, Section } from "./ui";
 
 const LIMIT = 100000;
 const k = (v) => `£${Math.round(v / 1000)}k`;
@@ -55,7 +55,6 @@ function CliffChart({ rows }) {
 
 export default function CliffTab({ data }) {
   const cliff = getCliff(data);
-  if (!cliff) return <Unavailable what="The example household" />;
   const s = cliffSummary(cliff, LIMIT);
 
   return (
@@ -82,7 +81,7 @@ export default function CliffTab({ data }) {
             once. A child under 3 loses all 30 funded hours; a 3- or 4-year-old loses the additional 15 hours and keeps
             the universal 15, which have no income test.
           </p>
-          {s && s.drop > 0 ? (
+          {s.drop > 0 ? (
             <p data-testid="cliff-drop">
               For this family, going from {formatCurrency(s.before.earnings)} to {formatCurrency(s.after.earnings)} of
               earnings cuts household net income by {formatCurrency(s.drop)}.{" "}

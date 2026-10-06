@@ -7,45 +7,36 @@ import {
   getBenchmarks,
   getBudget,
   getBudgetComparisons,
-  getCrossCheck,
   getRange,
   getRecipients,
-  getRecipientsCrossCheck,
   getSensitivities,
   getThirtyHoursComponents,
-  getValidation,
   isNum,
+  LEAD_YEAR,
   SCHEME_LABELS,
   SCHEMES,
+  yearHeading,
 } from "../lib/dataHelpers";
 import { formatBn, formatCurrency, formatPct, formatThousands } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, Section, TopicPanel, Unavailable } from "./ui";
+import { AXIS_STYLE, CustomTooltip, Section, TopicPanel } from "./ui";
 
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
 
+/**
+ * CenTax, Removing the childcare cliff-edge: impacts and cost of reform (September 2026), Table 4.2, central case,
+ * 2030: removing the £100,000 limit on the free childcare hours only (not Tax-Free Childcare). The figure City AM
+ * reports as the party's is based on this report.
+ */
+export const CENTAX = { year: 2030, staticBn: 0.98, netBn: 0.64 };
+
 /** £bn as a signed £m figure: -0.006 -> "-£6m", 0.362 -> "+£362m". */
 export function formatSignedM(v) {
-  if (!isNum(v)) return "unavailable";
+  if (!isNum(v)) throw new TypeError(`formatSignedM: ${JSON.stringify(v)} is not a number`);
   const m = Math.round(v * 1000);
   return `${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`;
-}
-
-/** The pound figure in a published estimate ("£0.7bn a year" -> 0.7), or null. */
-export function parseBn(text) {
-  const m = /£\s*([\d.]+)\s*(bn|billion|m|million)/i.exec(text ?? "");
-  if (!m) return null;
-  const v = Number(m[1]);
-  if (!Number.isFinite(v)) return null;
-  return /^m/i.test(m[2]) ? v / 1000 : v;
-}
-
-/** How far a dataset's count of people on £100,000 or more is from HMRC's, as a % (from the validation rows). */
-export function highEarnerGap(data, datasetPattern) {
-  const row = getValidation(data)?.find((r) => /£100,000/.test(r.label) && datasetPattern.test(r.dataset));
-  return row && row.official ? (100 * (row.model - row.official)) / row.official : null;
 }
 
 function Card({ label, value, detail, testId, children }) {
@@ -119,32 +110,6 @@ function SplitBar({ thirty, tfc }) {
   );
 }
 
-/** Our low-high range as a band with the central estimate, and a published figure marked against it. */
-function RangeStrip({ low, central, high, theirs, caption }) {
-  const W = 240;
-  const H = 30;
-  const max = Math.max(high, theirs) * 1.08;
-  const x = (v) => (Math.max(0, v) / max) * W;
-  return (
-    <div className="mt-auto pt-4" data-testid="mini-strip">
-      <svg viewBox={`0 -4 ${W} ${H + 8}`} className="h-auto w-full" role="img" aria-label="The published figure against our range">
-        <line x1={0} x2={W} y1={H / 2} y2={H / 2} stroke={colors.gray[200]} strokeWidth={2} />
-        <rect x={x(low)} y={H / 2 - 7} width={x(high) - x(low)} height={14} rx={3} fill={colors.primary[200]} />
-        <line x1={x(central)} x2={x(central)} y1={H / 2 - 9} y2={H / 2 + 9} stroke={colors.primary[800]} strokeWidth={3} />
-        <line x1={x(theirs)} x2={x(theirs)} y1={0} y2={H} stroke={colors.gray[500]} strokeWidth={2} strokeDasharray="3 2" />
-      </svg>
-      {caption ? <p className="mt-1 text-xs text-slate-500">{caption}</p> : null}
-      <StripLegend
-        items={[
-          { label: "Our range", color: colors.primary[200] },
-          { label: "Our central", swatch: <span className="inline-block h-3 w-[3px]" style={{ backgroundColor: colors.primary[800] }} /> },
-          { label: "Party's figure", swatch: <span className="inline-block h-3 border-l-2 border-dashed" style={{ borderColor: colors.gray[500] }} /> },
-        ]}
-      />
-    </div>
-  );
-}
-
 function CostChart({ rows }) {
   const values = rows.flatMap((r) => [r.total, r.high]);
   const digits = axisDigits(values);
@@ -196,7 +161,7 @@ function SeriesTable({ years, rows, testId, format = (v) => formatBn(v, 2) }) {
           <tr>
             <th />
             {years.map((y) => (
-              <th key={y} className="whitespace-nowrap">{fyLabel(y)}</th>
+              <th key={y} className="whitespace-nowrap">{yearHeading(y)}</th>
             ))}
           </tr>
         </thead>
@@ -224,6 +189,11 @@ const SENSITIVITY_LABELS = {
   tfc_routed_share: "Less spending through Tax-Free Childcare",
 };
 
+/** A sensitivity's name: a known label, or its id written out. */
+function sensitivityLabel(id) {
+  return id in SENSITIVITY_LABELS ? SENSITIVITY_LABELS[id] : id.replace(/_/g, " ");
+}
+
 function SensitivityTable({ sens }) {
   return (
     <div className="overflow-x-auto">
@@ -233,7 +203,7 @@ function SensitivityTable({ sens }) {
             <th>Adjustment</th>
             <th className="whitespace-nowrap">Range end</th>
             {sens.years.map((y) => (
-              <th key={y} className="whitespace-nowrap">{fyLabel(y)}</th>
+              <th key={y} className="whitespace-nowrap">{yearHeading(y)}</th>
             ))}
           </tr>
         </thead>
@@ -241,7 +211,7 @@ function SensitivityTable({ sens }) {
           {sens.rows.map((r) => (
             <tr key={r.id}>
               <td className="min-w-[260px]">
-                <span className="font-medium text-slate-800">{SENSITIVITY_LABELS[r.id] ?? r.id.replace(/_/g, " ")}</span>
+                <span className="font-medium text-slate-800">{sensitivityLabel(r.id)}</span>
                 <br />
                 <span className="text-xs leading-5 text-slate-500">{r.description}</span>
               </td>
@@ -259,98 +229,48 @@ function SensitivityTable({ sens }) {
   );
 }
 
-function ComparisonTopics({ data, range }) {
-  const benchmark = getBenchmarks(data)?.[0];
-  const cross = getCrossCheck(data);
+function ComparisonTopics({ data }) {
+  const benchmark = getBenchmarks(data)[0];
+  const budget = getBudget(data);
   const comps = getThirtyHoursComponents(data);
-  const years = range.years;
-  const theirs = parseBn(benchmark?.figure);
-  // CenTax's estimate, which the reported figure is based on, is for 2030: compare with our last year.
-  const last = range.years.length - 1;
-  const first = { low: range.low[last], central: range.central[last], high: range.high[last] };
-  const microGap = highEarnerGap(data, /microcosm|populace/i);
-  const efrsGap = highEarnerGap(data, /enhanced/i);
-  const where = !isNum(theirs)
-    ? null
-    : theirs < first.low
-      ? "below our whole range"
-      : theirs > first.high
-        ? "above our whole range"
-        : theirs > first.central
-          ? "within our range, above our central estimate"
-          : "within our range, below our central estimate";
-  const crossFamilies = cross ? years.map((y) => getRecipientsCrossCheck(data, y)?.families_gaining) : null;
+  const years = budget.years;
+  // CenTax's estimate is for 2030: compare with our last year, 2029-30.
+  const last = budget.rows.at(-1);
 
   const topics = [
     {
       id: "conservatives",
-      title: "The Conservatives' figure",
-      summary: benchmark ? `${benchmark.figure}, as reported` : "Unavailable",
+      title: "The £0.7bn figure",
+      summary: "Traces to CenTax's cost of the free hours alone",
       testId: "topic-conservatives",
-      content: benchmark ? (
+      content: (
         <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid="benchmark">
           <p>
             <a href={benchmark.url} target="_blank" rel="noreferrer">
               City AM
             </a>{" "}
             reports the cost of the party&apos;s plan as about £700m a year and says it is based on{" "}
-            {benchmark.underlying_source_url ? (
-              <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
-                CenTax&apos;s report
-              </a>
-            ) : (
-              "CenTax's report"
-            )}
-            . The party&apos;s{" "}
-            {benchmark.announcement_url ? (
-              <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
-                announcement
-              </a>
-            ) : (
-              "announcement"
-            )}{" "}
-            gives no figure, year or method.
+            <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
+              CenTax&apos;s report
+            </a>
+            , which costs removing the limit on the free childcare hours only. The party&apos;s{" "}
+            <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
+              announcement
+            </a>{" "}
+            covers both the free hours and Tax-Free Childcare, and gives no figure, year or method.
           </p>
           <p data-testid="benchmark-centax">
-            CenTax estimate a net cost of £640m in 2030 for removing the limit on the free childcare hours only: a
-            static cost of £980m, less £340m of tax from parents who stop holding their income below £100,000. Their
-            figure does not include Tax-Free Childcare.
+            CenTax estimate a static cost of {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year} for the free hours, and a
+            net cost of {formatBn(CENTAX.netBn, 2)} after the extra tax from parents who stop holding their income
+            below £100,000. The £0.7bn is close to the net figure.
           </p>
-          <p data-testid="benchmark-where">
-            Ours is the static cost of both schemes, before any change in how much parents work and before the civil
-            service savings the party proposes to pay for it, so the figures are not like for like.
-            {where ? ` Against our range for ${nb(years[last])}, the year nearest 2030, £0.7bn sits ${where}.` : ""}
+          <p data-testid="benchmark-like-for-like">
+            Like for like, the comparison is our 30 hours cost with CenTax&apos;s static cost, both before any change
+            in how much parents work: {formatBn(last.thirty_hours, 2)} in {nb(last.year)} against{" "}
+            {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year}. Our total for both schemes, {formatBn(last.total, 2)},
+            also includes Tax-Free Childcare, which CenTax do not cost.
           </p>
         </div>
-      ) : (
-        <Unavailable what="The Conservatives' figure" />
-      ),
-    },
-    {
-      id: "cross-check",
-      title: "Microcosm cross-check",
-      summary: "A second dataset, higher because it holds more high earners",
-      testId: "topic-cross-check",
-      content: cross ? (
-        <div className="space-y-4">
-          <p className="text-sm leading-6 text-slate-600" data-testid="cross-check-reason">
-            {isNum(microGap)
-              ? `Microcosm holds ${formatPct(Math.abs(microGap), 0)} ${microGap >= 0 ? "more" : "fewer"} people on £100,000 or more than HMRC projects${isNum(efrsGap) ? ` (the Enhanced FRS ${formatPct(Math.abs(efrsGap), 0)} ${efrsGap >= 0 ? "more" : "fewer"})` : ""}, so it reaches more families and costs more.`
-              : "The same reform run on Microcosm, a second dataset."}
-          </p>
-          <SeriesTable
-            years={years}
-            testId="cross-check-table"
-            rows={[
-              { label: "Microcosm cost", values: cross.total },
-              { label: "of which 30 hours", values: cross.thirty_hours },
-              { label: "of which Tax-Free Childcare", values: cross.tax_free_childcare },
-              ...(crossFamilies?.every(isNum) ? [{ label: "Families gaining", values: crossFamilies, format: formatThousands }] : []),
-            ]}
-          />
-        </div>
-      ) : (
-        <Unavailable what="The cross-check" />
       ),
     },
     {
@@ -358,11 +278,11 @@ function ComparisonTopics({ data, range }) {
       title: "Inside the 30 hours cost",
       summary: "Extra hours gained, less universal hours switched off",
       testId: "topic-thirty-hours",
-      content: comps ? (
+      content: (
         <div className="space-y-4">
           <p className="text-sm leading-6 text-slate-600">
             The model switches off the universal 15 hours for a 3- or 4-year-old once the family qualifies for the
-            extended hours, so part of the gain is offset. The two rows add up to the 30 hours cost in the chart.
+            extended hours, so part of the gain is offset. The rows add up to the 30 hours cost in the chart.
           </p>
           <SeriesTable
             years={years}
@@ -375,8 +295,6 @@ function ComparisonTopics({ data, range }) {
             ]}
           />
         </div>
-      ) : (
-        <Unavailable what="The 30 hours breakdown" />
       ),
     },
   ];
@@ -387,24 +305,27 @@ const ASSUMPTIONS = [
   { title: "No change in work", text: "Parents work and earn the same with or without the limit." },
   { title: "30 hours in England only", text: "The funded hours are an English scheme; Scotland, Wales and Northern Ireland have their own." },
   { title: "Tax-Free Childcare UK-wide", text: "The government top-up of 20% of childcare costs is open to families across the UK." },
-  { title: "Enhanced FRS data", text: "The headline uses the Enhanced FRS, with Microcosm as a cross-check of the totals." },
+  {
+    title: "Microcosm data",
+    text: "Every figure uses Microcosm UK 2024-25, PolicyEngine's certified national dataset, run through policyengine.py.",
+  },
 ];
 
 /** True when two series match to within rounding in every year. */
-const same = (a, b) => a && b && a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
+const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
 
 export default function LandingTab({ data }) {
   const budget = getBudget(data);
   const range = getRange(data);
-  if (!budget || !range) return <Unavailable what="The budget impact" />;
-  const first = budget.rows[0];
-  const recipients = getRecipients(data, first.year);
-  const benchmark = getBenchmarks(data)?.[0];
-  const theirs = parseBn(benchmark?.figure);
+  const li = budget.years.indexOf(LEAD_YEAR);
+  const lead = budget.rows[li];
+  const last = budget.rows.at(-1);
+  const recipients = getRecipients(data, LEAD_YEAR);
+  const benchmark = getBenchmarks(data)[0];
   const sens = getSensitivities(data);
   const cmp = getBudgetComparisons(data);
-  const rows = budget.rows.map((r, i) => ({ ...r, low: range.low[i], high: range.high[i], range: [range.low[i], range.high[i]] }));
-  const fy = nb(first.year);
+  const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), low: range.low[i], high: range.high[i], range: [range.low[i], range.high[i]] }));
+  const fy = nb(lead.year);
   const thirty = budget.rows.map((r) => r.thirty_hours);
   const tfc = budget.rows.map((r) => r.tax_free_childcare);
 
@@ -413,64 +334,59 @@ export default function LandingTab({ data }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`What removing the £100,000 limit on both schemes adds to government spending in ${fyLabel(first.year)}, the first year, and who gains.`}
+        lead={`What removing the £100,000 limit on both schemes adds to government spending in ${fyLabel(lead.year)}, the first full year, and who gains.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           <Card
             label={`Cost in ${fy}`}
-            value={formatBn(first.total, 2)}
-            detail={`Range ${formatBn(range.low[0], 2)} to ${formatBn(range.high[0], 2)}`}
+            value={formatBn(lead.total, 2)}
+            detail={`Range ${formatBn(range.low[li], 2)} to ${formatBn(range.high[li], 2)}`}
             testId="card-cost"
           >
-            <MiniBars items={budget.rows.map((r) => ({ label: fyLabel(r.year), value: r.total }))} label="Central cost each year" />
+            <MiniBars items={budget.rows.map((r) => ({ label: fyLabel(r.year), value: r.total }))} label="Central cost each year" highlight={li} />
           </Card>
           <Card
             label="By scheme"
-            value={`${formatBn(first.thirty_hours, 2)} and ${formatBn(first.tax_free_childcare, 2)}`}
+            value={`${formatBn(lead.thirty_hours, 2)} and ${formatBn(lead.tax_free_childcare, 2)}`}
             detail={`30 hours and Tax-Free Childcare, ${fy}`}
             testId="card-split"
           >
-            <SplitBar thirty={first.thirty_hours} tfc={first.tax_free_childcare} />
+            <SplitBar thirty={lead.thirty_hours} tfc={lead.tax_free_childcare} />
           </Card>
           <Card
             label="Families gaining"
-            value={recipients ? formatThousands(recipients.families_gaining) : "unavailable"}
-            detail={recipients ? `${formatThousands(recipients.children_gaining)} children; ${formatCurrency(recipients.mean_gain_gbp)} a year on average, ${fy}` : null}
+            value={formatThousands(recipients.families_gaining)}
+            detail={`${formatThousands(recipients.children_gaining)} children${recipients.mean_gain_gbp === null ? "" : `; ${formatCurrency(recipients.mean_gain_gbp)} a year on average`}, ${fy}`}
             testId="card-families"
           >
-            {recipients ? (
-              <MiniBars
-                items={SCHEMES.map((s) => ({ label: s === "thirty_hours" ? "30 hours" : "Tax-Free Childcare", value: recipients.by_scheme[s], color: schemeColors[s] }))}
-                label="Families gaining by scheme"
-              />
-            ) : null}
+            <MiniBars
+              items={SCHEMES.map((sc) => ({ label: sc === "thirty_hours" ? "30 hours" : "Tax-Free Childcare", value: recipients.by_scheme[sc], color: schemeColors[sc] }))}
+              label="Families gaining by scheme"
+            />
           </Card>
           <Card
-            label="The Conservatives' figure"
-            value={benchmark ? benchmark.figure : "unavailable"}
+            label="The £0.7bn figure"
+            value={benchmark.figure}
             detail={
-              benchmark ? (
-                <>
-                  The party&apos;s estimate as reported by{" "}
-                  <a href={benchmark.url} target="_blank" rel="noreferrer">
-                    City AM
-                  </a>
-                  , based on CenTax&apos;s net cost of the free hours alone in 2030; not like for like
-                </>
-              ) : null
+              <>
+                Reported by{" "}
+                <a href={benchmark.url} target="_blank" rel="noreferrer">
+                  City AM
+                </a>{" "}
+                as the party&apos;s; it traces to CenTax&apos;s cost of the free hours only. Like for like: our 30 hours
+                cost against CenTax&apos;s static cost
+              </>
             }
             testId="card-benchmark"
           >
-            {isNum(theirs) ? (
-              <RangeStrip
-                low={range.low.at(-1)}
-                central={range.central.at(-1)}
-                high={range.high.at(-1)}
-                theirs={theirs}
-                caption={`Against our range for ${nb(range.years.at(-1))}, the year nearest 2030`}
-              />
-            ) : null}
+            <MiniBars
+              items={[
+                { label: `Ours ${fyLabel(last.year)}`, value: last.thirty_hours, color: schemeColors.thirty_hours },
+                { label: `CenTax ${CENTAX.year}`, value: CENTAX.staticBn, color: colors.gray[400] },
+              ]}
+              label="Our 30 hours cost against CenTax's static cost of the free hours"
+            />
           </Card>
         </div>
       </Section>
@@ -478,15 +394,15 @@ export default function LandingTab({ data }) {
       <Section
         id="each-year"
         title="The cost each year"
-        lead="Central cost by scheme on the Enhanced FRS, with the low-to-high range around it."
+        lead="Central cost by scheme, with the low-to-high range around it."
         detailsTitle="How to read this chart"
         details={
           <>
             <p>
               Each bar is the extra government spending in that fiscal year when neither the 30 hours nor Tax-Free
               Childcare is withdrawn above £100,000 of adjusted net income, with the policy in force for the whole
-              year. The line through each bar runs from the low to the high end of the range, built from the
-              adjustments below.
+              year. {fyLabel(budget.years[0])} is more than half over, so its full-year cost is illustrative. The line
+              through each bar runs from the low to the high end of the range, built from the adjustments below.
             </p>
             {same(cmp.net, budget.rows.map((r) => r.total)) ? (
               <p data-testid="net-note">The cost is the same net of other taxes and benefits: nothing else changes for these families.</p>
@@ -508,7 +424,7 @@ export default function LandingTab({ data }) {
         title="What moves the cost"
         lead="The adjustments that build the low and high ends of the range, each added to the central cost."
       >
-        {sens ? <SensitivityTable sens={sens} /> : <Unavailable what="The sensitivities" plural />}
+        <SensitivityTable sens={sens} />
       </Section>
 
       <Section id="assumptions" title="What these figures assume" lead="The main choices behind every cost on this page." boxed={false}>
@@ -522,15 +438,9 @@ export default function LandingTab({ data }) {
         </div>
       </Section>
 
-      <Section
-        id="comparisons"
-        title="Comparisons"
-        lead="The Conservatives' figure, the Microcosm cross-check, and what makes up the 30 hours cost."
-        boxed={false}
-      >
-        <ComparisonTopics data={data} range={range} />
+      <Section id="comparisons" title="Comparisons" lead="The £0.7bn figure and its source, and what makes up the 30 hours cost." boxed={false}>
+        <ComparisonTopics data={data} />
       </Section>
     </div>
   );
 }
-

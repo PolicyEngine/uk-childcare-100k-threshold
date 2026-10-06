@@ -6,7 +6,6 @@ import LandingTab from "./LandingTab";
 import WhoGainsTab from "./WhoGainsTab";
 import CliffTab from "./CliffTab";
 import MethodTab from "./MethodTab";
-import SampleBanner from "./SampleBanner";
 import { fyLabel, getYears } from "../lib/dataHelpers";
 import { TabLayout } from "./ui";
 
@@ -71,7 +70,7 @@ export function Dashboard({ data }) {
 
   const [activeTab, setActiveTab] = useState(() => getInitialTab(searchParams.get("tab")));
   const years = getYears(data);
-  const period = years ? `${fyLabel(years[0])} to ${fyLabel(years.at(-1))}` : null;
+  const period = `${fyLabel(years[0])} to ${fyLabel(years.at(-1))}`;
 
   // Follow the URL when it changes (back/forward), adjusting state during render rather than in an effect.
   const tabParam = searchParams.get("tab");
@@ -95,7 +94,6 @@ export function Dashboard({ data }) {
       </header>
 
       <main className="relative z-[1] mx-auto max-w-[1600px] px-6 py-10 md:px-10 md:py-12 lg:pl-24 lg:pr-[284px]">
-        <SampleBanner data={data} />
         <div className="animate-[fadeIn_0.4s_ease-out]">
           <p className="mb-3 text-[1.1rem] leading-relaxed text-slate-700" data-testid="intro">
             Working parents lose the 30 funded hours of childcare in England, and Tax-Free Childcare across the UK, as
@@ -108,7 +106,7 @@ export function Dashboard({ data }) {
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
             </a>
-            {period ? ` from ${period}` : ""}, and show who gains and how the £100,000 cliff disappears for a family
+            {` from ${period}`}, and show who gains and how the £100,000 cliff disappears for a family
             near the limit.
           </p>
         </div>

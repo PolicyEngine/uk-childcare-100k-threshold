@@ -1,5 +1,8 @@
 /** @type {import('next').NextConfig} */
-const basePath = "/uk/childcare-100k-threshold";
+// One source for the base path: the components read the same file for plain <img src> URLs.
+import basePathConfig from "./src/lib/basePath.json" with { type: "json" };
+
+const { basePath } = basePathConfig;
 
 const nextConfig = {
   reactStrictMode: true,
@@ -8,11 +11,6 @@ const nextConfig = {
   // /uk/childcare-100k-threshold, so pages and /_next assets must
   // resolve under that prefix.
   basePath,
-  // Next.js only auto-prefixes next/link, next/image and static imports. Raw
-  // fetch() calls and plain <img src> need this explicitly.
-  env: {
-    NEXT_PUBLIC_BASE_PATH: basePath,
-  },
   // Keep the bare deployment URL (linked from the README and repo page)
   // working now that the app lives under basePath.
   async redirects() {
@@ -22,4 +20,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

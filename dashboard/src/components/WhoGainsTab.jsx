@@ -10,19 +10,21 @@ import {
   getDeciles,
   getDistributionYears,
   getRecipients,
+  LEAD_YEAR,
   SCHEME_LABELS,
+  yearHeading,
   SCHEMES,
 } from "../lib/dataHelpers";
 import { formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, Section, Select, Unavailable } from "./ui";
+import { AXIS_STYLE, CustomTooltip, Section, Select } from "./ui";
 
 export const SUPPRESSED = "too few records";
 
 /** £bn as £m, with a gain that rounds to nothing shown as "under £1m" rather than £0m. */
 export function formatM(v) {
-  if (v === null || v === undefined || Number.isNaN(v)) return "unavailable";
+  if (typeof v !== "number" || !Number.isFinite(v)) throw new TypeError(`formatM: ${JSON.stringify(v)} is not a number`);
   const m = Math.round(v * 1000);
   if (m === 0 && v >= 0) return "under £1m";
   return `£${m.toLocaleString("en-GB")}m`;
@@ -74,7 +76,8 @@ function DecileChart({ rows: raw, measure }) {
 
 /** "5", "5 and 6", "5, 6 and 7". */
 export function listOf(items) {
-  return items.length < 2 ? String(items[0] ?? "") : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
+  if (items.length === 0) throw new Error("listOf: no items");
+  return items.length === 1 ? String(items[0]) : `${items.slice(0, -1).join(", ")} and ${items.at(-1)}`;
 }
 
 function CountryTable({ rows }) {
@@ -103,8 +106,9 @@ function CountryTable({ rows }) {
 }
 
 function SchemeTable({ recipients }) {
+  // children_by_scheme is optional in the schema; getRecipients checks it whenever it is present.
   const kids = recipients.children_by_scheme;
-  const withKids = kids && SCHEMES.every((sc) => typeof kids[sc] === "number");
+  const withKids = kids !== undefined;
   return (
     <div className="overflow-x-auto">
       <table className="data-table" data-testid="scheme-table">
@@ -131,7 +135,7 @@ function SchemeTable({ recipients }) {
             <td className="tabular-nums">{formatCount(recipients.families_gaining)}</td>
             {withKids ? <td className="tabular-nums">{formatCount(recipients.children_gaining)}</td> : null}
           </tr>
-          {typeof recipients.families_losing === "number" ? (
+          {"families_losing" in recipients ? (
             <tr>
               <td>Families losing (see below)</td>
               <td className="tabular-nums">{formatCount(recipients.families_losing)}</td>
@@ -169,10 +173,8 @@ function AgeTable({ rows }) {
 
 export default function WhoGainsTab({ data }) {
   const years = getDistributionYears(data);
-  const [year, setYear] = useState(years.at(-1));
+  const [y, setYear] = useState(LEAD_YEAR);
   const [measure, setMeasure] = useState(DECILE_MEASURES[0].id);
-  if (!years.length) return <Unavailable what="The distribution of gains" />;
-  const y = years.includes(year) ? year : years.at(-1);
   const deciles = getDeciles(data, y);
   const countries = getCountries(data, y);
   const recipients = getRecipients(data, y);
@@ -182,7 +184,7 @@ export default function WhoGainsTab({ data }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="who-gains-tab">
       <div className="mb-6" data-testid="year-select">
-        <Select label="Year" options={years.map((v) => ({ id: v, label: fyLabel(v) }))} value={y} onChange={setYear} />
+        <Select label="Year" options={years.map((v) => ({ id: v, label: yearHeading(v) }))} value={y} onChange={setYear} />
       </div>
       <Section
         id="deciles"
@@ -214,7 +216,7 @@ export default function WhoGainsTab({ data }) {
               Tax-Free Childcare covers children up to 11, so most children gaining are of school age. The 30 hours
               cover children from 9 months, but the model holds ages in whole years and gives no hours at age 0.
             </p>
-            {typeof recipients.families_losing === "number" ? (
+            {"families_losing" in recipients ? (
               <p>
                 A few families lose in the model: once they qualify for the extended hours it switches off the
                 universal 15 hours for a 3- or 4-year-old, and the extended hours the data say they use can be fewer.

@@ -2,11 +2,26 @@
  * Readers for results.json (the schema is in dashboard/README.md).
  *
  * Every figure the dashboard shows is read from the results file. Each reader validates the block it returns and
- * gives back `null` when any field is missing or invalid, so the component renders "unavailable" instead of "NaN",
- * "£bn" or a blank.
+ * throws a ResultsError naming the block when any field is missing or invalid. There is no fallback: a bad file
+ * fails `validateResults`, which runs before every build (scripts/validate-results.mjs) and in the tests, so it
+ * can never reach the page.
  */
 
-export const UNAVAILABLE = "unavailable";
+export class ResultsError extends Error {
+  constructor(block, problem) {
+    super(`results.json: ${block}: ${problem}`);
+    this.name = "ResultsError";
+    this.block = block;
+  }
+}
+
+function fail(block, problem) {
+  throw new ResultsError(block, problem);
+}
+
+/** The year the page leads with. 2026-27 is half over, so its full-year cost is illustrative. */
+export const LEAD_YEAR = 2027;
+export const ILLUSTRATIVE_YEAR = 2026;
 export const SCHEMES = ["thirty_hours", "tax_free_childcare"];
 export const SCHEME_LABELS = {
   thirty_hours: "30 hours for working parents",
@@ -24,77 +39,89 @@ export function isText(value) {
 
 /** Fiscal year named by start year: 2027 -> "2027-28". */
 export function fyLabel(year) {
-  if (!Number.isInteger(year)) return UNAVAILABLE;
+  if (!Number.isInteger(year)) fail("year", `${year} is not a year`);
   return `${year}-${String((year + 1) % 100).padStart(2, "0")}`;
 }
 
-/** True only for an explicit `"meta": {"sample": true}`. */
-export function isSample(data) {
-  return data?.meta?.sample === true;
+/** The fiscal year as a table heading, marking the half-elapsed year as illustrative. */
+export function yearHeading(year) {
+  return year === ILLUSTRATIVE_YEAR ? `${fyLabel(year)} (illustrative)` : fyLabel(year);
 }
 
-/** The modelled years as increasing integers, or null. */
+/** The modelled years as increasing integers, including the lead year. */
 export function getYears(data) {
   const years = data?.meta?.years;
-  if (!Array.isArray(years) || years.length === 0 || !years.every(Number.isInteger)) return null;
-  for (let i = 1; i < years.length; i += 1) if (years[i] <= years[i - 1]) return null;
+  if (!Array.isArray(years) || years.length === 0 || !years.every(Number.isInteger)) fail("meta.years", "not a list of years");
+  for (let i = 1; i < years.length; i += 1) if (years[i] <= years[i - 1]) fail("meta.years", "not increasing");
+  if (!years.includes(LEAD_YEAR)) fail("meta.years", `does not include the lead year ${LEAD_YEAR}`);
   return years;
 }
 
-export function getFinalYear(data) {
-  return getYears(data)?.at(-1) ?? null;
+/** Values of an object keyed by year ("2026": n) in the order of `years`. */
+export function byYear(obj, years, block) {
+  if (!obj || typeof obj !== "object") fail(block, "missing");
+  return years.map((y) => {
+    const v = obj[String(y)];
+    if (!isNum(v)) fail(block, `${y} is ${JSON.stringify(v)}, not a number`);
+    return v;
+  });
 }
 
-/** Values of an object keyed by year ("2026": n) in the order of `years`, or null if any is not a number. */
-export function byYear(obj, years) {
-  if (!obj || typeof obj !== "object" || !years) return null;
-  const out = years.map((y) => obj[String(y)]);
-  return out.every(isNum) ? out : null;
-}
+const META_TEXT = ["policyengine", "policyengine_uk", "dataset", "dataset_revision", "generated_at", "git_revision"];
+/** Provenance shown when the file carries it (the certified-release fields). */
+export const META_PROVENANCE = [
+  ["dataset_repo", "Dataset repository"],
+  ["dataset_sha256", "Dataset sha256"],
+  ["dataset_management", "Dataset pinning"],
+];
 
-const META_TEXT = ["policyengine", "policyengine_uk", "dataset", "dataset_revision", "cross_check_dataset", "generated_at", "git_revision"];
-
-/** Data and model versions, or null. */
+/** Data and model versions. */
 export function getMeta(data) {
   const m = data?.meta;
-  if (!m || !getYears(data) || META_TEXT.some((k) => !isText(m[k]))) return null;
+  if (!m) fail("meta", "missing");
+  getYears(data);
+  for (const k of META_TEXT) if (!isText(m[k])) fail(`meta.${k}`, "missing");
+  for (const [k] of META_PROVENANCE) if (k in m && !isText(m[k])) fail(`meta.${k}`, "not text");
   return m;
 }
 
-/** The reform's title, description and changed parameters, or null. */
+/** The reform's title, description and changed parameters. */
 export function getReform(data) {
   const r = data?.reform;
-  if (!r || !isText(r.title) || !isText(r.description) || !Array.isArray(r.parameters) || r.parameters.length === 0) return null;
-  if (!r.parameters.every((p) => isText(p?.name) && isNum(p.baseline) && p.reform === "removed")) return null;
+  if (!r || !isText(r.title) || !isText(r.description) || !Array.isArray(r.parameters) || r.parameters.length === 0) fail("reform", "incomplete");
+  if (!r.parameters.every((p) => isText(p?.name) && isNum(p.baseline) && p.reform === "removed")) fail("reform.parameters", "invalid");
   return r;
 }
 
-/** The gross cost by scheme and in total, each year (£bn, positive = extra spending), or null. */
+/** The gross cost by scheme and in total, each year (£bn, positive = extra spending). */
 export function getBudget(data) {
   const years = getYears(data);
   const g = data?.budget?.gross_bn;
-  const thirty = byYear(g?.thirty_hours, years);
-  const tfc = byYear(g?.tax_free_childcare, years);
-  const total = byYear(g?.total, years);
-  if (!thirty || !tfc || !total) return null;
+  const thirty = byYear(g?.thirty_hours, years, "budget.gross_bn.thirty_hours");
+  const tfc = byYear(g?.tax_free_childcare, years, "budget.gross_bn.tax_free_childcare");
+  const total = byYear(g?.total, years, "budget.gross_bn.total");
   // The two schemes must add up to the total (to rounding), or the split shown would not match the headline.
-  if (total.some((t, i) => Math.abs(thirty[i] + tfc[i] - t) > 0.02)) return null;
+  years.forEach((y, i) => {
+    if (Math.abs(thirty[i] + tfc[i] - total[i]) > 0.02) fail("budget.gross_bn", `${y}: schemes do not add up to the total`);
+  });
   return {
     years,
     rows: years.map((year, i) => ({ year, label: fyLabel(year), thirty_hours: thirty[i], tax_free_childcare: tfc[i], total: total[i] })),
   };
 }
 
-/** The Enhanced FRS low-central-high range by year, or null. The central must be the headline total. */
+/** The low-central-high range by year. The central must be the headline total. */
 export function getRange(data) {
   const years = getYears(data);
   const r = data?.budget?.range_bn;
-  const low = byYear(r?.low, years);
-  const central = byYear(r?.central, years);
-  const high = byYear(r?.high, years);
-  const total = byYear(data?.budget?.gross_bn?.total, years);
-  if (!low || !central || !high || !total) return null;
-  if (years.some((_, i) => !(low[i] <= central[i] && central[i] <= high[i]) || Math.abs(central[i] - total[i]) > 0.001)) return null;
+  const low = byYear(r?.low, years, "budget.range_bn.low");
+  const central = byYear(r?.central, years, "budget.range_bn.central");
+  const high = byYear(r?.high, years, "budget.range_bn.high");
+  const total = byYear(data?.budget?.gross_bn?.total, years, "budget.gross_bn.total");
+  years.forEach((y, i) => {
+    if (!(low[i] <= central[i] && central[i] <= high[i])) fail("budget.range_bn", `${y}: low, central and high are out of order`);
+    if (Math.abs(central[i] - total[i]) > 0.001) fail("budget.range_bn.central", `${y}: not the headline total`);
+  });
   return { years, low, central, high };
 }
 
@@ -102,71 +129,58 @@ export function getRange(data) {
 export function getSensitivities(data) {
   const years = getYears(data);
   const s = data?.budget?.sensitivities;
-  if (!s || !s.effects_bn || typeof s.effects_bn !== "object") return null;
-  // Each side must be a list of effect ids; any other shape makes the block unavailable.
-  const ids = (v) => v === undefined || (Array.isArray(v) && v.every(isText));
-  if (!ids(s.low) || !ids(s.high)) return null;
-  const side = (id) => (s.low?.includes(id) ? "low" : s.high?.includes(id) ? "high" : null);
-  const rows = Object.entries(s.effects_bn).map(([id, v]) => ({
-    id,
-    values: byYear(v, years),
-    description: s.descriptions?.[id],
-    side: side(id),
-  }));
-  if (rows.length === 0 || rows.some((r) => !r.values || !isText(r.description) || !r.side)) return null;
+  if (!s || !s.effects_bn || typeof s.effects_bn !== "object") fail("budget.sensitivities", "missing");
+  // Each side must be a list of effect ids.
+  for (const side of ["low", "high"]) {
+    if (!Array.isArray(s[side]) || !s[side].every(isText)) fail(`budget.sensitivities.${side}`, "not a list of effect ids");
+  }
+  const rows = Object.entries(s.effects_bn).map(([id, v]) => {
+    const side = s.low.includes(id) ? "low" : s.high.includes(id) ? "high" : fail(`budget.sensitivities.${id}`, "on neither side");
+    if (!isText(s.descriptions?.[id])) fail(`budget.sensitivities.descriptions.${id}`, "missing");
+    return { id, values: byYear(v, years, `budget.sensitivities.effects_bn.${id}`), description: s.descriptions[id], side };
+  });
+  if (rows.length === 0) fail("budget.sensitivities.effects_bn", "empty");
+  for (const id of [...s.low, ...s.high]) if (!(id in s.effects_bn)) fail(`budget.sensitivities`, `${id} has no effect`);
   return { years, rows };
-}
-
-/** The Microcosm cross-check: total and scheme split by year, or null. */
-export function getCrossCheck(data) {
-  const years = getYears(data);
-  const c = data?.budget?.cross_check;
-  const total = byYear(c?.total, years);
-  const thirty = byYear(c?.thirty_hours, years);
-  const tfc = byYear(c?.tax_free_childcare, years);
-  if (!total || !thirty || !tfc) return null;
-  return { years, total, thirty_hours: thirty, tax_free_childcare: tfc };
 }
 
 /** The 30 hours cost split into the extended hours gained and the universal hours the model switches off. */
 export function getThirtyHoursComponents(data) {
   const years = getYears(data);
   const c = data?.budget?.thirty_hours_components_bn;
-  const extended = byYear(c?.extended, years);
-  const universal = byYear(c?.universal, years);
-  const targeted = byYear(c?.targeted, years);
-  if (!extended || !universal || !targeted) return null;
-  return { years, extended, universal, targeted };
+  return {
+    years,
+    extended: byYear(c?.extended, years, "budget.thirty_hours_components_bn.extended"),
+    universal: byYear(c?.universal, years, "budget.thirty_hours_components_bn.universal"),
+    targeted: byYear(c?.targeted, years, "budget.thirty_hours_components_bn.targeted"),
+  };
 }
 
-/** The other comparisons; each is null on its own when missing. */
+/** The net cost and each scheme's limit removed alone. */
 export function getBudgetComparisons(data) {
   const years = getYears(data);
   const b = data?.budget;
   return {
-    net: byYear(b?.net_bn?.total, years),
-    thirtyOnly: byYear(b?.variants?.thirty_hours_only, years),
-    tfcOnly: byYear(b?.variants?.tfc_only, years),
+    net: byYear(b?.net_bn?.total, years, "budget.net_bn.total"),
+    thirtyOnly: byYear(b?.variants?.thirty_hours_only, years, "budget.variants.thirty_hours_only"),
+    tfcOnly: byYear(b?.variants?.tfc_only, years, "budget.variants.tfc_only"),
   };
 }
 
-function validRecipients(r) {
-  return (
-    r &&
-    [r.families_gaining, r.children_gaining, r.mean_gain_gbp, r.by_scheme?.thirty_hours, r.by_scheme?.tax_free_childcare].every(isNum)
-  );
-}
-
-/** Families and children gaining in one year (Enhanced FRS), or null. */
+/** Families and children gaining in one year. */
 export function getRecipients(data, year) {
+  const block = `recipients.${year}`;
   const r = data?.recipients?.[String(year)];
-  return validRecipients(r) ? r : null;
-}
-
-/** The Microcosm recipients in one year, or null. */
-export function getRecipientsCrossCheck(data, year) {
-  const r = data?.recipients_cross_check?.[String(year)];
-  return validRecipients(r) ? r : null;
+  if (!r) fail(block, "missing");
+  const keys = { families_gaining: r.families_gaining, children_gaining: r.children_gaining, "by_scheme.thirty_hours": r.by_scheme?.thirty_hours, "by_scheme.tax_free_childcare": r.by_scheme?.tax_free_childcare };
+  for (const [k, v] of Object.entries(keys)) if (!isNum(v)) fail(`${block}.${k}`, "not a number");
+  // The mean gain is null only when it is suppressed: nobody gains, or the cell is marked suppressed.
+  if (r.mean_gain_gbp === null) {
+    if (!(r.families_gaining === 0 || r.suppressed === true || r.mean_gain_suppressed === true)) fail(`${block}.mean_gain_gbp`, "null but not suppressed");
+  } else if (!isNum(r.mean_gain_gbp)) fail(`${block}.mean_gain_gbp`, "not a number");
+  if ("families_losing" in r && !isNum(r.families_losing)) fail(`${block}.families_losing`, "not a number");
+  if ("children_by_scheme" in r && !SCHEMES.every((sc) => isNum(r.children_by_scheme?.[sc]))) fail(`${block}.children_by_scheme`, "invalid");
+  return r;
 }
 
 export const AGE_GROUPS = [
@@ -177,123 +191,168 @@ export const AGE_GROUPS = [
   { id: "12+", label: "12 and over" },
 ];
 
-/** Children gaining by age group, or null. */
+/** Children gaining by age group. */
 export function getChildrenByAge(data, year) {
+  const block = `recipients.${year}.children_gaining_by_age`;
   const a = data?.recipients?.[String(year)]?.children_gaining_by_age;
-  if (!a) return null;
-  const rows = AGE_GROUPS.map((g) => ({ ...g, value: a[g.id] }));
-  return rows.every((r) => isNum(r.value)) ? rows : null;
+  if (!a) fail(block, "missing");
+  return AGE_GROUPS.map((g) => {
+    if (!isNum(a[g.id])) fail(`${block}.${g.id}`, "not a number");
+    return { ...g, value: a[g.id] };
+  });
 }
 
 /**
  * A breakdown cell: valid if it has every number, or if it is marked suppressed (too few records) with no numbers.
  * A suppressed cell must never be read as zero.
  */
-function validCell(r, keys) {
-  if (r?.suppressed === true) return keys.every((k) => r[k] === null || r[k] === undefined);
-  return keys.every((k) => isNum(r?.[k]));
+function checkCell(r, keys, block) {
+  if (r?.suppressed === true) {
+    if (!keys.every((k) => r[k] === null || r[k] === undefined)) fail(block, "suppressed but carries a number");
+    return;
+  }
+  for (const k of keys) if (!isNum(r?.[k])) fail(`${block}.${k}`, "not a number");
 }
 
 const DECILE_KEYS = ["mean_change_gbp", "pct_change", "share_gaining_pct"];
 
-/** Ten income deciles in order; a suppressed decile carries `suppressed: true` and null values. Or null. */
+/** Ten income deciles in order; a suppressed decile carries `suppressed: true` and null values. */
 export function getDeciles(data, year) {
+  const block = `distribution.${year}.by_decile`;
   const rows = data?.distribution?.[String(year)]?.by_decile;
-  if (!Array.isArray(rows) || rows.length !== 10) return null;
-  const ok = rows.every((r, i) => r?.decile === i + 1 && validCell(r, DECILE_KEYS));
-  if (!ok || rows.every((r) => r.suppressed === true)) return null;
+  if (!Array.isArray(rows) || rows.length !== 10) fail(block, "not ten deciles");
+  rows.forEach((r, i) => {
+    if (r?.decile !== i + 1) fail(`${block}.${i}`, "out of order");
+    checkCell(r, DECILE_KEYS, `${block}.${i}`);
+  });
+  if (rows.every((r) => r.suppressed === true)) fail(block, "every decile suppressed");
   return rows.map((r) => ({ ...r, suppressed: r.suppressed === true }));
 }
 
-/** The change by nation; a suppressed nation carries `suppressed: true` and null values. Or null. */
+/** The change by nation; a suppressed nation carries `suppressed: true` and null values. */
 export function getCountries(data, year) {
+  const block = `distribution.${year}.by_country`;
   const rows = data?.distribution?.[String(year)]?.by_country;
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  const ok = rows.every((r) => isText(r?.country) && validCell(r, ["total_change_bn", "families_gaining"]));
-  return ok ? rows.map((r) => ({ ...r, suppressed: r.suppressed === true })) : null;
+  if (!Array.isArray(rows) || rows.length === 0) fail(block, "missing");
+  rows.forEach((r, i) => {
+    if (!COUNTRIES.includes(r?.country)) fail(`${block}.${i}.country`, `unknown nation ${JSON.stringify(r?.country)}`);
+    checkCell(r, ["total_change_bn", "families_gaining"], `${block}.${i}`);
+  });
+  // A single suppressed nation could be worked out from the UK total.
+  if (rows.filter((r) => r.suppressed === true).length === 1) fail(block, "a single suppressed nation can be recovered from the total");
+  return rows.map((r) => ({ ...r, suppressed: r.suppressed === true }));
 }
 
-/** The years with valid recipients and distribution, for the "Who gains" year choice. */
+/** The years for the "Who gains" choice: every modelled year, each of which must have a valid distribution. */
 export function getDistributionYears(data) {
-  const years = getYears(data) ?? [];
-  return years.filter((y) => getRecipients(data, y) && getDeciles(data, y) && getCountries(data, y));
+  const years = getYears(data);
+  for (const y of years) {
+    getRecipients(data, y);
+    getDeciles(data, y);
+    getCountries(data, y);
+  }
+  return years;
 }
 
-/** Rows comparing the model's baseline with official statistics, each with the dataset it comes from, or null. */
+/** Rows comparing the model's baseline with official statistics. */
 export function getValidation(data) {
   const rows = data?.baseline_validation;
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  const ok = rows.every(
-    (r) =>
+  if (!Array.isArray(rows) || rows.length === 0) fail("baseline_validation", "missing");
+  rows.forEach((r, i) => {
+    const ok =
       isText(r?.label) && Number.isInteger(r.year) && isNum(r.model) && isNum(r.official) && isText(r.unit) && isText(r.source) && isText(r.url) &&
-      (r.dataset === undefined || isText(r.dataset)) && (r.note === undefined || isText(r.note)),
-  );
-  return ok ? rows.map((r) => ({ ...r, dataset: r.dataset ?? "Model" })) : null;
+      (!("dataset" in r) || isText(r.dataset)) && (!("note" in r) || isText(r.note));
+    if (!ok) fail(`baseline_validation.${i}`, "invalid");
+  });
+  return rows;
 }
 
-/** Take-up and usage assumptions for each dataset, or null. */
+/** Take-up and usage assumptions for each dataset in the file. */
 export function getAssumptions(data) {
   const a = data?.assumptions;
-  if (!a || typeof a !== "object") return null;
+  if (!a || typeof a !== "object") fail("assumptions", "missing");
   const rows = Object.entries(a).map(([id, v]) => ({ id, ...v }));
-  const ok =
-    rows.length > 0 &&
-    rows.every(
-      (r) =>
-        Number.isInteger(r.year) &&
-        [
-          r.would_claim_30_hours_pct?.families_with_child_under_5,
-          r.would_claim_30_hours_pct?.of_which_parent_over_100k,
-          r.would_claim_tfc_pct?.families_with_child_under_12,
-          r.would_claim_tfc_pct?.of_which_parent_over_100k,
-          r.mean_extended_hours_usage,
-        ].every(isNum),
-    );
-  return ok ? rows : null;
+  if (rows.length === 0) fail("assumptions", "empty");
+  rows.forEach((r) => {
+    const ok =
+      Number.isInteger(r.year) &&
+      [
+        r.would_claim_30_hours_pct?.families_with_child_under_5,
+        r.would_claim_30_hours_pct?.of_which_parent_over_100k,
+        r.would_claim_tfc_pct?.families_with_child_under_12,
+        r.would_claim_tfc_pct?.of_which_parent_over_100k,
+        r.mean_extended_hours_usage,
+      ].every(isNum);
+    if (!ok) fail(`assumptions.${r.id}`, "invalid");
+  });
+  return rows;
 }
 
-/** The example household's net income against earnings, with and without the limit, or null. */
+/** The example household's net income against earnings, with and without the limit. */
 export function getCliff(data) {
   const c = data?.cliff_example;
-  if (!c || !isText(c.description) || !Number.isInteger(c.year)) return null;
+  if (!c || !isText(c.description) || !Number.isInteger(c.year)) fail("cliff_example", "incomplete");
   const { earnings, net_income_baseline: base, net_income_reform: reform } = c;
-  if (![earnings, base, reform].every((a) => Array.isArray(a) && a.length >= 2 && a.every(isNum))) return null;
-  if (base.length !== earnings.length || reform.length !== earnings.length) return null;
-  for (let i = 1; i < earnings.length; i += 1) if (earnings[i] <= earnings[i - 1]) return null;
+  if (![earnings, base, reform].every((a) => Array.isArray(a) && a.length >= 2 && a.every(isNum))) fail("cliff_example", "arrays invalid");
+  if (base.length !== earnings.length || reform.length !== earnings.length) fail("cliff_example", "arrays of different lengths");
+  for (let i = 1; i < earnings.length; i += 1) if (earnings[i] <= earnings[i - 1]) fail("cliff_example.earnings", "not increasing");
+  if ("notes" in c && !isText(c.notes)) fail("cliff_example.notes", "not text");
   const rows = earnings.map((e, i) => ({ earnings: e, baseline: base[i], reform: reform[i] }));
-  return { ...c, rows, notes: isText(c.notes) ? c.notes : null };
+  return { ...c, rows };
 }
 
 /**
  * The cliff in the example: income just below the limit (the last point under it), the first point above it, the
  * income lost between them, and the earnings needed to get back to the income below the limit (null if never within
- * the range). Measured from below the limit because the model may already withdraw support at exactly £100,000.
+ * the range, which the page states). Measured from below the limit because the model may already withdraw support
+ * at exactly £100,000.
  */
 export function cliffSummary(cliff, limit = 100000) {
-  const rows = cliff?.rows;
-  if (!rows) return null;
+  const rows = cliff.rows;
   const below = rows.findLastIndex((r) => r.earnings < limit);
   const above = rows.findIndex((r) => r.earnings > limit);
-  if (below < 0 || above < 0) return null;
+  if (below < 0 || above < 0) fail("cliff_example.earnings", `does not span £${limit}`);
   const before = rows[below];
   const after = rows[above];
   const recover = rows.slice(above).find((r) => r.baseline >= before.baseline);
-  return { before, after, drop: before.baseline - after.baseline, recoverAt: recover?.earnings ?? null };
+  return { before, after, drop: before.baseline - after.baseline, recoverAt: recover ? recover.earnings : null };
 }
 
-/** Published estimates to compare against, or null. */
+/** Published estimates to compare against. */
 export function getBenchmarks(data) {
   const rows = data?.benchmarks;
-  if (!Array.isArray(rows) || rows.length === 0) return null;
-  const ok = rows.every(
-    (b) =>
+  if (!Array.isArray(rows) || rows.length === 0) fail("benchmarks", "missing");
+  rows.forEach((b, i) => {
+    const ok =
       isText(b?.source) && isText(b.figure) && isNum(b.ours) && Number.isInteger(b.year) && isText(b.like_for_like) && isText(b.url) &&
-      (b.announcement_url === undefined || isText(b.announcement_url)),
-  );
-  return ok ? rows : null;
+      isText(b.announcement_url) && isText(b.underlying_source_url);
+    if (!ok) fail(`benchmarks.${i}`, "invalid");
+  });
+  return rows;
 }
 
 export function getLimitations(data) {
   const rows = data?.limitations;
-  return Array.isArray(rows) && rows.length > 0 && rows.every(isText) ? rows : null;
+  if (!(Array.isArray(rows) && rows.length > 0 && rows.every(isText))) fail("limitations", "missing");
+  return rows;
+}
+
+/** Run every reader over the file; throws a ResultsError on the first invalid block. */
+export function validateResults(data) {
+  const years = getYears(data);
+  getMeta(data);
+  getReform(data);
+  getBudget(data);
+  getRange(data);
+  getSensitivities(data);
+  getThirtyHoursComponents(data);
+  getBudgetComparisons(data);
+  getDistributionYears(data);
+  for (const y of years) getChildrenByAge(data, y);
+  getValidation(data);
+  getAssumptions(data);
+  cliffSummary(getCliff(data));
+  getBenchmarks(data);
+  getLimitations(data);
+  return true;
 }

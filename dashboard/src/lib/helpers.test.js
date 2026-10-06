@@ -9,7 +9,6 @@ import {
   getBudgetComparisons,
   getChildrenByAge,
   getCliff,
-  getCrossCheck,
   getCountries,
   getDeciles,
   getDistributionYears,
@@ -22,7 +21,10 @@ import {
   getThirtyHoursComponents,
   getValidation,
   getYears,
-  isSample,
+  LEAD_YEAR,
+  ResultsError,
+  validateResults,
+  yearHeading,
 } from "./dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct, formatThousands } from "./formatters";
 import { niceTicks } from "./ticks";
@@ -32,24 +34,11 @@ const years = data.meta.years;
 const final = years.at(-1);
 
 describe("the results file", () => {
-  it("passes every reader", () => {
+  it("passes validation", () => {
+    expect(validateResults(data)).toBe(true);
     expect(getYears(data)).toEqual(years);
-    expect(getMeta(data)).not.toBeNull();
-    expect(getReform(data)).not.toBeNull();
-    expect(getBudget(data)).not.toBeNull();
-    const c = getBudgetComparisons(data);
-    for (const k of ["net", "thirtyOnly", "tfcOnly"]) expect(c[k], k).not.toBeNull();
-    expect(getRange(data)).not.toBeNull();
-    expect(getSensitivities(data)).not.toBeNull();
-    expect(getCrossCheck(data)).not.toBeNull();
-    expect(getThirtyHoursComponents(data)).not.toBeNull();
-    expect(getAssumptions(data)).not.toBeNull();
-    for (const y of years) expect(getChildrenByAge(data, y), String(y)).not.toBeNull();
+    expect(getYears(data)).toContain(LEAD_YEAR);
     expect(getDistributionYears(data)).toEqual(years);
-    expect(getValidation(data)).not.toBeNull();
-    expect(getCliff(data)).not.toBeNull();
-    expect(getBenchmarks(data)).not.toBeNull();
-    expect(getLimitations(data)).not.toBeNull();
   });
 
   it("has costs that add up: the two schemes make the total each year", () => {
@@ -81,98 +70,105 @@ describe("the results file", () => {
     b.rows.forEach((row, i) => expect(Math.abs(c.extended[i] + c.universal[i] + c.targeted[i] - row.thirty_hours)).toBeLessThan(0.003));
   });
 
-  it("marks every cell without numbers as suppressed, never as a silent gap", () => {
-    for (const y of years) {
-      for (const r of [...getDeciles(data, y), ...getCountries(data, y)]) {
-        if (r.suppressed) expect(r.mean_change_gbp ?? r.total_change_bn ?? null).toBeNull();
-      }
-    }
+  it("never has a single suppressed nation, so none can be worked out from the UK total", () => {
+    for (const y of years) expect(getCountries(data, y).filter((c) => c.suppressed).length, String(y)).not.toBe(1);
   });
 
   it("has the example household no worse off under the reform at any earnings", () => {
-    const c = getCliff(data);
-    for (const r of c.rows) expect(r.reform).toBeGreaterThanOrEqual(r.baseline);
+    for (const r of getCliff(data).rows) expect(r.reform).toBeGreaterThanOrEqual(r.baseline);
   });
 });
 
-describe("readers fail closed", () => {
+describe("validation throws, naming the block", () => {
+  const throwsOn = (fn, block) => {
+    expect(fn).toThrow(ResultsError);
+    expect(fn).toThrow(block);
+  };
+
   it.each(BAD_VALUES)("on a bad cost (%s)", (bad) => {
-    expect(getBudget(mutate(`budget.gross_bn.total.${final}`, bad))).toBeNull();
+    throwsOn(() => getBudget(mutate(`budget.gross_bn.total.${final}`, bad)), "budget.gross_bn.total");
   });
 
   it("when the schemes do not add up to the total", () => {
-    expect(getBudget(mutate(`budget.gross_bn.total.${final}`, 99))).toBeNull();
+    throwsOn(() => getBudget(mutate(`budget.gross_bn.total.${final}`, 99)), "budget.gross_bn");
   });
 
-  it("on bad years", () => {
-    expect(getYears(mutate("meta.years", [2027, 2026]))).toBeNull();
-    expect(getYears(mutate("meta.years", []))).toBeNull();
-    expect(getBudget(mutate("meta.years", null))).toBeNull();
+  it("on bad years, and on years without the lead year", () => {
+    throwsOn(() => getYears(mutate("meta.years", [2027, 2026])), "meta.years");
+    throwsOn(() => getYears(mutate("meta.years", [])), "meta.years");
+    throwsOn(() => getYears(mutate("meta.years", [2028, 2029])), "lead year");
   });
 
-  it("on a missing cross-check, without dropping the budget", () => {
-    const broken = mutate("budget.cross_check", null);
-    expect(getCrossCheck(broken)).toBeNull();
-    expect(getBudget(broken)).not.toBeNull();
+  it("on a missing provenance field", () => {
+    throwsOn(() => getMeta(mutate("meta.git_revision", undefined, { remove: true })), "meta.git_revision");
   });
 
   it("on a range whose central is not the headline cost", () => {
-    expect(getRange(mutate(`budget.range_bn.central.${final}`, 9))).toBeNull();
+    throwsOn(() => getRange(mutate(`budget.range_bn.central.${final}`, 9)), "budget.range_bn");
   });
 
-  it("on a sensitivity with no side", () => {
-    expect(getSensitivities(mutate("budget.sensitivities.low", []))).toBeNull();
+  it("on a sensitivity on neither side, or a side that is not a list of ids", () => {
+    throwsOn(() => getSensitivities(mutate("budget.sensitivities.low", [])), "budget.sensitivities");
+    throwsOn(() => getSensitivities(mutate("budget.sensitivities.low", 42)), "budget.sensitivities.low");
+    throwsOn(() => getSensitivities(mutate("budget.sensitivities.high", {})), "budget.sensitivities.high");
+    throwsOn(() => getSensitivities(mutate("budget.sensitivities.high", [1, 2])), "budget.sensitivities.high");
   });
 
-  it("on a sensitivity side that is not a list of ids", () => {
-    expect(getSensitivities(mutate("budget.sensitivities.low", 42))).toBeNull();
-    expect(getSensitivities(mutate("budget.sensitivities.high", {}))).toBeNull();
-    expect(getSensitivities(mutate("budget.sensitivities.high", [1, 2]))).toBeNull();
+  it("on a missing block that the page reads", () => {
+    for (const block of ["budget.sensitivities", "budget.thirty_hours_components_bn", "baseline_validation", "limitations", "benchmarks", "assumptions"]) {
+      expect(() => validateResults(mutate(block, undefined, { remove: true })), block).toThrow(ResultsError);
+    }
   });
 
   it("on a missing value that is not marked suppressed", () => {
-    expect(getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, null), final)).toBeNull();
-    expect(getCountries(mutate(`distribution.${final}.by_country.0.total_change_bn`, null), final)).toBeNull();
+    throwsOn(() => getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, null), final), `distribution.${final}.by_decile.9`);
+    const i = data.distribution[final].by_country.findIndex((r) => !r.suppressed);
+    throwsOn(() => getCountries(mutate(`distribution.${final}.by_country.${i}.total_change_bn`, null), final), `distribution.${final}.by_country`);
   });
 
   it("on a suppressed cell that still carries a number", () => {
     const i = data.distribution[final].by_country.findIndex((r) => !r.suppressed);
-    expect(getCountries(mutate(`distribution.${final}.by_country.${i}.suppressed`, true), final)).toBeNull();
+    throwsOn(() => getCountries(mutate(`distribution.${final}.by_country.${i}.suppressed`, true), final), `distribution.${final}.by_country`);
+  });
+
+  it("on a mean gain that is null without being suppressed", () => {
+    throwsOn(() => getRecipients(mutate(`recipients.${final}.mean_gain_gbp`, null), final), "mean_gain_gbp");
   });
 
   it.each(BAD_VALUES)("on a bad decile value (%s)", (bad) => {
-    expect(getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, bad), final)).toBeNull();
+    expect(() => getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, bad), final)).toThrow(ResultsError);
   });
 
-  it("on a short decile list, and drops that year from the choice", () => {
+  it("on a short decile list: the year is not dropped from the choice, the file fails", () => {
     const broken = mutate(`distribution.${final}.by_decile`, data.distribution[final].by_decile.slice(0, 9));
-    expect(getDeciles(broken, final)).toBeNull();
-    expect(getDistributionYears(broken)).not.toContain(final);
+    throwsOn(() => getDistributionYears(broken), `distribution.${final}.by_decile`);
   });
 
-  it("on a bad country row", () => {
-    expect(getCountries(mutate(`distribution.${final}.by_country.0.country`, ""), final)).toBeNull();
+  it("on an unknown nation", () => {
+    throwsOn(() => getCountries(mutate(`distribution.${final}.by_country.0.country`, ""), final), `distribution.${final}.by_country.0.country`);
   });
 
   it("on cliff arrays of different lengths", () => {
-    expect(getCliff(mutate("cliff_example.net_income_reform", data.cliff_example.net_income_reform.slice(1)))).toBeNull();
+    throwsOn(() => getCliff(mutate("cliff_example.net_income_reform", data.cliff_example.net_income_reform.slice(1))), "cliff_example");
   });
 
   it("on a reform parameter that is not removed", () => {
-    expect(getReform(mutate("reform.parameters.0.reform", 120000))).toBeNull();
+    throwsOn(() => getReform(mutate("reform.parameters.0.reform", 120000)), "reform.parameters");
   });
 
   it("on a validation row without a source link", () => {
-    expect(getValidation(mutate("baseline_validation.0.url", null))).toBeNull();
+    throwsOn(() => getValidation(mutate("baseline_validation.0.url", null)), "baseline_validation.0");
   });
-});
 
-describe("the sample flag", () => {
-  it("is read only from an explicit meta.sample true", () => {
-    expect(isSample({ meta: { sample: true } })).toBe(true);
-    expect(isSample({ meta: { sample: "true" } })).toBe(false);
-    expect(isSample({ meta: {} })).toBe(false);
-    expect(isSample({ sample: true })).toBe(false);
+  it("on a benchmark without its CenTax source", () => {
+    throwsOn(() => getBenchmarks(mutate("benchmarks.0.underlying_source_url", undefined, { remove: true })), "benchmarks.0");
+  });
+
+  it("covers every reader in validateResults", () => {
+    expect(getChildrenByAge(data, final)).toHaveLength(5);
+    expect(getAssumptions(data).length).toBeGreaterThan(0);
+    expect(getLimitations(data).length).toBeGreaterThan(0);
+    expect(getBudgetComparisons(data).net).toHaveLength(years.length);
   });
 });
 
@@ -198,12 +194,16 @@ describe("the cliff summary", () => {
     ];
     expect(cliffSummary({ rows }).recoverAt).toBeNull();
   });
+
+  it("throws when the earnings do not span the limit", () => {
+    expect(() => cliffSummary({ rows: [{ earnings: 99000, baseline: 1, reform: 1 }] })).toThrow(ResultsError);
+  });
 });
 
 describe("formatters", () => {
-  it("print nothing broken for bad values", () => {
+  it("throw on bad values rather than print a placeholder", () => {
     for (const bad of BAD_VALUES) {
-      for (const f of [formatBn, formatCount, formatCurrency, formatPct, formatThousands]) expect(f(bad)).toBe("unavailable");
+      for (const f of [formatBn, formatCount, formatCurrency, formatPct, formatThousands]) expect(() => f(bad)).toThrow(TypeError);
     }
   });
 
@@ -213,6 +213,8 @@ describe("formatters", () => {
     expect(formatThousands(94560)).toBe("95,000");
     expect(formatPct(-0.04)).toBe("0.0%");
     expect(fyLabel(2029)).toBe("2029-30");
+    expect(yearHeading(2026)).toBe("2026-27 (illustrative)");
+    expect(yearHeading(2027)).toBe("2027-28");
   });
 
   it("pick round axis ticks that include zero", () => {

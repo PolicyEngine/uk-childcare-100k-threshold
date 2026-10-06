@@ -8,18 +8,6 @@ export const AXIS_STYLE = {
   fill: colors.gray[500],
 };
 
-/** Shown in place of any block whose inputs fail validation. */
-export function Unavailable({ what, plural = false }) {
-  return (
-    <p
-      className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-600"
-      data-testid="unavailable"
-    >
-      {what} {plural ? "are" : "is"} unavailable in this results file.
-    </p>
-  );
-}
-
 export function CustomTooltip({ active, payload, label, formatter, labelFormatter }) {
   if (!active || !payload?.length) return null;
   return (
@@ -259,7 +247,11 @@ export function Select({ label, options, value, onChange }) {
         <select
           className="cursor-pointer appearance-none rounded-full border border-slate-200 bg-white py-1.5 pl-4 pr-9 text-sm font-medium text-slate-800 shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/30"
           value={value}
-          onChange={(e) => onChange(options.find((o) => String(o.id) === e.target.value)?.id ?? e.target.value)}
+          onChange={(e) => {
+            const option = options.find((o) => String(o.id) === e.target.value);
+            if (!option) throw new Error(`Select ${label}: no option ${e.target.value}`);
+            onChange(option.id);
+          }}
           aria-label={label}
         >
           {options.map((o) => (

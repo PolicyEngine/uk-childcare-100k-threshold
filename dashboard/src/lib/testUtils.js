@@ -2,17 +2,9 @@ import { render } from "@testing-library/react";
 
 import fileData from "../../public/data/results.json";
 
-// The committed results file. Until the analysis lands it is the sample fixture (meta.sample: true); every test
-// reads its numbers from the file, so the same tests pass on the real results.
+// The committed results file. Every test reads its numbers from the file, so the same tests pass on any valid
+// results file.
 export const realData = fileData;
-
-/** The file with the sample flag set or removed, for the banner tests. */
-export function withSample(sample) {
-  const copy = structuredClone(fileData);
-  if (sample) copy.meta.sample = true;
-  else delete copy.meta.sample;
-  return copy;
-}
 
 /** Text a user would see, whitespace collapsed. */
 export function textOf(element) {
