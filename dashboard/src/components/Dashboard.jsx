@@ -148,8 +148,6 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
 export function LabourSupplyControl({ data, setting, onChange }) {
   const ls = getLabourSupply(data);
   const a = ls.assumptions;
-  const any = setting.extensive || setting.intensive || setting.bunching;
-  const note = any ? null : "All off: the static costing, with nobody changing how much they work. Switch a response on to see the cost after it.";
   const link = (href, text) => (
     <a href={href} target="_blank" rel="noreferrer" className="underline">
       {text}
@@ -195,11 +193,6 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           testId="toggle-bunching"
         />
       </div>
-      {note ? (
-        <p className="mt-2 text-xs text-slate-500" data-testid="labour-supply-note">
-          {note}
-        </p>
-      ) : null}
     </div>
   );
 }
