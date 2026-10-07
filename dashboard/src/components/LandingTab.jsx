@@ -217,52 +217,55 @@ function SeriesTable({ years, rows, testId, format = (v) => formatBn(v, 2) }) {
 }
 
 function BenchmarkTable({ data }) {
-  // CenTax's estimates are for 2030: compare with our last year, 2029-30.
+  // CenTax's estimates are for 2030 (tax year 2029-30): compare with our last year.
   const last = getBudget(data).rows.at(-1);
+  const benchmark = getBenchmarks(data)[0];
+  const [central, high, low] = ["central", "high", "low"].map((id) => CENTAX_SCENARIOS.find((c) => c.id === id));
+  const net = (v) => (v < 0 ? `raises ${formatBn(-v, 2)}` : formatBn(v, 2));
+  const rows = [
+    ["Covers", "30 hours and Tax-Free Childcare", "Free hours only", "30 hours and Tax-Free Childcare"],
+    ["Year", nb(last.year), `${nb(last.year)} (labelled 2030)`, "Not stated"],
+    [
+      "Static cost",
+      `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)}, Tax-Free Childcare ${formatBn(last.tax_free_childcare, 2)})`,
+      `${formatBn(central.staticBn, 2)} central (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)} across scenarios)`,
+      "Not given",
+    ],
+    [
+      "After parents change how much they work",
+      "Not modelled",
+      `${formatBn(central.netBn, 2)} central (${net(low.netBn)} to ${net(high.netBn)} across scenarios)`,
+      "About £0.7bn a year; basis not stated",
+    ],
+    [
+      "Method published",
+      <a key="pe" href="https://github.com/PolicyEngine/uk-childcare-100k-threshold" target="_blank" rel="noreferrer">Yes: code and data versions</a>,
+      <a key="ct" href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">Yes: report, Table 4.2</a>,
+      "No",
+    ],
+  ];
   return (
     <div className="overflow-x-auto">
-        <table className="data-table" data-testid="comparison-table">
-          <thead>
-            <tr>
-              <th>Estimate</th>
-              <th>Covers</th>
-              <th>Year</th>
-              <th>Static cost</th>
-              <th>After parents change how much they work</th>
+      <table className="data-table" data-testid="comparison-table">
+        <thead>
+          <tr>
+            <th />
+            <th>PolicyEngine</th>
+            <th>CenTax</th>
+            <th>Conservatives</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, ...cells]) => (
+            <tr key={label}>
+              <td className="font-medium text-slate-700">{label}</td>
+              {cells.map((c, i) => (
+                <td key={i} className="tabular-nums">{c}</td>
+              ))}
             </tr>
-          </thead>
-          <tbody>
-            <tr className="font-medium">
-              <td>PolicyEngine, this dashboard</td>
-              <td>30 hours and Tax-Free Childcare</td>
-              <td className="whitespace-nowrap">{nb(last.year)}</td>
-              <td className="tabular-nums">{formatBn(last.total, 2)}</td>
-              <td>Not modelled</td>
-            </tr>
-            <tr className="font-medium">
-              <td>PolicyEngine, 30 hours only</td>
-              <td>Free hours only</td>
-              <td className="whitespace-nowrap">{nb(last.year)}</td>
-              <td className="tabular-nums">{formatBn(last.thirty_hours, 2)}</td>
-              <td>Not modelled</td>
-            </tr>
-            <tr>
-              <td>Conservatives (PA, BBC)</td>
-              <td>Both schemes</td>
-              <td>Not stated</td>
-              <td colSpan={2} className="tabular-nums">About £0.7bn a year; basis not stated</td>
-            </tr>
-            {CENTAX_SCENARIOS.map((c) => (
-              <tr key={c.id}>
-                <td>{c.label}</td>
-                <td>Free hours only</td>
-                <td className="whitespace-nowrap">{nb(last.year)}</td>
-                <td className="tabular-nums">{formatBn(c.staticBn, 2)}</td>
-                <td className="tabular-nums">{c.netBn < 0 ? `Raises ${formatBn(-c.netBn, 2)}` : formatBn(c.netBn, 2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
