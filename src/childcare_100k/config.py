@@ -131,10 +131,11 @@ CLIFF = {
 # Every combination is precomputed (household.household_grid). The default is the
 # published cliff family above, so the form opens on a household that hits the cliff.
 HOUSEHOLD_GRID = {
-    # £60,001 to £140,001 in £1,000 steps, so £99,001 and £100,001 sit either side of the limit.
-    "earnings_min": 60_001,
+    # £1 to £140,001 in £1,000 steps, so the chart starts at zero and £99,001 and £100,001
+    # sit either side of the limit.
+    "earnings_min": 1,
     "earnings_step": 1_000,
-    "earnings_count": 81,
+    "earnings_count": 141,
     "parents": [
         {"id": "couple20", "label": "Couple, partner earns £20,000", "partner_earnings": 20_000},
         {"id": "couple40", "label": "Couple, partner earns £40,000", "partner_earnings": 40_000},
