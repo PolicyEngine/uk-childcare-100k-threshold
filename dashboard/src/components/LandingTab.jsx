@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { colors, schemeColors } from "../lib/colors";
 import {
   fyLabel,
@@ -57,19 +57,6 @@ function Card({ label, value, detail, testId, children }) {
   );
 }
 
-function StripLegend({ items }) {
-  return (
-    <div className="mt-1 flex flex-wrap justify-center gap-x-3 gap-y-1 text-[11px] text-slate-500">
-      {items.map((l) => (
-        <span key={l.label} className="flex items-center gap-1">
-          {l.swatch ?? <span className="inline-block h-2 w-3 rounded-sm" style={{ backgroundColor: l.color }} />}
-          {l.label}
-        </span>
-      ))}
-    </div>
-  );
-}
-
 /** Small vertical bars, one per item, the first (or `highlight`) darkest. */
 function MiniBars({ items, label, highlight = 0, onSelect, format }) {
   const W = 240;
@@ -116,37 +103,67 @@ function MiniBars({ items, label, highlight = 0, onSelect, format }) {
   );
 }
 
-/** One horizontal bar split between the two schemes; hover for each part, click one to show it alone. */
+/** One bar split between the two schemes, each part labelled with its cost; hover for detail, click one to show it alone. */
 function SplitBar({ thirty, tfc, selected, onSelect }) {
   const total = thirty + tfc || 1;
   const share = Math.max(0, Math.min(1, thirty / total));
   const parts = [
-    { id: "thirty_hours", x: 0, w: 240 * share, value: thirty, pct: 100 * share },
-    { id: "tax_free_childcare", x: 240 * share, w: 240 * (1 - share), value: tfc, pct: 100 * (1 - share) },
+    { id: "thirty_hours", short: "30 hours", grow: share, value: thirty, pct: 100 * share, ink: "#fff" },
+    { id: "tax_free_childcare", short: "Tax-Free Childcare", grow: 1 - share, value: tfc, pct: 100 * (1 - share), ink: colors.gray[900] },
   ];
   return (
-    <div className="mt-auto pt-4" data-testid="mini-strip">
-      <svg viewBox="0 0 240 18" className="h-auto w-full" role="img" aria-label="Split of the cost between the two schemes: click a scheme to show it">
+    <div className="mt-auto pt-4" data-testid="mini-strip" aria-label="Split of the cost between the two schemes">
+      <div className="flex gap-0.5">
+      {parts.map((p) => (
+        <button
+          key={p.id}
+          type="button"
+          title={`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)} (${formatPct(p.pct, 0)})`}
+          aria-label={`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)}`}
+          aria-pressed={selected === p.id}
+          onClick={() => onSelect(selected === p.id ? null : p.id)}
+          className="min-w-0 overflow-hidden rounded-md px-2 py-1.5 text-left text-xs transition-opacity hover:opacity-90"
+          style={{ flexGrow: p.grow, flexBasis: 0, backgroundColor: schemeColors[p.id], color: p.ink, opacity: selected && selected !== p.id ? 0.35 : 1 }}
+        >
+          <span className="block truncate font-semibold">{formatPct(p.pct, 0)}</span>
+        </button>
+      ))}
+      </div>
+      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
         {parts.map((p) => (
-          <g
-            key={p.id}
-            className="cursor-pointer"
-            role="button"
-            aria-label={`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)}`}
-            aria-pressed={selected === p.id}
-            onClick={() => onSelect(selected === p.id ? null : p.id)}
-          >
-            <title>{`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)} (${formatPct(p.pct, 0)})`}</title>
-            <rect x={p.x} y={0} width={p.w} height={18} rx={3} fill={schemeColors[p.id]} opacity={selected && selected !== p.id ? 0.35 : 1} />
-          </g>
+          <span key={p.id} className="flex items-center gap-1.5">
+            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: schemeColors[p.id] }} />
+            {p.short}
+          </span>
         ))}
-      </svg>
-      <StripLegend
-        items={[
-          { label: `30 hours ${formatPct(100 * share, 0)}`, color: schemeColors.thirty_hours },
-          { label: `Tax-Free Childcare ${formatPct(100 * (1 - share), 0)}`, color: schemeColors.tax_free_childcare },
-        ]}
-      />
+      </div>
+    </div>
+  );
+}
+
+/** A short list of labelled horizontal bars with their values; hover for detail, click a row to select it. */
+function BarList({ items, selected, onSelect, format }) {
+  const max = Math.max(...items.map((d) => d.value), 0) || 1;
+  return (
+    <div className="mt-auto space-y-2 pt-4" data-testid="mini-strip">
+      {items.map((d) => (
+        <button
+          key={d.id}
+          type="button"
+          title={`${d.label}: ${format(d.value)}`}
+          aria-label={`${d.label}: ${format(d.value)}`}
+          aria-pressed={selected === d.id}
+          onClick={() => onSelect(selected === d.id ? null : d.id)}
+          className="grid w-full grid-cols-[minmax(0,7.5rem)_1fr_auto] items-center gap-2 text-left text-xs text-slate-600 hover:text-slate-900"
+          style={{ opacity: selected && selected !== d.id ? 0.45 : 1 }}
+        >
+          <span className="truncate">{d.label}</span>
+          <span className="h-3 rounded-sm bg-slate-100">
+            <span className="block h-3 rounded-sm" style={{ width: `${(100 * d.value) / max}%`, backgroundColor: d.color }} />
+          </span>
+          <span className="tabular-nums font-medium text-slate-800">{format(d.value)}</span>
+        </button>
+      ))}
     </div>
   );
 }
@@ -313,8 +330,9 @@ function ThirtyHoursWaterfall({ ext, univ, targ, net }) {
       : []),
     { name: "Net 30 hours cost", base: 0, value: net, signed: net, fill: schemeColors.thirty_hours },
   ];
-  const rows = steps.map((d) => ({ ...d, span: [d.base, d.base + d.value] }));
-  const values = rows.map((d) => d.base + d.value);
+  // Every bar starts at zero: what is paid goes up, what the model stops paying goes down, then the net.
+  const rows = steps.map((d) => ({ ...d, span: d.signed }));
+  const values = rows.map((d) => d.signed);
   return (
     <>
       <div style={{ height: 320 }} data-testid="components-chart">
@@ -334,12 +352,25 @@ function ThirtyHoursWaterfall({ ext, univ, targ, net }) {
                 ) : null
               }
             />
-            {/* Each bar floats from where the running total starts to where it ends: no spacer bar. */}
+            <ReferenceLine y={0} stroke={colors.gray[500]} />
             <Bar dataKey="span" isAnimationActive={false} maxBarSize={90} radius={4}>
               {steps.map((d) => (
                 <Cell key={d.name} fill={d.fill} />
               ))}
-              <LabelList dataKey="signed" position="top" formatter={formatSignedM} style={{ fontSize: 12, fill: colors.gray[700] }} />
+              <LabelList
+                dataKey="signed"
+                content={({ x, y, width, height, value }) => (
+                  <text
+                    x={x + width / 2}
+                    y={value < 0 ? Math.max(y, y + height) + 16 : Math.min(y, y + height) - 6}
+                    textAnchor="middle"
+                    fontSize={12}
+                    fill={colors.gray[700]}
+                  >
+                    {formatSignedM(value)}
+                  </text>
+                )}
+              />
             </Bar>
           </BarChart>
         </ResponsiveContainer>
@@ -398,7 +429,7 @@ export default function LandingTab({ data }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`Today a family loses the 30 funded hours (England) and Tax-Free Childcare (UK-wide) as soon as either parent's adjusted net income goes over £100,000. The reform removes that limit from both schemes, so families keep the support however much a parent earns; every other condition, including the minimum earnings test, stays. These cards show what that adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year; click a year's bar to change it.`}
+        lead={`Today a family loses the 30 funded hours (England) and Tax-Free Childcare (UK-wide) as soon as either parent's adjusted net income goes over £100,000. The reform removes that limit from both schemes, so families keep the support however much a parent earns; every other condition, including the minimum earnings test, stays. These cards show what that adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -419,7 +450,7 @@ export default function LandingTab({ data }) {
           <Card
             label={scheme ? SCHEME_LABELS[scheme] : "By scheme"}
             value={scheme ? formatBn(lead[scheme], 2) : `${formatBn(lead.thirty_hours, 2)} and ${formatBn(lead.tax_free_childcare, 2)}`}
-            detail={scheme ? `Cost of this scheme, ${fy}; click it again for both` : `30 hours and Tax-Free Childcare, ${fy}; click a scheme to show it`}
+            detail={scheme ? `Cost of this scheme, ${fy}` : `30 hours and Tax-Free Childcare, ${fy}`}
             testId="card-split"
           >
             <SplitBar thirty={lead.thirty_hours} tfc={lead.tax_free_childcare} selected={scheme} onSelect={setScheme} />
@@ -434,11 +465,10 @@ export default function LandingTab({ data }) {
             }
             testId="card-families"
           >
-            <MiniBars
-              items={SCHEMES.map((sc) => ({ label: SCHEME_LABELS[sc], value: recipients.by_scheme[sc], color: schemeColors[sc] }))}
-              label="Families gaining by scheme: click a scheme to show it"
-              highlight={scheme ? SCHEMES.indexOf(scheme) : -1}
-              onSelect={(i) => setScheme(scheme === SCHEMES[i] ? null : SCHEMES[i])}
+            <BarList
+              items={SCHEMES.map((sc) => ({ id: sc, label: sc === "thirty_hours" ? "30 hours" : "Tax-Free Childcare", value: recipients.by_scheme[sc], color: schemeColors[sc] }))}
+              selected={scheme}
+              onSelect={setScheme}
               format={formatThousands}
             />
           </Card>
@@ -479,7 +509,7 @@ export default function LandingTab({ data }) {
       <Section
         id="thirty-hours"
         title="How is the 30 hours cost built up?"
-        lead={`Read the bars from left to right, for ${fyLabel(budget.years[li])} (the year chosen in the cards). First, the model pays newly eligible families the working-parent hours. Second, for a 3- or 4-year-old it treats those hours as replacing the universal 15 hours, so it stops paying them; for a 2-year-old it does the same with the 15 low-income hours. Third, what is left is the net 30 hours cost, the same figure as in the chart above.`}
+        lead={`Read the bars from left to right, for ${fyLabel(budget.years[li])} (the year chosen in the cards). Bars above zero are what the model pays newly eligible families for the working-parent hours. Bars below zero are what it stops paying: for a 3- or 4-year-old it treats the working-parent hours as replacing the universal 15 hours, and for a 2-year-old the 15 low-income hours. The last bar is what is left, the net 30 hours cost, the same figure as in the chart above.`}
         details={
           <>
             <p>
