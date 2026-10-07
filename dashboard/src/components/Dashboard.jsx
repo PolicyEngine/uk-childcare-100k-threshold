@@ -85,7 +85,7 @@ const BREWER_URL =
 function ResponseCard({ on, onChange, bound, onBound, title, tag, description, source, testId }) {
   return (
     <div
-      className={`flex flex-col rounded-xl border p-4 transition-colors ${
+      className={`flex flex-col rounded-xl border px-4 py-2.5 transition-colors ${
         on ? "border-[color:var(--pe-color-primary-600)] bg-[color:var(--pe-color-primary-50)]" : "border-slate-200 bg-white"
       }`}
     >
@@ -96,23 +96,23 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
         aria-label={title}
         data-testid={testId}
         onClick={() => onChange(!on)}
-        className="flex w-full items-start justify-between gap-3 text-left"
+        className="flex w-full items-center justify-between gap-3 text-left"
       >
         <span>
-          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tag}</span>
-          <span className="mt-0.5 block font-semibold text-slate-900">{title}</span>
+          <span className="font-semibold text-slate-900">{title}</span>
+          <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tag}</span>
         </span>
         <span
           aria-hidden
-          className={`relative mt-1 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
             on ? "bg-[color:var(--pe-color-primary-600)]" : "bg-slate-300"
           }`}
         >
           <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
         </span>
       </button>
-      <p className="mt-2 text-sm leading-5 text-slate-600">{description}</p>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3 text-xs text-slate-500">
+      <p className="mt-0.5 text-sm leading-5 text-slate-600">{description}</p>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1.5 text-xs text-slate-500">
         <span>Source: {source}</span>
         {on ? (
           <label className="flex items-center gap-1.5">
@@ -120,7 +120,7 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
             <select
               value={bound}
               onChange={(e) => onBound(e.target.value)}
-              className="h-7 rounded-full border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800"
+              className="h-6 rounded-full border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800"
               aria-label={`${title}: setting`}
               data-testid={`${testId}-bound`}
             >
