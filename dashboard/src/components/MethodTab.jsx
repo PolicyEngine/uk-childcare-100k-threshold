@@ -1,6 +1,6 @@
 "use client";
 
-import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation } from "../lib/dataHelpers";
+import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation, STATIC_SETTING } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, UnifiedComparison } from "./Comparison";
 import { Expandable, Section } from "./ui";
@@ -216,7 +216,7 @@ function AssumptionNotes({ rows, takeUp }) {
   );
 }
 
-export default function MethodTab({ data }) {
+export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const meta = getMeta(data);
   const reform = getReform(data);
   const validation = getValidation(data);
@@ -325,7 +325,7 @@ export default function MethodTab({ data }) {
         detailsTitle="Each choice in full, the effect in every year, and sources"
       >
         <Expandable title="Show the comparison table" testId="comparison-expandable">
-          <UnifiedComparison data={data} />
+          <UnifiedComparison data={data} setting={setting} />
         </Expandable>
       </Section>
 

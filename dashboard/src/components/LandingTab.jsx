@@ -10,7 +10,11 @@ import {
   getBudgetComparisons,
   getRecipients,
   isNum,
+  isStatic,
+  labourSupplyLabel,
+  labourSupplyOffset,
   LEAD_YEAR,
+  STATIC_SETTING,
   SCHEME_LABELS,
   SCHEMES,
   yearHeading,
@@ -161,8 +165,14 @@ function BarList({ items, selected, onSelect, format }) {
   );
 }
 
-function CostChart({ rows }) {
-  const values = rows.map((r) => r.total);
+const OFFSET_KEY = "labour_supply";
+const OFFSET_LABEL = "Back from parents working more";
+
+function CostChart({ rows, withOffset }) {
+  const series = withOffset ? [...SCHEMES, OFFSET_KEY] : SCHEMES;
+  const fills = { ...schemeColors, [OFFSET_KEY]: colors.gray[400] };
+  const names = { ...SCHEME_LABELS, [OFFSET_KEY]: OFFSET_LABEL };
+  const values = rows.flatMap((r) => [r.thirty_hours + r.tax_free_childcare, ...(withOffset ? [r[OFFSET_KEY]] : [])]);
   const digits = axisDigits(values);
   const axis = niceAxis(values);
   return (
@@ -196,10 +206,10 @@ function CostChart({ rows }) {
         </ResponsiveContainer>
       </div>
       <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-600">
-        {SCHEMES.map((s) => (
+        {series.map((s) => (
           <span key={s} className="flex items-center gap-2">
-            <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: schemeColors[s] }} />
-            {SCHEME_LABELS[s]}
+            <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: fills[s] }} />
+            {names[s]}
           </span>
         ))}
       </div>
@@ -211,14 +221,17 @@ function CostChart({ rows }) {
 /** True when two series match to within rounding in every year. */
 const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
 
-export default function LandingTab({ data }) {
+export default function LandingTab({ data, setting = STATIC_SETTING }) {
   const budget = getBudget(data);
+  const dynamic = !isStatic(setting);
+  const offsets = labourSupplyOffset(data, setting);
+  const cost = budget.rows.map((r, i) => r.total - offsets[i]);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const [scheme, setScheme] = useState(null);
   const lead = budget.rows[li];
   const recipients = getRecipients(data, lead.year);
   const cmp = getBudgetComparisons(data);
-  const rows = budget.rows.map((r) => ({ ...r, label: yearHeading(r.year) }));
+  const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), [OFFSET_KEY]: -offsets[i] }));
   const fy = nb(lead.year);
 
   return (
@@ -232,12 +245,16 @@ export default function LandingTab({ data }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card
             label={`Cost in ${fy}`}
-            value={formatBn(lead.total, 2)}
-            detail="Extra government spending on both schemes"
+            value={formatBn(cost[li], 2)}
+            detail={
+              dynamic
+                ? `After the labour supply response (${labourSupplyLabel(setting)}): ${formatBn(lead.total, 2)} static, ${formatBn(Math.abs(offsets[li]), 2)} ${offsets[li] >= 0 ? "back" : "more"}`
+                : "Extra government spending on both schemes"
+            }
             testId="card-cost"
           >
             <MiniBars
-              items={budget.rows.map((r) => ({ label: fyLabel(r.year), value: r.total }))}
+              items={budget.rows.map((r, i) => ({ label: fyLabel(r.year), value: cost[i] }))}
               label="Central cost each year: click a year to show it"
               highlight={li}
               onSelect={setLi}
@@ -247,7 +264,7 @@ export default function LandingTab({ data }) {
           <Card
             label={scheme ? SCHEME_LABELS[scheme] : "By scheme"}
             value={scheme ? formatBn(lead[scheme], 2) : `${formatBn(lead.thirty_hours, 2)} and ${formatBn(lead.tax_free_childcare, 2)}`}
-            detail={scheme ? `Cost of this scheme, ${fy}` : `30 hours and Tax-Free Childcare, ${fy}`}
+            detail={`${scheme ? `Cost of this scheme, ${fy}` : `30 hours and Tax-Free Childcare, ${fy}`}${dynamic ? "; static: the labour supply response applies to the total only" : ""}`}
             testId="card-split"
           >
             <SplitBar thirty={lead.thirty_hours} tfc={lead.tax_free_childcare} selected={scheme} onSelect={setScheme} />
@@ -290,7 +307,13 @@ export default function LandingTab({ data }) {
           </>
         }
       >
-        <CostChart rows={rows} />
+        {dynamic ? (
+          <p className="mb-3 text-sm text-slate-600" data-testid="chart-setting">
+            Labour supply on ({labourSupplyLabel(setting)}): the grey bars below zero are the money back, which is not
+            split by scheme; hover for the cost after the response.
+          </p>
+        ) : null}
+        <CostChart rows={rows} withOffset={dynamic} />
       </Section>
 
     </div>

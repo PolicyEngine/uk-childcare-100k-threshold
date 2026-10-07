@@ -237,3 +237,26 @@ describe("formatters", () => {
     expect(niceTicks(0.1, 0.77)).toEqual([0, 0.2, 0.4, 0.6, 0.8]);
   });
 });
+
+describe("labour supply", () => {
+  it("reads the setting from the URL and writes it back, static by default", async () => {
+    const { parseLabourSupply, labourSupplyParams, labourSupplyOffset, getLabourSupply } = await import("./dataHelpers");
+    expect(parseLabourSupply(null, null)).toEqual({ extensive: false, intensive: false, bound: "central" });
+    expect(parseLabourSupply("ext,int", "nonsense")).toEqual({ extensive: true, intensive: true, bound: "central" });
+    expect(labourSupplyParams({ extensive: false, intensive: false, bound: "high" })).toEqual([]);
+    expect(labourSupplyParams({ extensive: true, intensive: false, bound: "low" })).toEqual([["ls", "ext"], ["bound", "low"]]);
+    const off = labourSupplyOffset(data, { extensive: false, intensive: false, bound: "central" });
+    expect(off.every((v) => v === 0)).toBe(true);
+    const ls = getLabourSupply(data);
+    const both = labourSupplyOffset(data, { extensive: true, intensive: true, bound: "central" });
+    both.forEach((v, i) => expect(v).toBeCloseTo(ls.extensive.offset.central[i] + ls.intensive.offset.central[i], 6));
+  });
+
+  it("refuses a dynamic cost that is not the static total less both offsets", async () => {
+    const { validateResults, ResultsError } = await import("./dataHelpers");
+    const y = String(data.meta.years[0]);
+    const bad = mutate(`labour_supply.dynamic_cost_bn.central.${y}`, data.labour_supply.dynamic_cost_bn.central[y] + 0.1);
+    expect(() => validateResults(bad)).toThrow(ResultsError);
+    expect(() => validateResults(mutate("labour_supply", undefined, { remove: true }))).toThrow(/labour_supply/);
+  });
+});

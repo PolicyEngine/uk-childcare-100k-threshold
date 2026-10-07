@@ -1,6 +1,16 @@
 "use client";
 
-import { fyLabel, getBenchmarks, getBudget, getModellingAssumptions } from "../lib/dataHelpers";
+import {
+  fyLabel,
+  getBenchmarks,
+  getBudget,
+  getLabourSupply,
+  getModellingAssumptions,
+  isStatic,
+  labourSupplyLabel,
+  labourSupplyOffset,
+  STATIC_SETTING,
+} from "../lib/dataHelpers";
 import { formatBn } from "../lib/formatters";
 
 const nb = (year) => fyLabel(year).replace("-", "\u2011");
@@ -67,7 +77,23 @@ const Link = ({ href, children }) => (
  * sources or the law. The effect column is what changing our choice to the tested alternative does to the cost in
  * the final year.
  */
-export function UnifiedComparison({ data }) {
+/**
+ * Our cost once parents change how much they work, in the final year. With the labour supply control off it shows
+ * both margins at central elasticities with the low-high range; with it on, the margins and elasticities chosen.
+ */
+export function dynamicCell(data, setting) {
+  const budget = getBudget(data);
+  const li = budget.years.length - 1;
+  const ls = getLabourSupply(data);
+  if (isStatic(setting)) {
+    const d = ls.dynamic;
+    return `${formatBn(d.central[li], 2)} (${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}; moving into work and hours; bunching not modelled)`;
+  }
+  const cost = budget.rows[li].total - labourSupplyOffset(data, setting)[li];
+  return `${formatBn(cost, 2)} (${labourSupplyLabel(setting)}; bunching not modelled)`;
+}
+
+export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
   const budget = getBudget(data);
   const last = budget.rows.at(-1);
   const li = budget.years.length - 1;
@@ -90,7 +116,7 @@ export function UnifiedComparison({ data }) {
         ],
         [
           `After parents change how much they work, ${nb(last.year)}`,
-          "Not modelled",
+          <span key="dyn" data-testid="dynamic-cell">{dynamicCell(data, setting)}</span>,
           "",
           `${formatBn(central.netBn, 2)} (${net(low.netBn)} to ${net(high.netBn)})`,
           "About £0.7bn a year; basis not stated",
