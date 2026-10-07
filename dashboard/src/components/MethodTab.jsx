@@ -1,8 +1,9 @@
 "use client";
 
-import { fyLabel, getAssumptions, getLimitations, getMeta, getReform, getValidation, META_PROVENANCE } from "../lib/dataHelpers";
+import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
-import { Section } from "./ui";
+import { BenchmarkNotes, UnifiedComparison } from "./Comparison";
+import { Expandable, Section } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
 export function formatUnit(value, unit) {
@@ -14,14 +15,34 @@ export function formatUnit(value, unit) {
   return formatCount(value);
 }
 
+const REPO_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold";
+
 function VersionsTable({ meta }) {
   const rows = [
-    ["policyengine.py", meta.policyengine],
-    ["PolicyEngine UK", meta.policyengine_uk],
-    ["Dataset", `${meta.dataset} (revision ${meta.dataset_revision})`],
-    ...META_PROVENANCE.filter(([k]) => k in meta).map(([k, label]) => [label, meta[k]]),
+    [
+      "Model package",
+      <>
+        <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noreferrer">
+          policyengine.py {meta.policyengine}
+        </a>
+        , pinned exactly in the repository&apos;s pyproject.toml and uv.lock
+      </>,
+    ],
+    [
+      "Tax and benefit rules",
+      `policyengine-uk ${meta.policyengine_uk}, the version certified by the policyengine.py ${meta.policyengine} release bundle`,
+    ],
+    ["Dataset", meta.dataset_label ?? meta.dataset],
+    ...(meta.dataset_release ? [["Dataset release", meta.dataset_release]] : []),
+    ["Dataset revision", `${meta.dataset_revision}${meta.dataset_repo ? ` (${meta.dataset_repo})` : ""}`],
+    ...(meta.dataset_sha256 ? [["Dataset sha256, checked before every run", meta.dataset_sha256]] : []),
     ["Results generated", meta.generated_at],
-    ["Code revision", meta.git_revision],
+    [
+      "Code revision",
+      <a key="rev" href={`${REPO_URL}/commit/${meta.git_revision}`} target="_blank" rel="noreferrer">
+        {meta.git_revision}
+      </a>,
+    ],
   ];
   return (
     <div className="overflow-x-auto">
@@ -29,7 +50,7 @@ function VersionsTable({ meta }) {
         <tbody>
           {rows.map(([k, v]) => (
             <tr key={k}>
-              <td className="font-medium text-slate-700">{k}</td>
+              <td className="w-[260px] font-medium text-slate-700">{k}</td>
               <td className="break-all">{v}</td>
             </tr>
           ))}
@@ -67,7 +88,11 @@ function ValidationTable({ rows }) {
               {showDataset ? <td>{r.dataset}</td> : null}
               <td className="whitespace-nowrap">{fyLabel(r.year)}</td>
               <td className="tabular-nums">{formatUnit(r.model, r.unit)}</td>
-              <td className="tabular-nums">{formatUnit(r.official, r.unit)}</td>
+              <td className="tabular-nums">
+                <a href={r.url} target="_blank" rel="noreferrer">
+                  {formatUnit(r.official, r.unit)}
+                </a>
+              </td>
               <td className="tabular-nums">{r.official === 0 ? "n/a" : (r.model / r.official).toFixed(2)}</td>
               <td className="min-w-[220px]">
                 <a href={r.url} target="_blank" rel="noreferrer">
@@ -129,21 +154,107 @@ function AssumptionsTable({ rows }) {
   );
 }
 
+/** £bn as a signed £m figure: -0.015 -> "-£15m", 0.616 -> "+£616m". */
+const signedM = (v) => {
+  const m = Math.round(v * 1000);
+  return `${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`;
+};
+
+/** Each tested alternative and how much it moves the cost in every year. */
+function EffectsTable({ rows, years }) {
+  const tested = rows.filter((r) => r.effects);
+  return (
+    <div className="overflow-x-auto">
+      <table className="data-table" data-testid="effects-table">
+        <thead>
+          <tr>
+            <th>Alternative we test</th>
+            {years.map((y) => (
+              <th key={y} className="whitespace-nowrap">{fyLabel(y)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {tested.map((r) => (
+            <tr key={r.id} data-testid={`effect-${r.id}`}>
+              <td>
+                <span className="font-medium text-slate-800">{r.title}:</span> {r.alternative}
+              </td>
+              {r.effects.map((v, i) => (
+                <td key={years[i]} className="whitespace-nowrap tabular-nums">{signedM(v)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AssumptionNotes({ rows, takeUp }) {
+  return (
+    <div className="space-y-3">
+      {rows.map((r) => (
+        <div key={r.id}>
+          <p>
+            <span className="font-semibold text-slate-700">{r.title}. </span>
+            {r.modelled}{" "}
+            {(r.sources ?? []).map((x, i) => (
+              <span key={x.url + x.label}>
+                {i === 0 ? "Sources: " : "; "}
+                <a href={x.url} target="_blank" rel="noreferrer">
+                  {x.label}
+                </a>
+                {i === r.sources.length - 1 ? "." : ""}
+              </span>
+            ))}
+          </p>
+          {r.id === "take_up" ? <div className="mt-2">{takeUp}</div> : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function MethodTab({ data }) {
   const meta = getMeta(data);
   const reform = getReform(data);
   const validation = getValidation(data);
   const limitations = getLimitations(data);
   const assumptions = getAssumptions(data);
+  const modelling = getModellingAssumptions(data);
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="method-tab">
       <Section
         id="model"
-        title="Data and model"
-        lead="Every figure comes from PolicyEngine UK, a microsimulation model of UK taxes and benefits, run on survey data reweighted to official totals."
+        title="How we cost it"
+        lead="Every figure comes from PolicyEngine UK, a microsimulation model of UK taxes and benefits, run on Microcosm, PolicyEngine's survey-based dataset of UK households reweighted to official totals."
+        detailsTitle="Exact versions"
+        details={<VersionsTable meta={meta} />}
       >
-        <VersionsTable meta={meta} />
+        <ol className="list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="method-steps">
+          <li>
+            For each year from {fyLabel(meta.years[0])} to {fyLabel(meta.years.at(-1))}, we run the model twice on the
+            same households: once with today&apos;s rules, and once with the £100,000 limit removed from both the 30
+            hours and Tax-Free Childcare.
+          </li>
+          <li>
+            The cost is the extra government spending on funded hours and Tax-Free Childcare top-ups between the two
+            runs. Families gaining, and how much, come from the same comparison, household by household.
+          </li>
+          <li>
+            The costing is static: parents work, earn and pay for childcare exactly as they do today in both runs.
+          </li>
+          <li>
+            Further runs change one uncertain assumption at a time (how many hours families use, babies under one, and
+            the income the limit tests), and the Assumptions section below shows what each changes.
+          </li>
+          <li>
+            Every version is pinned, so the results can be rebuilt exactly: the model package and the dataset release
+            are fixed, and the dataset file&apos;s checksum is verified before each run. The exact versions are below.
+          </li>
+        </ol>
       </Section>
 
       <Section
@@ -192,21 +303,36 @@ export default function MethodTab({ data }) {
             limit can get back under it by paying more into a pension.
           </li>
           <li>The reform removes only the £100,000 test. The minimum earnings test and every other condition stay.</li>
+          <li>
+            The pledge names no nation. We read it as England&apos;s 30 hours plus Tax-Free Childcare, which is
+            UK-wide. The devolved governments&apos; own childcare offers, such as the Childcare Offer for Wales with its
+            own £100,000 test, are unchanged.
+          </li>
         </ul>
       </Section>
 
       <Section
-        id="take-up"
-        title="Take-up"
-        lead="The dataset's existing take-up draws are held fixed for newly eligible families. The rates differ above and below £100,000, as the table shows."
+        id="assumptions"
+        title="How do we compare with other estimates?"
+        lead={`Our costing set against CenTax's, the Conservatives' figure, and the official sources and law, first on the cost and then on each modelling choice. The "If we change it" column shows how much the cost moves in ${fyLabel(meta.years.at(-1))} when we rerun with the alternative described under More detail; each change is separate and they do not add up.`}
+        details={
+          <>
+            <AssumptionNotes rows={modelling} takeUp={<AssumptionsTable rows={assumptions} />} />
+            <EffectsTable rows={modelling} years={meta.years} />
+            <BenchmarkNotes data={data} />
+          </>
+        }
+        detailsTitle="Each choice in full, the effect in every year, and sources"
       >
-        <AssumptionsTable rows={assumptions} />
+        <Expandable title="Show the comparison table" testId="comparison-expandable">
+          <UnifiedComparison data={data} />
+        </Expandable>
       </Section>
 
       <Section
         id="validation"
         title="Baseline validation"
-        lead="How the model's take-up and spending under current policy compare with official statistics."
+        lead="How the model's picture of today, before any reform, compares with official statistics."
         details={
           <p>
             The two largest gaps against official statistics are spending through Tax-Free Childcare accounts, which
@@ -215,7 +341,9 @@ export default function MethodTab({ data }) {
           </p>
         }
       >
-        <ValidationTable rows={validation} />
+        <Expandable title="Show the validation table" testId="validation-expandable">
+          <ValidationTable rows={validation} />
+        </Expandable>
       </Section>
 
       <Section id="limitations" title="Limitations" lead="What the costing does not capture.">

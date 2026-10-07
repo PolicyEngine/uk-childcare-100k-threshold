@@ -11,11 +11,11 @@ const router = { replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => searchParams }));
 
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
-import LandingTab, { CENTAX } from "./LandingTab";
-import WhoGainsTab, { DECILE_MEASURES, listOf, SUPPRESSED } from "./WhoGainsTab";
-import CliffTab from "./CliffTab";
+import LandingTab from "./LandingTab";
+import { CENTAX } from "./Comparison";
+import WhoGainsTab, { DECILE_MEASURES, listOf, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
-import { cliffSummary, getCliff, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
+import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
 import { formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data } from "../lib/testUtils";
 
@@ -53,6 +53,12 @@ describe("the page", () => {
     }
   });
 
+  it("names the policyengine.py version and the dataset in the footer, from the file", () => {
+    render(<Dashboard data={data} />);
+    const text = screen.getByTestId("replication").textContent;
+    expect(text).toContain(`policyengine.py ${data.meta.policyengine} on Microcosm UK 2024-25. Replication code`);
+  });
+
   it("states the modelled period in the intro, from the file", () => {
     render(<Dashboard data={data} />);
     expect(screen.getByTestId("intro").textContent).toContain(`from ${fy(years[0])} to ${fy(final)}`);
@@ -63,66 +69,63 @@ describe("the page", () => {
     expect(() => render(<LandingTab data={mutate(`budget.gross_bn.thirty_hours.${final}`, null)} />)).toThrow(ResultsError);
     expect(() => render(<MethodTab data={mutate("baseline_validation", undefined, { remove: true })} />)).toThrow(ResultsError);
     expect(() => render(<WhoGainsTab data={mutate("distribution", {})} />)).toThrow(ResultsError);
-    expect(() => render(<CliffTab data={mutate("cliff_example.earnings", data.cliff_example.earnings.slice(2))} />)).toThrow(ResultsError);
+    expect(() => render(<WhoGainsTab data={mutate("household_grid.earnings", data.household_grid.earnings.slice(2))} />)).toThrow(ResultsError);
     console.error.mockRestore();
   });
 });
 
 describe("budget impact", () => {
-  it("leads with 2027-28: its cost, range, split and the families gaining, from the file", () => {
+  it("leads with 2027-28: its cost, split and the families gaining, from the file", () => {
     render(<LandingTab data={data} />);
     const g = data.budget.gross_bn;
-    const r = data.budget.range_bn;
     const card = screen.getByTestId("card-cost").textContent;
     expect(card).toContain(fy(LEAD_YEAR).replace("-", "‑"));
     expect(card).toContain(bn(total(LEAD_YEAR)));
-    expect(card).toContain(`Range ${bn(r.low[LEAD_YEAR])} to ${bn(r.high[LEAD_YEAR])}`);
+    expect(card).not.toMatch(/Range/);
     expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[LEAD_YEAR])} and ${bn(g.tax_free_childcare[LEAD_YEAR])}`);
     const rec = data.recipients[LEAD_YEAR];
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
     if (rec.mean_gain_gbp !== null) expect(screen.getByTestId("card-families").textContent).toContain(gbp(rec.mean_gain_gbp));
   });
 
-  it("labels 2026-27 illustrative in the tables", () => {
+  it("switches the cards to the year whose bar is clicked", () => {
     render(<LandingTab data={data} />);
-    expect(within(screen.getByTestId("sensitivity-table")).getAllByRole("columnheader").map((h) => h.textContent)).toContain("2026-27 (illustrative)");
+    fireEvent.click(within(screen.getByTestId("card-cost")).getByRole("button", { name: new RegExp(fy(final)) }));
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(final)));
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(data.recipients[final].families_gaining));
+  });
+
+  it("shows one scheme in both cards when it is clicked, and both again on a second click", () => {
+    render(<LandingTab data={data} />);
+    const rec = data.recipients[LEAD_YEAR];
+    const bar = () => within(screen.getByTestId("card-families")).getByRole("button", { name: /^Tax-Free Childcare/ });
+    fireEvent.click(bar());
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.by_scheme.tax_free_childcare));
+    expect(screen.getByTestId("card-split").textContent).toContain(bn(data.budget.gross_bn.tax_free_childcare[LEAD_YEAR]));
+    fireEvent.click(bar());
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
+  });
+
+  it("labels 2026-27 illustrative where years are chosen", () => {
+    render(<WhoGainsTab data={data} />);
+    const options = within(screen.getByTestId("year-select")).getAllByRole("option").map((o) => o.textContent);
+    expect(options).toContain("2026-27 (illustrative)");
   });
 
   it("compares like for like: our 30 hours cost against CenTax's static cost of the free hours", () => {
-    render(<LandingTab data={data} />);
+    render(<MethodTab data={data} />);
     const b = data.benchmarks[0];
-    const card = screen.getByTestId("card-benchmark");
-    expect(card.textContent).toContain(b.figure);
-    expect(card.textContent).toMatch(/traces to CenTax's cost of the free hours only/);
-    expect(within(card).getByRole("link").getAttribute("href")).toBe(b.url);
-    const panel = screen.getByTestId("comparisons");
-    fireEvent.click(within(panel).getByRole("tab", { name: /£0.7bn figure/ }));
     const topic = screen.getByTestId("benchmark");
+    expect(within(topic).getByRole("link", { name: "City AM" }).getAttribute("href")).toBe(b.url);
     expect(topic.textContent).toMatch(/covers both the free hours and Tax-Free Childcare/);
     expect(within(topic).getByRole("link", { name: /CenTax's report/ }).getAttribute("href")).toBe(b.underlying_source_url);
-    expect(screen.getByTestId("benchmark-centax").textContent).toContain(bn(CENTAX.staticBn));
-    const lfl = screen.getByTestId("benchmark-like-for-like").textContent;
-    expect(lfl).toContain(bn(data.budget.gross_bn.thirty_hours[final]));
-    expect(lfl).toContain(`${bn(CENTAX.staticBn)} in ${CENTAX.year}`);
+    const table = screen.getByTestId("comparison-table").textContent;
+    expect(table).toContain(bn(data.budget.gross_bn.thirty_hours[final]));
+    expect(table).toContain(bn(data.budget.gross_bn.total[final]));
+    expect(table).toContain(bn(CENTAX.staticBn));
+    expect(screen.getByTestId("benchmark-like-for-like").textContent).toMatch(/like-for-like pair/);
   });
 
-  it("shows every sensitivity, signed in £m, from the file", () => {
-    render(<LandingTab data={data} />);
-    const effects = Object.entries(data.budget.sensitivities.effects_bn);
-    const rows = within(screen.getByTestId("sensitivity-table")).getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(effects.length);
-    effects.forEach(([id, v], i) => {
-      const m = Math.round(v[years[0]] * 1000);
-      expect(rows[i].textContent, id).toContain(`${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`);
-      expect(rows[i].textContent, id).toContain(data.budget.sensitivities.descriptions[id]);
-    });
-  });
-
-  it("shows the 30 hours components", () => {
-    render(<LandingTab data={data} />);
-    fireEvent.click(within(screen.getByTestId("comparisons")).getByRole("tab", { name: /Inside the 30 hours/ }));
-    expect(within(screen.getByTestId("components-table")).getAllByRole("row").length).toBeGreaterThan(2);
-  });
 });
 
 describe("who gains", () => {
@@ -130,25 +133,36 @@ describe("who gains", () => {
     render(<WhoGainsTab data={data} />);
     expect(screen.getByLabelText("Year").value).toBe(String(LEAD_YEAR));
     expect(screen.getByTestId("decile-chart")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Show"), { target: { value: DECILE_MEASURES[2].id } });
-    expect(screen.getByLabelText("Show").value).toBe(DECILE_MEASURES[2].id);
+    const show = within(screen.getByTestId("section-breakdown")).getByLabelText("Show");
+    fireEvent.change(show, { target: { value: DECILE_MEASURES[2].id } });
+    expect(show.value).toBe(DECILE_MEASURES[2].id);
     fireEvent.change(screen.getByLabelText("Year"), { target: { value: String(years[0]) } });
     const r = data.recipients[years[0]];
     const rows = within(screen.getByTestId("scheme-table")).getAllByRole("row");
     expect(rows.find((x) => /Either or both/.test(x.textContent)).textContent).toContain(r.families_gaining.toLocaleString("en-GB"));
   });
 
-  it("shows every nation and the scheme counts from the file, with suppressed cells as too few records", () => {
+  it("breaks the gains down by region and family type from the file, with suppressed cells as too few records", () => {
     render(<WhoGainsTab data={data} />);
-    const countries = data.distribution[LEAD_YEAR].by_country;
-    const rows = within(screen.getByTestId("country-table")).getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(countries.length);
-    countries.forEach((c, i) => {
-      if (c.suppressed) {
-        expect(rows[i].textContent).toContain(SUPPRESSED);
-        expect(rows[i].textContent).not.toMatch(/£0m|\b0\b/);
-      } else expect(rows[i].textContent).toContain(c.families_gaining.toLocaleString("en-GB"));
-    });
+    for (const [id, key, name] of [["region", "by_region", "region"], ["family_type", "by_family_type", "family_type"]]) {
+      fireEvent.change(screen.getByLabelText("Break down by"), { target: { value: id } });
+      const cells = sortGroups(data.distribution[LEAD_YEAR][key], "total_change_bn");
+      const rows = within(screen.getByTestId("group-table")).getAllByRole("row").slice(1);
+      expect(rows).toHaveLength(cells.length);
+      cells.forEach((c, i) => {
+        expect(rows[i].textContent).toContain(c[name]);
+        if (c.suppressed) {
+          expect(rows[i].textContent).toContain(SUPPRESSED);
+          expect(rows[i].textContent).not.toMatch(/£0m|\b0\b/);
+        } else expect(rows[i].textContent).toContain(c.families_gaining.toLocaleString("en-GB"));
+      });
+      expect(screen.getByTestId("group-chart")).toBeTruthy();
+    }
+  });
+
+  it("draws the families and children gaining, with the scheme counts from the file", () => {
+    render(<WhoGainsTab data={data} />);
+    expect(screen.getByTestId("recipients-chart")).toBeTruthy();
     const s = within(screen.getByTestId("scheme-table")).getAllByRole("row").slice(1);
     expect(s[0].textContent).toContain(data.recipients[LEAD_YEAR].by_scheme.thirty_hours.toLocaleString("en-GB"));
     expect(s[1].textContent).toContain(data.recipients[LEAD_YEAR].by_scheme.tax_free_childcare.toLocaleString("en-GB"));
@@ -162,17 +176,18 @@ describe("who gains", () => {
   });
 });
 
-describe("the cliff", () => {
+describe("your household", () => {
   it("says the universal 15 hours stay when the limit is crossed", () => {
-    render(<CliffTab data={data} />);
-    const text = screen.getByTestId("cliff-explainer").textContent;
+    render(<WhoGainsTab data={data} />);
+    const text = screen.getByTestId("section-household").textContent;
     expect(text).toMatch(/keeps\s+the universal 15/);
     expect(text).not.toMatch(/both the 30 funded hours/);
   });
 
-  it("states the drop at £100,000 from the file", () => {
-    render(<CliffTab data={data} />);
-    const s = cliffSummary(getCliff(data));
+  it("opens on the default family, which hits the cliff, and states the drop from the file", () => {
+    render(<WhoGainsTab data={data} />);
+    const grid = getHouseholdGrid(data);
+    const s = cliffSummary(householdRows(grid, grid.default));
     expect(s.drop).toBeGreaterThan(0);
     const text = screen.getByTestId("cliff-drop").textContent;
     expect(text).toContain(gbp(s.drop));
@@ -180,16 +195,44 @@ describe("the cliff", () => {
     expect(text).toContain(gbp(s.after.earnings));
     expect(screen.getByTestId("cliff-chart")).toBeTruthy();
   });
+
+  it("redraws for every family the form offers", () => {
+    render(<WhoGainsTab data={data} />);
+    const grid = getHouseholdGrid(data);
+    for (const p of grid.options.parents) {
+      fireEvent.change(screen.getByLabelText("Parents"), { target: { value: p.id } });
+      const s = cliffSummary(householdRows(grid, { ...grid.default, parent: p.id }));
+      const text = screen.getByTestId("cliff-drop").textContent;
+      if (s.drop > 0) expect(text).toContain(gbp(s.drop));
+      else expect(text).toMatch(/does not lose income/);
+    }
+  });
 });
 
 describe("methodology", () => {
   it("shows the versions, every validation row and every limitation from the file", () => {
     render(<MethodTab data={data} />);
-    expect(screen.getByTestId("versions-table").textContent).toContain(data.meta.dataset);
+    expect(screen.getByTestId("versions-table").textContent).toContain(data.meta.dataset_label);
     const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(data.baseline_validation.length);
     expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(6);
     expect(within(screen.getByTestId("limitations")).getAllByRole("listitem")).toHaveLength(data.limitations.length);
+  });
+
+  it("compares every modelling choice in one table, with each tested alternative's effect in £m from the file", () => {
+    render(<MethodTab data={data} />);
+    const table = screen.getByTestId("comparison-table");
+    const final = years.at(-1);
+    for (const a of data.modelling_assumptions.filter((x) => x.effect_bn || x.id === "static")) {
+      expect(table.textContent, a.id).toContain(a.ours);
+      if (a.effect_bn) {
+        const m = Math.round(a.effect_bn[final] * 1000);
+        expect(table.textContent, a.id).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
+        const row = screen.getByTestId(`effect-${a.id}`);
+        const m0 = Math.round(a.effect_bn[years[0]] * 1000);
+        expect(row.textContent).toContain(`£${Math.abs(m0).toLocaleString("en-GB")}m`);
+      }
+    }
   });
 
   it("does not call the take-up rates equal above and below £100,000", () => {
@@ -198,9 +241,9 @@ describe("methodology", () => {
     expect(document.body.textContent).toMatch(/held fixed/);
   });
 
-  it("shows the dataset provenance the file carries", () => {
-    const withProvenance = mutate("meta.dataset_management", "Pinned by this repository");
-    render(<MethodTab data={withProvenance} />);
-    expect(screen.getByTestId("versions-table").textContent).toContain("Pinned by this repository");
+  it("pins the model package and the dataset release, revision and checksum", () => {
+    render(<MethodTab data={data} />);
+    const text = screen.getByTestId("versions-table").textContent;
+    for (const k of ["policyengine", "policyengine_uk", "dataset_release", "dataset_revision", "dataset_sha256"]) expect(text, k).toContain(data.meta[k]);
   });
 });

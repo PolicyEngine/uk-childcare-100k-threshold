@@ -8,7 +8,7 @@ export const AXIS_STYLE = {
   fill: colors.gray[500],
 };
 
-export function CustomTooltip({ active, payload, label, formatter, labelFormatter }) {
+export function CustomTooltip({ active, payload, label, formatter, labelFormatter, totalLabel }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
@@ -33,6 +33,12 @@ export function CustomTooltip({ active, payload, label, formatter, labelFormatte
             </span>
           </div>
         ))}
+      {totalLabel ? (
+        <div className="mt-2 flex items-center justify-between gap-4 border-t border-slate-200 pt-2 font-semibold text-slate-800">
+          <span>{totalLabel}</span>
+          <span>{formatter(payload.reduce((t, e) => t + (Number(e.value) || 0), 0))}</span>
+        </div>
+      ) : null}
     </div>
   );
 }

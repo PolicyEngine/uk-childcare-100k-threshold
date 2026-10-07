@@ -4,15 +4,13 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import LandingTab from "./LandingTab";
 import WhoGainsTab from "./WhoGainsTab";
-import CliffTab from "./CliffTab";
 import MethodTab from "./MethodTab";
-import { fyLabel, getYears } from "../lib/dataHelpers";
+import { fyLabel, getMeta, getYears } from "../lib/dataHelpers";
 import { TabLayout } from "./ui";
 
 export const TAB_OPTIONS = [
   { id: "budget", label: "Budget impact" },
   { id: "who-gains", label: "Who gains" },
-  { id: "cliff", label: "The cliff" },
   { id: "method", label: "Methodology" },
 ];
 export const DEFAULT_TAB = "budget";
@@ -22,23 +20,16 @@ const SECTIONS = {
   budget: [
     { id: "at-a-glance", title: "At a glance" },
     { id: "each-year", title: "Each year" },
-    { id: "sensitivities", title: "What moves the cost" },
-    { id: "assumptions", title: "Assumptions" },
-    { id: "comparisons", title: "Comparisons" },
   ],
   "who-gains": [
-    { id: "deciles", title: "By income" },
+    { id: "household", title: "Your household" },
+    { id: "breakdown", title: "Where the gains go" },
     { id: "recipients", title: "Families gaining" },
-    { id: "nations", title: "By nation" },
-  ],
-  cliff: [
-    { id: "example", title: "One family" },
-    { id: "what-changes", title: "What changes" },
   ],
   method: [
-    { id: "model", title: "Data and model" },
+    { id: "model", title: "How we cost it" },
     { id: "limits", title: "How the limits work" },
-    { id: "take-up", title: "Take-up" },
+    { id: "assumptions", title: "Compared with others" },
     { id: "validation", title: "Validation" },
     { id: "limitations", title: "Limitations" },
   ],
@@ -47,19 +38,27 @@ const SECTIONS = {
 const ANNOUNCEMENT_URL = "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge";
 const REPO_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold";
 
+// The cliff had its own tab before it joined "Who gains"; old links still land on it.
+const TAB_ALIASES = { cliff: "who-gains" };
+
 function getInitialTab(tabParam) {
-  return TAB_OPTIONS.some((t) => t.id === tabParam) ? tabParam : DEFAULT_TAB;
+  const tab = TAB_ALIASES[tabParam] ?? tabParam;
+  return TAB_OPTIONS.some((t) => t.id === tab) ? tab : DEFAULT_TAB;
 }
 
 /** "Replication code: PolicyEngine/uk-childcare-100k-threshold." */
-export function ReplicationLine() {
+export function ReplicationLine({ meta }) {
   return (
     <p data-testid="replication">
-      Replication code:{" "}
+      Built with{" "}
+      <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noreferrer">
+        policyengine.py {meta.policyengine}
+      </a>{" "}
+      on {(meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "")}. Replication code:{" "}
       <a href={REPO_URL} target="_blank" rel="noreferrer">
         PolicyEngine/uk-childcare-100k-threshold
       </a>
-      . Model and data versions are on the Methodology tab.
+      .
     </p>
   );
 }
@@ -89,25 +88,27 @@ export function Dashboard({ data }) {
     <div className="app-shell min-h-screen">
       <header className="title-row">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4 md:px-10 lg:pl-24">
-          <h1>Removing the £100,000 childcare limit</h1>
+          <h1>Scrapping the childcare cliff edge</h1>
         </div>
       </header>
 
       <main className="relative z-[1] mx-auto max-w-[1600px] px-6 py-10 md:px-10 md:py-12 lg:pl-24 lg:pr-[284px]">
         <div className="animate-[fadeIn_0.4s_ease-out]">
-          <p className="mb-3 text-[1.1rem] leading-relaxed text-slate-700" data-testid="intro">
-            Working parents lose the 30 funded hours of childcare in England, and Tax-Free Childcare across the UK, as
-            soon as either parent&apos;s adjusted net income goes above £100,000. On 4 October 2026 Conservative leader
-            Kemi Badenoch{" "}
+          <p className="mb-3 text-base leading-7 text-slate-700" data-testid="intro">
+            Working parents lose the 30 funded hours of childcare in England, and Tax-Free Childcare across the UK, once
+            either parent&apos;s adjusted net income passes £100,000. On 4 October 2026 Conservative leader Kemi
+            Badenoch{" "}
             <a href={ANNOUNCEMENT_URL} target="_blank" rel="noreferrer" className="underline">
               pledged
             </a>{" "}
-            to remove this limit, paid for by savings elsewhere in public spending. We cost removing it from both schemes with{" "}
+            to remove the limit, paid for by cutting staff at arm&apos;s-length public bodies, with no start date. We cost the
+            change with{" "}
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
             </a>
-            {` from ${period}`}, and show who gains and how the £100,000 cliff disappears for a family
-            near the limit.
+            {` from ${period}`}: <strong>Budget impact</strong> shows the cost each year,{" "}
+            <strong>Who gains</strong> lets you try your own household and shows where the gains go, and{" "}
+            <strong>Methodology</strong> sets out our assumptions and how we compare with other estimates.
           </p>
         </div>
 
@@ -132,12 +133,11 @@ export function Dashboard({ data }) {
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
           {activeTab === "budget" && <LandingTab data={data} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
-          {activeTab === "cliff" && <CliffTab data={data} />}
           {activeTab === "method" && <MethodTab data={data} />}
         </TabLayout>
 
         <footer className="mt-12 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">
-          <ReplicationLine />
+          <ReplicationLine meta={getMeta(data)} />
         </footer>
       </main>
     </div>

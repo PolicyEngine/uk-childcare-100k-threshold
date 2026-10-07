@@ -9,7 +9,9 @@ import {
   getBudgetComparisons,
   getChildrenByAge,
   getCliff,
-  getCountries,
+  getGroups,
+  getHouseholdGrid,
+  householdRows,
   getDeciles,
   getDistributionYears,
   getLimitations,
@@ -70,8 +72,14 @@ describe("the results file", () => {
     b.rows.forEach((row, i) => expect(Math.abs(c.extended[i] + c.universal[i] + c.targeted[i] - row.thirty_hours)).toBeLessThan(0.003));
   });
 
-  it("never has a single suppressed nation, so none can be worked out from the UK total", () => {
-    for (const y of years) expect(getCountries(data, y).filter((c) => c.suppressed).length, String(y)).not.toBe(1);
+  it("never has a single suppressed region or family type, so none can be worked out from the UK total", () => {
+    for (const y of years)
+      for (const g of ["region", "family_type"]) expect(getGroups(data, y, g).filter((c) => c.suppressed).length, `${y} ${g}`).not.toBe(1);
+  });
+
+  it("opens the household form on a family that hits the cliff", () => {
+    const grid = getHouseholdGrid(data);
+    expect(cliffSummary(householdRows(grid, grid.default)).drop).toBeGreaterThan(0);
   });
 
   it("has the example household no worse off under the reform at any earnings", () => {
@@ -122,13 +130,13 @@ describe("validation throws, naming the block", () => {
 
   it("on a missing value that is not marked suppressed", () => {
     throwsOn(() => getDeciles(mutate(`distribution.${final}.by_decile.9.mean_change_gbp`, null), final), `distribution.${final}.by_decile.9`);
-    const i = data.distribution[final].by_country.findIndex((r) => !r.suppressed);
-    throwsOn(() => getCountries(mutate(`distribution.${final}.by_country.${i}.total_change_bn`, null), final), `distribution.${final}.by_country`);
+    const i = data.distribution[final].by_region.findIndex((r) => !r.suppressed);
+    throwsOn(() => getGroups(mutate(`distribution.${final}.by_region.${i}.total_change_bn`, null), final, "region"), `distribution.${final}.by_region`);
   });
 
   it("on a suppressed cell that still carries a number", () => {
-    const i = data.distribution[final].by_country.findIndex((r) => !r.suppressed);
-    throwsOn(() => getCountries(mutate(`distribution.${final}.by_country.${i}.suppressed`, true), final), `distribution.${final}.by_country`);
+    const i = data.distribution[final].by_region.findIndex((r) => !r.suppressed);
+    throwsOn(() => getGroups(mutate(`distribution.${final}.by_region.${i}.suppressed`, true), final, "region"), `distribution.${final}.by_region`);
   });
 
   it("on a mean gain that is null without being suppressed", () => {
@@ -144,8 +152,16 @@ describe("validation throws, naming the block", () => {
     throwsOn(() => getDistributionYears(broken), `distribution.${final}.by_decile`);
   });
 
-  it("on an unknown nation", () => {
-    throwsOn(() => getCountries(mutate(`distribution.${final}.by_country.0.country`, ""), final), `distribution.${final}.by_country.0.country`);
+  it("on a region out of order", () => {
+    throwsOn(() => getGroups(mutate(`distribution.${final}.by_region.0.region`, ""), final, "region"), `distribution.${final}.by_region.0.region`);
+  });
+
+  it("on a household grid missing a family", () => {
+    const g = data.household_grid;
+    const key = Object.keys(g.series)[0];
+    const series = { ...g.series };
+    delete series[key];
+    throwsOn(() => getHouseholdGrid(mutate("household_grid.series", series)), `household_grid.series.${key}`);
   });
 
   it("on cliff arrays of different lengths", () => {

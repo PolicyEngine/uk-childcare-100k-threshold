@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from childcare_100k.config import REFORM_PARAMETERS, SCENARIOS, YEARS, parameter_changes
+from childcare_100k.config import FAMILY_TYPES, REFORM_PARAMETERS, REGIONS, SCENARIOS, YEARS, parameter_changes
 
 REPO = Path(__file__).resolve().parents[1]
 RESULTS = json.loads((REPO / "data" / "results.json").read_text())
@@ -60,8 +60,7 @@ def test_budget_shape():
     for k in ("thirty_hours", "tax_free_childcare", "total"):
         _by_year(b["gross_bn"][k])
     _by_year(b["net_bn"]["total"])
-    _by_year(b["variants"]["thirty_hours_only"])
-    _by_year(b["variants"]["tfc_only"])
+    assert "variants" not in b  # the one-limit-only runs were dropped: nothing published used them
     assert not any("cross_check" in k for k in b)
     for k in ("low", "central", "high"):
         _by_year(b["range_bn"][k])
@@ -82,7 +81,9 @@ def test_recipients_and_distribution_shape():
             else:
                 assert all(_number(row[k]) for k in keys)
                 assert 0 <= row["share_gaining_pct"] <= 100  # a percentage, not a fraction
-        assert {c["country"] for c in d["by_country"]} == {"England", "Scotland", "Wales", "Northern Ireland"}
+        assert [c["region"] for c in d["by_region"]] == list(REGIONS.values())
+        assert [c["family_type"] for c in d["by_family_type"]] == list(FAMILY_TYPES.values())
+        assert "by_country" not in d  # nations are regions: one breakdown, so no cell is recoverable across two
 
 
 def test_validation_benchmarks_cliff():
@@ -112,13 +113,6 @@ def test_net_close_to_gross():
     """Static reform: nothing else in the tax-benefit system responds to these two limits."""
     for y in YEAR_KEYS:
         assert abs(RESULTS["budget"]["net_bn"]["total"][y] - RESULTS["budget"]["gross_bn"]["total"][y]) <= 0.01
-
-
-def test_variants_add_to_total():
-    b = RESULTS["budget"]
-    for y in YEAR_KEYS:
-        both = b["variants"]["thirty_hours_only"][y] + b["variants"]["tfc_only"][y]
-        assert abs(both - b["gross_bn"]["total"][y]) <= 0.005
 
 
 def test_range_brackets_central():
@@ -197,7 +191,7 @@ def test_no_record_level_keys_or_long_arrays():
         assert not any(part in key.lower() for part in FORBIDDEN_KEY_PARTS), f"{path}/{key}"
         if isinstance(value, list) and value and all(_number(v) for v in value):
             # Only the synthetic cliff household's earnings grid may be a long numeric series.
-            assert path.startswith("/cliff_example") or len(value) <= 12, f"{path}/{key}"
+            assert path.startswith(("/cliff_example", "/household_grid")) or len(value) <= 12, f"{path}/{key}"
 
 
 def test_counts_are_rounded_aggregates():
@@ -228,27 +222,27 @@ def test_lone_suppressed_cell_gets_a_complement():
     from childcare_100k.aggregate import _complement
 
     cells = [
-        {"country": "England", "total_change_bn": 0.5, "families_gaining": 150_000, "suppressed": False},
-        {"country": "Scotland", "total_change_bn": 0.02, "families_gaining": 9_000, "suppressed": False},
-        {"country": "Wales", "total_change_bn": None, "families_gaining": None, "suppressed": True},
-        {"country": "Northern Ireland", "total_change_bn": 0.0, "families_gaining": 0, "suppressed": False},
+        {"region": "England", "total_change_bn": 0.5, "families_gaining": 150_000, "suppressed": False},
+        {"region": "Scotland", "total_change_bn": 0.02, "families_gaining": 9_000, "suppressed": False},
+        {"region": "Wales", "total_change_bn": None, "families_gaining": None, "suppressed": True},
+        {"region": "Northern Ireland", "total_change_bn": 0.0, "families_gaining": 0, "suppressed": False},
     ]
     out = _complement(cells, [900, 40, 5, 0])
     # Northern Ireland has no change, so suppressing it protects nothing; Scotland is the next smallest.
     assert [c["suppressed"] for c in out] == [False, True, True, False]
     assert out[1]["total_change_bn"] is None and out[1]["families_gaining"] is None
-    assert out[1]["country"] == "Scotland"
+    assert out[1]["region"] == "Scotland"
 
 
 @pytest.mark.parametrize("year", YEAR_KEYS)
 def test_no_lone_suppressed_cell_in_published_breakdowns(year):
     """A single suppressed cell could be recovered from the published UK total less the other cells."""
     dist = RESULTS["distribution"][year]
-    for cells in (dist["by_decile"], dist["by_country"]):
+    for cells in (dist["by_decile"], dist["by_region"], dist["by_family_type"]):
         assert sum(c["suppressed"] for c in cells) != 1
         for c in cells:
             if c["suppressed"]:
-                assert all(v is None for k, v in c.items() if k not in ("decile", "country", "suppressed"))
+                assert all(v is None for k, v in c.items() if k not in ("decile", "region", "family_type", "suppressed"))
 
 
 def test_benchmark_and_take_up_wording():
@@ -259,3 +253,20 @@ def test_benchmark_and_take_up_wording():
     text = " ".join(RESULTS["limitations"])
     assert "same for families above and below" not in text
     assert "expects" in text  # the realised-for-expected income proxy is disclosed
+
+
+def test_modelling_assumptions_carry_the_tested_effects():
+    rows = {r["id"]: r for r in RESULTS["modelling_assumptions"]}
+    eff = RESULTS["budget"]["sensitivities"]["effects_bn"]
+    assert rows["hours"]["effect_bn"] == eff["full_30_hour_usage"]
+    assert rows["under_ones"]["effect_bn"] == eff["under_ones"]
+    for r in rows.values():
+        assert r["title"] and r["modelled"]
+        assert ("alternative" in r) == ("effect_bn" in r)
+
+
+def test_cliff_example_is_the_grid_default():
+    g, c = RESULTS["household_grid"], RESULTS["cliff_example"]
+    d = g["default"]
+    s = g["series"][f"{d['parent']}|{d['children']}|{d['spend_per_child']}"]
+    assert c["earnings"] == g["earnings"] and c["net_income_baseline"] == s["baseline"]
