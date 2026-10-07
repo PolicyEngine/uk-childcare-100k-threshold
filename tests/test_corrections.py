@@ -1,4 +1,4 @@
-"""The 2029 salary-sacrifice correction to the childcare income tests (corrections.py)."""
+"""The model corrections (corrections.py): the 2029 salary-sacrifice fix and the three entitlement fixes."""
 
 import pytest
 
@@ -80,3 +80,73 @@ def test_correction_refuses_a_changed_model_formula(monkeypatch):
 
     with pytest.raises(RuntimeError, match="changed upstream"):
         corrections.apply_to_system(CountryTaxBenefitSystem())
+
+
+# ── Entitlement corrections (C1-C3 of the program review of #4) ─────────────────
+
+Y = 2027
+
+
+def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False, corrected=True):
+    from policyengine_uk import Simulation
+    from policyengine_uk.utils.scenario import Scenario
+
+    from childcare_100k import config
+
+    people = {
+        "a": {"age": {Y: 35}, "employment_income": {Y: a_income}, "is_parent": {Y: True}},
+        "b": {"age": {Y: 34}, "employment_income": {Y: b_income}, "is_parent": {Y: True}, **(b_extra or {})},
+        "c": {"age": {Y: child_age}},
+    }
+    situation = {
+        "people": people,
+        "benunits": {"bu": {"members": list(people), "maximum_extended_childcare_hours_usage": {Y: usage}}},
+        "households": {"hh": {"members": list(people), "region": {Y: "SOUTH_EAST"}}},
+    }
+    scenario = Scenario(
+        parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS) if reform else None,
+        simulation_modifier=corrections.apply_corrections if corrected else None,
+        applied_before_data_load=True,
+    )
+    return Simulation(situation=situation, scenario=scenario)
+
+
+def _funded(sim):
+    return {
+        v: float(sim.calculate(f"{v}_childcare_entitlement", Y).sum())
+        for v in ("extended", "universal", "targeted")
+    }
+
+
+def test_exactly_100000_qualifies_for_the_30_hours():
+    """C3: reg 14(3)(c)(i) excludes only income that exceeds £100,000."""
+    assert _funded(_family(100_000, 40_000, 2))["extended"] > 0
+    assert _funded(_family(100_000, 40_000, 2, corrected=False))["extended"] == 0
+    assert _funded(_family(100_001, 40_000, 2))["extended"] == 0
+
+
+def test_partner_on_a_specified_benefit_does_not_need_the_minimum_earnings():
+    """C1: reg 14(4)/15(4); a partner on contributory ESA earning £5,000 alongside a £120,000 earner."""
+    esa = {"esa_contrib_reported": {Y: 5_000}}
+    assert _funded(_family(120_000, 5_000, 2, b_extra=esa))["extended"] == 0  # over the limit today
+    assert _funded(_family(120_000, 5_000, 2, b_extra=esa, reform=True))["extended"] > 0
+    assert _funded(_family(120_000, 5_000, 2, b_extra=esa, reform=True, corrected=False))["extended"] == 0
+    # Without the benefit the low earner still fails the minimum earnings test.
+    assert _funded(_family(120_000, 5_000, 2, reform=True))["extended"] == 0
+
+
+def test_universal_hours_are_kept_when_the_family_becomes_eligible():
+    """C2: a three-year-old whose drawn extended use is 5 hours keeps the universal 15."""
+    base, reform = _family(120_000, 40_000, 3, usage=5), _family(120_000, 40_000, 3, usage=5, reform=True)
+    assert sum(_funded(reform).values()) == pytest.approx(sum(_funded(base).values()))
+    assert _funded(reform)["universal"] == pytest.approx(_funded(base)["universal"])
+    raw = _family(120_000, 40_000, 3, usage=5, reform=True, corrected=False)
+    assert sum(_funded(raw).values()) < sum(_funded(base).values())  # the model's own loss
+
+
+def test_extended_hours_above_the_universal_are_added_once():
+    """C2: with 30 hours used, a three-year-old gets 30 hours in total, not 45."""
+    reform = _funded(_family(120_000, 40_000, 3, usage=30, reform=True))
+    raw = _funded(_family(120_000, 40_000, 3, usage=30, reform=True, corrected=False))
+    assert reform["universal"] > 0
+    assert sum(reform.values()) == pytest.approx(sum(raw.values()))

@@ -57,7 +57,8 @@ LABOUR_SUPPLY_JOB = "labour_supply"
 JOBS = list(SCENARIOS) + [LABOUR_SUPPLY_JOB]
 LSR_SETTINGS = (
     "HOURS_FOR_NEW_ENTRANTS", "FULL_TIME_HOURS", "LSR_WEEKS_PER_YEAR", "ELASTICITY_SCALES",
-    "PARTICIPATION_CHANGE_BOUND", "HOURS_PRICE_ELASTICITY", "FREE_HOURS_DISPLACEMENT", "YOUNGEST_CHILD_MAX_AGE",
+    "PARTICIPATION_CHANGE_BOUND", "HOURS_PRICE_ELASTICITY", "FREE_HOURS_DISPLACEMENT", "FREE_HOURS_DISPLACEMENT_RANGE",
+    "YOUNGEST_CHILD_MAX_AGE",
 )
 
 
@@ -141,7 +142,11 @@ PERSON_FREE_HOURS_VARIABLES = ("universal_childcare_entitlement", "targeted_chil
 
 
 def extended_per_person(sim, year, p_benunit, bu_eligible):
-    """Each person's term in ``extended_childcare_entitlement`` (a benefit-unit sum over its members)."""
+    """Each person's term in the corrected ``extended_childcare_entitlement`` (a benefit-unit sum over its members).
+
+    As ``corrections.thirty_hours_value``: the value of the child's extended hours above
+    their universal and targeted entitlements, never below zero.
+    """
     p = sim.tax_benefit_system.parameters(str(year)).gov.dfe
     age = np.asarray(sim.calculate("age", year), dtype=float)
     hours_cap = np.asarray(p.extended_childcare_entitlement.hours.calc(age), dtype=float)
@@ -149,7 +154,9 @@ def extended_per_person(sim, year, p_benunit, bu_eligible):
     bu_usage = np.asarray(sim.calculate(HOURS_USAGE_VARIABLE, year), dtype=float)
     weekly_hours = np.minimum(np.minimum(used, hours_cap), bu_usage[p_benunit])
     rate = np.asarray(p.childcare_funding_rate.calc(age), dtype=float)
-    return weekly_hours * rate * p.weeks_per_year * np.asarray(bu_eligible, dtype=float)[p_benunit]
+    floor = sum(np.asarray(sim.calculate(v, year), dtype=float) for v in PERSON_FREE_HOURS_VARIABLES)
+    above_floor = np.maximum(weekly_hours * rate * p.weeks_per_year - floor, 0)
+    return above_floor * np.asarray(bu_eligible, dtype=float)[p_benunit]
 
 
 def extract(sim, year, baseline_extras=False):
