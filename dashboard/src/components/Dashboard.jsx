@@ -150,9 +150,9 @@ export function LabourSupplyControl({ data, setting, onChange, tab }) {
           label="Intensive margin"
           hint={
             <>
-              Hours: childcare-price elasticity{" "}
+              Hours: assumed childcare-price elasticity {a.hours_price_elasticity}, extrapolated from{" "}
               <a href={BREWER_URL} target="_blank" rel="noreferrer" className="underline">
-                {a.hours_price_elasticity}
+                Brewer et al.
               </a>
             </>
           }
@@ -168,7 +168,7 @@ export function LabourSupplyControl({ data, setting, onChange, tab }) {
           >
             {LS_BOUNDS.map((b) => (
               <option key={b} value={b}>
-                {LS_BOUND_LABELS[b]} elasticities{b === "central" ? "" : ` (x${b === "low" ? "1/3" : "2"})`}
+                {LS_BOUND_LABELS[b]} elasticities{b === "central" ? "" : ` (x${b === "low" ? "1/3" : "2"}, illustrative)`}
               </option>
             ))}
           </select>

@@ -9,9 +9,10 @@ import {
   getModellingAssumptions,
   getReform,
   getValidation,
+  isNum,
   STATIC_SETTING,
 } from "../lib/dataHelpers";
-import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
+import { formatBn, formatCount, formatCurrency, formatMoneyBn, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, CENTAX, UnifiedComparison } from "./Comparison";
 import { Expandable, Section } from "./ui";
 
@@ -234,6 +235,9 @@ function LabourSupplySection({ data }) {
   const year = fyLabel(ls.years[li]);
   const over = ls.overLimit.offset;
   const entrants = Math.round(ls.extensive.entrants.central[li] / 100) * 100;
+  const oldRule = raw.extensive.non_worker_rule_entrants?.central?.[String(ls.years[li])];
+  const extOffset = ls.extensive.offset.central[li];
+  const disp = raw.intensive_displacement;
   const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
   return (
     <Section
@@ -252,36 +256,50 @@ function LabourSupplySection({ data }) {
             OBR&apos;s participation elasticities
           </a>{" "}
           (
-          {a.participation_elasticities}) applied to each adult&apos;s gain to work, one minus their replacement rate.
-          The gain to work is net of the childcare they would then pay for, less the Tax-Free Childcare the scenario
-          would pay on it. Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random
-          draws.
+          {a.participation_elasticities}). An elasticity is the percentage change in the probability of working for a
+          percentage change in the gain to work; it is converted from in-work income by the gain to work over in-work
+          income, and the gain to work is net of the childcare a parent would then pay for, less the Tax-Free
+          Childcare the scenario would pay on it. Because the probability change applies to the employed share, new
+          employment is the sum over working adults of their own response (Adam and Phillips, Appendix E); it is
+          shared among the non-working adults, who are the ones entering, in proportion to theirs.
+          {isNum(oldRule) ? ` Applying the elasticity to each non-worker instead would give about ${formatCount(oldRule)} entrants in ${year}.` : ""}{" "}
+          Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random draws.
         </li>
         <li>
-          <strong>Hours (intensive margin).</strong> A childcare-price elasticity of hours of {a.hours_price_elasticity}{" "}
-          (
+          <strong>Hours (intensive margin).</strong> An assumed childcare-price elasticity of hours of{" "}
+          {a.hours_price_elasticity}: an extrapolated scenario assumption, not an estimated price elasticity (
           <a
             href="https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17"
             target="_blank"
             rel="noreferrer"
           >
-            Brewer, Cattan, Crawford and Rabe, IFS WP20/09, Table 1
-          </a>
-          ; measured on mothers) for responding adults in work, at or below £100,000, whose out-of-pocket
-          childcare cost falls. Newly funded hours replace {formatPct(a.free_hours_displacement * 100, 1)} of their value
-          in paid care, capped at what the family spends. The model recomputes tax and benefits on the extra earnings.
+            Brewer, Cattan, Crawford and Rabe, IFS WP20/09
+          </a>{" "}
+          estimate +0.6 weekly hours for mothers whose youngest child becomes eligible for full-time rather than
+          part-time free care; we treat that as a 100% price fall and apply it to every responding adult in work, at or
+          below £100,000, whose out-of-pocket childcare cost falls). Newly funded hours are assumed to replace{" "}
+          {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care, capped at what the family spends:
+          an assumption (IFS BN189 supports {formatPct(a.free_hours_displacement_range.low * 100, 1)} to{" "}
+          {formatPct(a.free_hours_displacement * 100, 1)}), not a measured figure.
+          {disp
+            ? ` At ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the hours offset in ${year} is ${formatMoneyBn(disp.offset_bn.low[String(ls.years[li])])} or ${formatMoneyBn(disp.offset_bn.high[String(ls.years[li])])}, against ${formatMoneyBn(ls.intensive.offset.central[li])}.`
+            : ""}{" "}
+          The model recomputes tax and benefits on the extra earnings.
         </li>
         <li>
           <strong>Low and high elasticities.</strong> Every elasticity is multiplied by {scale(a.elasticity_scales.low)} for the
-          low end and by {scale(a.elasticity_scales.high)} for the high end: childcare-price elasticities of {a.price_elasticity_low} and{" "}
-          {a.price_elasticity_high} against {a.price_elasticity_central} central.
+          low end and by {scale(a.elasticity_scales.high)} for the high end. The range is illustrative, not a sourced
+          uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment,{" "}
+          {a.price_elasticity_low} and {a.price_elasticity_high} against {a.price_elasticity_central}, a different outcome
+          from the elasticities they scale.
         </li>
         <li>
           <strong>Why so few move into work.</strong>{" "}
-          In a family where one parent is over £100,000, the partner&apos;s
-          replacement rate is about 0.9, so the gain to work and the OBR elasticity applied to it are small; and the tax
-          entrants pay is largely offset by the childcare support their family then receives. The model finds about{" "}
-          {formatCount(entrants)} entrants in {year}.
+          In a family where one parent is over £100,000, a partner&apos;s gain to
+          work is small next to the household&apos;s in-work income, so the OBR elasticity converted to the gain to
+          work is small; and the tax entrants pay is set against the childcare support their family then receives.
+          The model finds about {formatCount(entrants)} entrants in {year}, and they{" "}
+          {extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost rather than bringing money back.` : `bring back ${formatMoneyBn(extOffset)}.`}
         </li>
         <li>
           <strong>Not included.</strong> {ls.notModelled} Their hours response alone would bring back{" "}
@@ -292,7 +310,7 @@ function LabourSupplySection({ data }) {
           <strong>Against CenTax.</strong> CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
           {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
           {formatBn(CENTAX.partnersBn, 2)} from partners entering work. The first is the response not included here;
-          for the second we find about zero, for the reasons above.
+          for the second we find {formatMoneyBn(extOffset)}, for the reasons above.
         </li>
       </ul>
     </Section>

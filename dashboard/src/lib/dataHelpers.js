@@ -143,7 +143,7 @@ export function getSensitivities(data) {
   return { years, rows };
 }
 
-/** The 30 hours cost split into the extended hours gained and the universal hours the model switches off. */
+/** The 30 hours cost split by entitlement: the extended hours gained, and the universal and targeted hours (kept, so zero). */
 export function getThirtyHoursComponents(data) {
   const years = getYears(data);
   const c = data?.budget?.thirty_hours_components_bn;
@@ -365,8 +365,8 @@ export function getCliff(data) {
 /**
  * The cliff in the example: income just below the limit (the last point under it), the first point above it, the
  * income lost between them, and the earnings needed to get back to the income below the limit (null if never within
- * the range, which the page states). Measured from below the limit because the model may already withdraw support
- * at exactly £100,000.
+ * the range, which the page states). Measured from the last point below the limit to the first above it; exactly
+ * £100,000 still qualifies.
  */
 export function cliffSummary(cliff, limit = 100000) {
   const rows = cliff.rows;
@@ -460,6 +460,7 @@ export function getLabourSupply(data) {
   }
   for (const b of ["low", "high"]) {
     if (!isNum(ls.assumptions?.elasticity_scales?.[b])) fail(`labour_supply.assumptions.elasticity_scales.${b}`, "missing");
+    if (!isNum(ls.assumptions?.free_hours_displacement_range?.[b])) fail(`labour_supply.assumptions.free_hours_displacement_range.${b}`, "missing");
   }
   for (const k of ["hours_price_elasticity", "price_elasticity_central", "price_elasticity_low", "price_elasticity_high"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");

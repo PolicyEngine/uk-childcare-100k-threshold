@@ -13,7 +13,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: ()
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
 import LandingTab from "./LandingTab";
 import { CENTAX } from "./Comparison";
-import WhoGainsTab, { DECILE_MEASURES, listOf, sortGroups, SUPPRESSED } from "./WhoGainsTab";
+import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
 import { formatThousands } from "../lib/formatters";
@@ -326,3 +326,22 @@ describe("the labour supply control", () => {
     );
   });
 });
+
+describe("who gains: the recipients view across years", () => {
+  it("falls back to families when the chosen year has no child counts by scheme", () => {
+    const final = String(years.at(-1));
+    const partial = mutate(`recipients.${final}.children_by_scheme`, null, { remove: true });
+    expect(recipientViews(partial.recipients[final]).map((v) => v.id)).toEqual(["families"]);
+    render(<WhoGainsTab data={partial} />);
+    const section = screen.getByTestId("section-recipients");
+    fireEvent.change(within(section).getByLabelText("Show"), { target: { value: "children" } });
+    // Switching to a year without children_by_scheme must not crash, and shows families.
+    expect(() => fireEvent.change(screen.getByLabelText("Year"), { target: { value: final } })).not.toThrow();
+    expect(within(section).getByLabelText("Show").value).toBe("families");
+    expect(within(section).getByTestId("recipients-chart")).toBeTruthy();
+    // Back to a year with child counts, the reader's choice returns.
+    fireEvent.change(screen.getByLabelText("Year"), { target: { value: String(LEAD_YEAR) } });
+    expect(within(section).getByLabelText("Show").value).toBe("children");
+  });
+});
+
