@@ -94,6 +94,17 @@ describe("budget impact", () => {
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(data.recipients[final].families_gaining));
   });
 
+  it("shows one scheme in both cards when it is clicked, and both again on a second click", () => {
+    render(<LandingTab data={data} />);
+    const rec = data.recipients[LEAD_YEAR];
+    const bar = () => within(screen.getByTestId("card-families")).getByRole("button", { name: /^Tax-Free Childcare/ });
+    fireEvent.click(bar());
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.by_scheme.tax_free_childcare));
+    expect(screen.getByTestId("card-split").textContent).toContain(bn(data.budget.gross_bn.tax_free_childcare[LEAD_YEAR]));
+    fireEvent.click(bar());
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
+  });
+
   it("labels 2026-27 illustrative in the tables", () => {
     render(<LandingTab data={data} />);
     expect(within(screen.getByTestId("components-table")).getAllByRole("columnheader").map((h) => h.textContent)).toContain("2026-27 (illustrative)");

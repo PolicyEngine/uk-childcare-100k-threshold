@@ -87,7 +87,16 @@ function MiniBars({ items, label, highlight = 0, onSelect, format }) {
               <title>{format ? `${d.label}: ${format(d.value)}` : d.label}</title>
               {/* A full-height hit area, so a short bar is as easy to click as a tall one. */}
               {onSelect ? <rect x={i * (bw + gap)} y={0} width={bw} height={H + 14} fill="transparent" /> : null}
-              <rect className="bar" x={i * (bw + gap)} y={H - h} width={bw} height={h} rx={2} fill={d.color ?? (i === highlight ? colors.primary[600] : colors.primary[200])} />
+              <rect
+                className="bar"
+                x={i * (bw + gap)}
+                y={H - h}
+                width={bw}
+                height={h}
+                rx={2}
+                fill={d.color ?? (i === highlight ? colors.primary[600] : colors.primary[200])}
+                opacity={d.color && onSelect && highlight >= 0 && i !== highlight ? 0.35 : 1}
+              />
               <text x={i * (bw + gap) + bw / 2} y={H + 12} textAnchor="middle" fontSize={10} fill={i === highlight && onSelect ? colors.gray[800] : colors.gray[500]} fontWeight={i === highlight && onSelect ? 600 : 400}>
                 {d.label}
               </text>
@@ -100,15 +109,30 @@ function MiniBars({ items, label, highlight = 0, onSelect, format }) {
   );
 }
 
-/** One horizontal bar split between the two schemes. */
-function SplitBar({ thirty, tfc }) {
+/** One horizontal bar split between the two schemes; hover for each part, click one to show it alone. */
+function SplitBar({ thirty, tfc, selected, onSelect }) {
   const total = thirty + tfc || 1;
   const share = Math.max(0, Math.min(1, thirty / total));
+  const parts = [
+    { id: "thirty_hours", x: 0, w: 240 * share, value: thirty, pct: 100 * share },
+    { id: "tax_free_childcare", x: 240 * share, w: 240 * (1 - share), value: tfc, pct: 100 * (1 - share) },
+  ];
   return (
     <div className="mt-auto pt-4" data-testid="mini-strip">
-      <svg viewBox="0 0 240 18" className="h-auto w-full" role="img" aria-label="Split of the cost between the two schemes">
-        <rect x={0} y={0} width={240 * share} height={18} rx={3} fill={schemeColors.thirty_hours} />
-        <rect x={240 * share} y={0} width={240 * (1 - share)} height={18} rx={3} fill={schemeColors.tax_free_childcare} />
+      <svg viewBox="0 0 240 18" className="h-auto w-full" role="img" aria-label="Split of the cost between the two schemes: click a scheme to show it">
+        {parts.map((p) => (
+          <g
+            key={p.id}
+            className="cursor-pointer"
+            role="button"
+            aria-label={`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)}`}
+            aria-pressed={selected === p.id}
+            onClick={() => onSelect(selected === p.id ? null : p.id)}
+          >
+            <title>{`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)} (${formatPct(p.pct, 0)})`}</title>
+            <rect x={p.x} y={0} width={p.w} height={18} rx={3} fill={schemeColors[p.id]} opacity={selected && selected !== p.id ? 0.35 : 1} />
+          </g>
+        ))}
       </svg>
       <StripLegend
         items={[
@@ -265,6 +289,7 @@ const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
 export default function LandingTab({ data }) {
   const budget = getBudget(data);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
+  const [scheme, setScheme] = useState(null);
   const lead = budget.rows[li];
   const recipients = getRecipients(data, lead.year);
   const cmp = getBudgetComparisons(data);
@@ -295,22 +320,29 @@ export default function LandingTab({ data }) {
             />
           </Card>
           <Card
-            label="By scheme"
-            value={`${formatBn(lead.thirty_hours, 2)} and ${formatBn(lead.tax_free_childcare, 2)}`}
-            detail={`30 hours and Tax-Free Childcare, ${fy}`}
+            label={scheme ? SCHEME_LABELS[scheme] : "By scheme"}
+            value={scheme ? formatBn(lead[scheme], 2) : `${formatBn(lead.thirty_hours, 2)} and ${formatBn(lead.tax_free_childcare, 2)}`}
+            detail={scheme ? `Cost of this scheme, ${fy}; click it again for both` : `30 hours and Tax-Free Childcare, ${fy}; click a scheme to show it`}
             testId="card-split"
           >
-            <SplitBar thirty={lead.thirty_hours} tfc={lead.tax_free_childcare} />
+            <SplitBar thirty={lead.thirty_hours} tfc={lead.tax_free_childcare} selected={scheme} onSelect={setScheme} />
           </Card>
           <Card
-            label="Families gaining"
-            value={formatThousands(recipients.families_gaining)}
-            detail={`${formatThousands(recipients.children_gaining)} children${recipients.mean_gain_gbp === null ? "" : `; ${formatCurrency(recipients.mean_gain_gbp)} a year on average`}, ${fy}`}
+            label={scheme ? `Families gaining from ${SCHEME_LABELS[scheme]}` : "Families gaining"}
+            value={formatThousands(scheme ? recipients.by_scheme[scheme] : recipients.families_gaining)}
+            detail={
+              scheme
+                ? `${recipients.children_by_scheme ? `${formatThousands(recipients.children_by_scheme[scheme])} children, ` : ""}${fy}`
+                : `${formatThousands(recipients.children_gaining)} children${recipients.mean_gain_gbp === null ? "" : `; ${formatCurrency(recipients.mean_gain_gbp)} a year on average`}, ${fy}`
+            }
             testId="card-families"
           >
             <MiniBars
-              items={SCHEMES.map((sc) => ({ label: sc === "thirty_hours" ? "30 hours" : "Tax-Free Childcare", value: recipients.by_scheme[sc], color: schemeColors[sc] }))}
-              label="Families gaining by scheme"
+              items={SCHEMES.map((sc) => ({ label: SCHEME_LABELS[sc], value: recipients.by_scheme[sc], color: schemeColors[sc] }))}
+              label="Families gaining by scheme: click a scheme to show it"
+              highlight={scheme ? SCHEMES.indexOf(scheme) : -1}
+              onSelect={(i) => setScheme(scheme === SCHEMES[i] ? null : SCHEMES[i])}
+              format={formatThousands}
             />
           </Card>
         </div>
