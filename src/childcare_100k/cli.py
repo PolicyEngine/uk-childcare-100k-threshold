@@ -376,10 +376,9 @@ def build(metas):
                 "price_elasticity_high": PRICE_ELASTICITY_HIGH,
                 "elasticity_scales": {k: round(v, 4) for k, v in ELASTICITY_SCALES.items()},
                 "hours_price_elasticity": HOURS_PRICE_ELASTICITY,
-                "income_elasticities": "OBR Table A2 (policyengine-uk's calculate_labour_net_income_elasticities), "
-                                       "by sex, whether in a couple and age of youngest child: from -0.185 (a woman "
-                                       "in a couple, youngest child 0-2) to -0.037 (a lone mother, youngest 0-4); "
-                                       "-0.05 for a man in a couple",
+                "income_elasticities": "Table A2, by sex, whether in a couple and age of youngest child: from "
+                                       "-0.185 (a woman in a couple, youngest child 0-2) to -0.037 (a lone "
+                                       "mother, youngest 0-4); -0.05 for a man in a couple",
                 "hours_for_new_entrants": HOURS_FOR_NEW_ENTRANTS,
                 "free_hours_displacement": round(FREE_HOURS_DISPLACEMENT, 4),
                 "free_hours_displacement_range": {k: round(v, 4) for k, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
@@ -393,7 +392,7 @@ def build(metas):
                 "limit as well as their partner. Those not in work may move into work; those in work may change "
                 "their hours."
             ),
-            "not_modelled": "Bunching is not modelled: parents who today keep their income at or just below "
+            "not_modelled": "Bunching: parents who today keep their income at or just below "
                             "£100,000 and would earn more without the limit.",
             "notes": [
                 "Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static "
@@ -420,8 +419,9 @@ def build(metas):
                 "amount, conditional only on both parents meeting the minimum earnings test, so for a family that "
                 "still buys paid care on top of them they do not change what an extra hour costs; they lower the "
                 "marginal price (to zero) only where they cover all the paid care the family buys. Income effect: "
-                "the OBR income elasticities times the static percentage change in household net income (which "
-                "counts the funded hours at their funding value and Tax-Free Childcare), as policyengine-uk applies "
+                "the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities) "
+                "times the static percentage change in household net income (which counts the funded hours at their "
+                "funding value and Tax-Free Childcare), as policyengine-uk's apply_progression_responses applies "
                 "them. Neither elasticity is measured on parents over £100,000.",
                 "Whether newly funded hours cover a family's paid care is judged on value, with funded hours "
                 f"assumed to displace paid care at {FREE_HOURS_DISPLACEMENT:.1%} of their value (1 - 54/570, IFS "
