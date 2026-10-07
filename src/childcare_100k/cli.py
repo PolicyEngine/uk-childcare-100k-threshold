@@ -344,6 +344,7 @@ def build(metas):
         },
         "recipients": agg.recipients(runs),
         "distribution": agg.distribution(runs),
+        "gender": agg.gender(runs),
         # The funded-hours spending rows only feed the limitation above: the gap to DfE is a
         # model/data issue filed upstream, stated once there rather than as a validation row.
         "baseline_validation": [r for r in validation if not r["label"].startswith(FUNDED_HOURS_SPENDING)],

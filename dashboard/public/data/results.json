@@ -18,7 +18,7 @@
    "dataset_sha256": "aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af",
    "policyengine": "6.2.1",
    "policyengine_uk": "2.102.3",
-   "run_definition_sha256": "3737364b016fecdd301162ccdcb8720906c49dc347f1811e5fdd80bbd0f0f15a"
+   "run_definition_sha256": "e840510eaa5cabed4747d6dad716ac4ec8149b967c03ad56fabf1c5fa6555ebe"
   },
   "years": [
    2026,
@@ -26,20 +26,20 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-07T12:09:26+00:00",
-  "git_revision": "298673a07248a645093e5139ffca8948a0ea6bf3",
+  "generated_at": "2026-10-07T12:39:37+00:00",
+  "git_revision": "015e7abd5f5cc09569e34008c188ec54e247690d",
   "min_cell_size": 10,
   "run_seconds": {
-   "microcosm_uk_2024_25/baseline": 12.7,
-   "microcosm_uk_2024_25/reform": 11.9,
-   "microcosm_uk_2024_25/baseline_hours30": 11.4,
-   "microcosm_uk_2024_25/reform_hours30": 11.6,
-   "microcosm_uk_2024_25/baseline_routed": 11.4,
-   "microcosm_uk_2024_25/reform_routed": 11.6,
-   "microcosm_uk_2024_25/labour_supply": 79.0
+   "microcosm_uk_2024_25/baseline": 13.2,
+   "microcosm_uk_2024_25/reform": 12.1,
+   "microcosm_uk_2024_25/baseline_hours30": 11.6,
+   "microcosm_uk_2024_25/reform_hours30": 11.7,
+   "microcosm_uk_2024_25/baseline_routed": 11.7,
+   "microcosm_uk_2024_25/reform_routed": 11.9,
+   "microcosm_uk_2024_25/labour_supply": 80.5
   },
   "peak_rss_gb": {
-   "microcosm_uk_2024_25/baseline": 6.5,
+   "microcosm_uk_2024_25/baseline": 6.6,
    "microcosm_uk_2024_25/reform": 5.8,
    "microcosm_uk_2024_25/baseline_hours30": 6.3,
    "microcosm_uk_2024_25/reform_hours30": 5.8,
@@ -975,6 +975,160 @@
      "family_type": "Other family",
      "total_change_bn": 0.0,
      "families_gaining": 0,
+     "suppressed": false
+    }
+   ]
+  }
+ },
+ "gender": {
+  "2026": {
+   "families_gaining_by_earner": [
+    {
+     "group": "Father over £100,000",
+     "families_gaining": 198000,
+     "suppressed": false
+    },
+    {
+     "group": "Mother over £100,000",
+     "families_gaining": 49000,
+     "suppressed": false
+    },
+    {
+     "group": "Both parents over £100,000",
+     "families_gaining": 15000,
+     "suppressed": false
+    },
+    {
+     "group": "Lone parent over £100,000",
+     "families_gaining": 7000,
+     "suppressed": false
+    }
+   ],
+   "partner_not_working": [
+    {
+     "higher_earner": "Father over £100,000",
+     "families": 440000,
+     "partner_not_working_pct": 14.3,
+     "suppressed": false
+    },
+    {
+     "higher_earner": "Mother over £100,000",
+     "families": 107000,
+     "partner_not_working_pct": 4.7,
+     "suppressed": false
+    }
+   ]
+  },
+  "2027": {
+   "families_gaining_by_earner": [
+    {
+     "group": "Father over £100,000",
+     "families_gaining": 206000,
+     "suppressed": false
+    },
+    {
+     "group": "Mother over £100,000",
+     "families_gaining": 48000,
+     "suppressed": false
+    },
+    {
+     "group": "Both parents over £100,000",
+     "families_gaining": 16000,
+     "suppressed": false
+    },
+    {
+     "group": "Lone parent over £100,000",
+     "families_gaining": 7000,
+     "suppressed": false
+    }
+   ],
+   "partner_not_working": [
+    {
+     "higher_earner": "Father over £100,000",
+     "families": 464000,
+     "partner_not_working_pct": 15.8,
+     "suppressed": false
+    },
+    {
+     "higher_earner": "Mother over £100,000",
+     "families": 114000,
+     "partner_not_working_pct": 5.9,
+     "suppressed": false
+    }
+   ]
+  },
+  "2028": {
+   "families_gaining_by_earner": [
+    {
+     "group": "Father over £100,000",
+     "families_gaining": 214000,
+     "suppressed": false
+    },
+    {
+     "group": "Mother over £100,000",
+     "families_gaining": 54000,
+     "suppressed": false
+    },
+    {
+     "group": "Both parents over £100,000",
+     "families_gaining": 18000,
+     "suppressed": false
+    },
+    {
+     "group": "Lone parent over £100,000",
+     "families_gaining": 7000,
+     "suppressed": false
+    }
+   ],
+   "partner_not_working": [
+    {
+     "higher_earner": "Father over £100,000",
+     "families": 479000,
+     "partner_not_working_pct": 15.7,
+     "suppressed": false
+    },
+    {
+     "higher_earner": "Mother over £100,000",
+     "families": 125000,
+     "partner_not_working_pct": 6.7,
+     "suppressed": false
+    }
+   ]
+  },
+  "2029": {
+   "families_gaining_by_earner": [
+    {
+     "group": "Father over £100,000",
+     "families_gaining": 221000,
+     "suppressed": false
+    },
+    {
+     "group": "Mother over £100,000",
+     "families_gaining": 54000,
+     "suppressed": false
+    },
+    {
+     "group": "Both parents over £100,000",
+     "families_gaining": 19000,
+     "suppressed": false
+    },
+    {
+     "group": "Lone parent over £100,000",
+     "families_gaining": 7000,
+     "suppressed": false
+    }
+   ],
+   "partner_not_working": [
+    {
+     "higher_earner": "Father over £100,000",
+     "families": 493000,
+     "partner_not_working_pct": 15.6,
+     "suppressed": false
+    },
+    {
+     "higher_earner": "Mother over £100,000",
+     "families": 133000,
+     "partner_not_working_pct": 6.3,
      "suppressed": false
     }
    ]

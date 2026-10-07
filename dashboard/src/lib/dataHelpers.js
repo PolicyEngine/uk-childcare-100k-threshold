@@ -262,6 +262,29 @@ export function getGroups(data, year, grouping) {
   return rows.map((r) => ({ name: r[g.label], ...r, suppressed: r.suppressed === true }));
 }
 
+export const EARNER_GROUPS = ["Father over £100,000", "Mother over £100,000", "Both parents over £100,000", "Lone parent over £100,000"];
+
+/** Families gaining by who is over £100,000, and how often the other parent does not work, by sex of the higher earner. */
+export function getGender(data, year) {
+  const block = `gender.${year}`;
+  const g = data?.gender?.[String(year)];
+  if (!g) fail(block, "missing");
+  const rows = g.families_gaining_by_earner;
+  if (!Array.isArray(rows) || rows.length !== EARNER_GROUPS.length) fail(`${block}.families_gaining_by_earner`, "missing");
+  rows.forEach((r, i) => {
+    if (r?.group !== EARNER_GROUPS[i]) fail(`${block}.families_gaining_by_earner.${i}.group`, "out of order");
+    checkCell(r, ["families_gaining"], `${block}.families_gaining_by_earner.${i}`);
+  });
+  if (rows.filter((r) => r.suppressed === true).length === 1) fail(`${block}.families_gaining_by_earner`, "a single suppressed cell can be recovered from the total");
+  const partner = g.partner_not_working;
+  if (!Array.isArray(partner) || partner.length !== 2) fail(`${block}.partner_not_working`, "missing");
+  partner.forEach((r, i) => checkCell(r, ["families", "partner_not_working_pct"], `${block}.partner_not_working.${i}`));
+  return {
+    byEarner: rows.map((r) => ({ name: r.group, ...r, suppressed: r.suppressed === true })),
+    partner: partner.map((r) => ({ ...r, suppressed: r.suppressed === true })),
+  };
+}
+
 /** The years for the "Who gains" choice: every modelled year, each of which must have a valid distribution. */
 export function getDistributionYears(data) {
   const years = getYears(data);
@@ -270,6 +293,7 @@ export function getDistributionYears(data) {
     getDeciles(data, y);
     getGroups(data, y, "region");
     getGroups(data, y, "family_type");
+    getGender(data, y);
   }
   return years;
 }

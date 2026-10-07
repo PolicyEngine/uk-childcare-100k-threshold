@@ -22,6 +22,7 @@ import {
   getCliff,
   getDeciles,
   getDistributionYears,
+  getGender,
   getGroups,
   getHouseholdGrid,
   getRecipients,
@@ -463,6 +464,63 @@ function AgeTable({ rows }) {
   );
 }
 
+const CENTAX_GENDER_URL =
+  "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=33";
+
+function GenderSection({ data, year }) {
+  const { byEarner, partner } = getGender(data, year);
+  const fy = fyLabel(year);
+  const shown = byEarner.filter((r) => !r.suppressed);
+  const total = shown.reduce((t, r) => t + r.families_gaining, 0);
+  const father = byEarner.find((r) => r.name === "Father over £100,000");
+  const fatherShare = total > 0 && !father.suppressed ? Math.round((100 * father.families_gaining) / total) : null;
+  const [pf, pm] = partner;
+  return (
+    <Section
+      id="gender"
+      title="Is it mothers or fathers who are over the limit?"
+      lead={`Families gaining in ${fy}, by which parent earns over £100,000.${
+        fatherShare !== null ? ` In ${fatherShare}% of them it is the father alone.` : ""
+      } The reform does not change anyone's work in these figures; they show who it reaches.`}
+      details={
+        <>
+          <p>
+            A couple gains only if both parents earn at least the minimum (16 hours a week at the National Minimum or
+            Living Wage). So a family whose other parent does not work gets nothing from the reform: the limit is not
+            what stops them.
+          </p>
+          <p>
+            CenTax find, from HMRC records, that when a father&apos;s income crosses £100,000 the share of mothers out
+            of work rises by 3 to 4 points; they read this as the loss of the free hours leading some mothers to stop
+            work. Our costing does not model that response. Source:{" "}
+            <a href={CENTAX_GENDER_URL} target="_blank" rel="noreferrer">
+              CenTax, Removing the childcare cliff-edge, Figure 3.12
+            </a>
+            .
+          </p>
+          <p>Cells resting on fewer than ten survey records are not shown.</p>
+        </>
+      }
+    >
+      <GroupChart rows={byEarner} measure="families_gaining" />
+      {!pf.suppressed && !pm.suppressed ? (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2" data-testid="partner-not-working">
+          {[pf, pm].map((p) => (
+            <div key={p.higher_earner} className="rounded-xl border border-slate-200 bg-white p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{p.higher_earner}</p>
+              <p className="mt-1 text-2xl font-semibold text-slate-900">{formatPct(p.partner_not_working_pct, 0)}</p>
+              <p className="text-sm text-slate-600">
+                of couples with a child under 12 have a {p.higher_earner.startsWith("Father") ? "mother" : "father"} who
+                does not work ({formatCount(p.families)} families, {fy})
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : null}
+    </Section>
+  );
+}
+
 export default function WhoGainsTab({ data }) {
   const years = getDistributionYears(data);
   const [y, setYear] = useState(LEAD_YEAR);
@@ -510,6 +568,7 @@ export default function WhoGainsTab({ data }) {
         </div>
         {view === "ages" ? <AgeChart rows={ages} /> : <RecipientsChart recipients={recipients} view={view} />}
       </Section>
+      <GenderSection data={data} year={y} />
     </div>
   );
 }
