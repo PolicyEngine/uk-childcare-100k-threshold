@@ -448,10 +448,9 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         lead="How the model's picture of today, before any reform, compares with official statistics."
         details={
           <p>
-            The two largest gaps against official statistics are spending through Tax-Free Childcare accounts, which
-            the model takes to cover all of a family&apos;s childcare spending, and use of the funded hours, where
-            families in the data use about half of the 30 hours. &quot;How do we compare with other estimates?&quot; above shows
-            what changing each does to the cost.
+            Tax-Free Childcare top-ups, children and families match HMRC within about 1%. The largest gap is in the
+            funded hours: families in the data use about half of the 30 hours (PolicyEngine/microcosm#1126).
+            &quot;How do we compare with other estimates?&quot; above shows what full use would do to the cost.
           </p>
         }
       >
