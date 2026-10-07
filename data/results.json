@@ -18,7 +18,7 @@
    "dataset_sha256": "aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af",
    "policyengine": "6.2.1",
    "policyengine_uk": "2.102.3",
-   "run_definition_sha256": "e840510eaa5cabed4747d6dad716ac4ec8149b967c03ad56fabf1c5fa6555ebe"
+   "run_definition_sha256": "f4146720c5cd322385a82b3c0b76b19d62bcdcfcf780b0002c8c921793534585"
   },
   "years": [
    2026,
@@ -26,20 +26,20 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-07T12:39:37+00:00",
-  "git_revision": "015e7abd5f5cc09569e34008c188ec54e247690d",
+  "generated_at": "2026-10-07T14:22:04+00:00",
+  "git_revision": "faaa5d5e45f41a650e3ad621b0ee99afe22b7dfb",
   "min_cell_size": 10,
   "run_seconds": {
-   "microcosm_uk_2024_25/baseline": 13.2,
-   "microcosm_uk_2024_25/reform": 12.1,
-   "microcosm_uk_2024_25/baseline_hours30": 11.6,
-   "microcosm_uk_2024_25/reform_hours30": 11.7,
-   "microcosm_uk_2024_25/baseline_routed": 11.7,
-   "microcosm_uk_2024_25/reform_routed": 11.9,
-   "microcosm_uk_2024_25/labour_supply": 80.5
+   "microcosm_uk_2024_25/baseline": 12.8,
+   "microcosm_uk_2024_25/reform": 12.3,
+   "microcosm_uk_2024_25/baseline_hours30": 11.8,
+   "microcosm_uk_2024_25/reform_hours30": 11.5,
+   "microcosm_uk_2024_25/baseline_routed": 11.0,
+   "microcosm_uk_2024_25/reform_routed": 11.6,
+   "microcosm_uk_2024_25/labour_supply": 88.8
   },
   "peak_rss_gb": {
-   "microcosm_uk_2024_25/baseline": 6.6,
+   "microcosm_uk_2024_25/baseline": 6.5,
    "microcosm_uk_2024_25/reform": 5.8,
    "microcosm_uk_2024_25/baseline_hours30": 6.3,
    "microcosm_uk_2024_25/reform_hours30": 5.8,
@@ -67,10 +67,10 @@
  "budget": {
   "gross_bn": {
    "thirty_hours": {
-    "2026": 0.391,
-    "2027": 0.414,
-    "2028": 0.463,
-    "2029": 0.482
+    "2026": 0.41,
+    "2027": 0.434,
+    "2028": 0.484,
+    "2029": 0.505
    },
    "tax_free_childcare": {
     "2026": 0.148,
@@ -79,67 +79,67 @@
     "2029": 0.173
    },
    "total": {
-    "2026": 0.539,
-    "2027": 0.573,
-    "2028": 0.63,
-    "2029": 0.655
+    "2026": 0.558,
+    "2027": 0.593,
+    "2028": 0.651,
+    "2029": 0.678
    }
   },
   "net_bn": {
    "total": {
-    "2026": 0.538,
-    "2027": 0.574,
-    "2028": 0.63,
-    "2029": 0.655
+    "2026": 0.557,
+    "2027": 0.593,
+    "2028": 0.651,
+    "2029": 0.678
    }
   },
   "thirty_hours_components_bn": {
    "extended": {
-    "2026": 0.518,
-    "2027": 0.547,
-    "2028": 0.622,
-    "2029": 0.649
+    "2026": 0.41,
+    "2027": 0.434,
+    "2028": 0.484,
+    "2029": 0.505
    },
    "universal": {
-    "2026": -0.115,
-    "2027": -0.12,
-    "2028": -0.146,
-    "2029": -0.154
+    "2026": 0.0,
+    "2027": 0.0,
+    "2028": 0.0,
+    "2029": 0.0
    },
    "targeted": {
-    "2026": -0.012,
-    "2027": -0.013,
-    "2028": -0.013,
-    "2029": -0.013
+    "2026": 0.0,
+    "2027": 0.0,
+    "2028": 0.0,
+    "2029": 0.0
    }
   },
   "range_bn": {
    "low": {
-    "2026": 0.524,
-    "2027": 0.558,
-    "2028": 0.615,
-    "2029": 0.631
+    "2026": 0.543,
+    "2027": 0.578,
+    "2028": 0.635,
+    "2029": 0.652
    },
    "central": {
-    "2026": 0.539,
-    "2027": 0.573,
-    "2028": 0.63,
-    "2029": 0.655
+    "2026": 0.558,
+    "2027": 0.593,
+    "2028": 0.651,
+    "2029": 0.678
    },
    "high": {
-    "2026": 1.157,
-    "2027": 1.237,
-    "2028": 1.368,
-    "2029": 1.43
+    "2026": 1.16,
+    "2027": 1.24,
+    "2028": 1.371,
+    "2029": 1.433
    }
   },
   "sensitivities": {
    "effects_bn": {
     "full_30_hour_usage": {
-     "2026": 0.573,
-     "2027": 0.616,
-     "2028": 0.687,
-     "2029": 0.719
+     "2026": 0.557,
+     "2027": 0.6,
+     "2028": 0.669,
+     "2029": 0.7
     },
     "under_ones": {
      "2026": 0.045,
@@ -150,8 +150,8 @@
     "ani_net_of_pension_contributions_and_tfc_routed_share": {
      "2026": -0.014,
      "2027": -0.015,
-     "2028": -0.015,
-     "2029": -0.024
+     "2028": -0.016,
+     "2029": -0.025
     }
    },
    "low": [
@@ -170,7 +170,7 @@
  },
  "recipients": {
   "2026": {
-   "families_gaining": 269000,
+   "families_gaining": 270000,
    "children_gaining": 325000,
    "by_scheme": {
     "thirty_hours": 87000,
@@ -187,19 +187,19 @@
     "5-11": 178000,
     "12+": 0
    },
-   "mean_gain_gbp": 2044,
+   "mean_gain_gbp": 2066,
    "mean_gain_suppressed": false,
-   "families_losing": 10000
+   "families_losing": 0
   },
   "2027": {
-   "families_gaining": 277000,
+   "families_gaining": 278000,
    "children_gaining": 338000,
    "by_scheme": {
     "thirty_hours": 90000,
     "tax_free_childcare": 228000
    },
    "children_by_scheme": {
-    "thirty_hours": 98000,
+    "thirty_hours": 99000,
     "tax_free_childcare": 282000
    },
    "children_gaining_by_age": {
@@ -209,15 +209,15 @@
     "5-11": 183000,
     "12+": 0
    },
-   "mean_gain_gbp": 2111,
+   "mean_gain_gbp": 2133,
    "mean_gain_suppressed": false,
-   "families_losing": 10000
+   "families_losing": 0
   },
   "2028": {
-   "families_gaining": 294000,
-   "children_gaining": 356000,
+   "families_gaining": 296000,
+   "children_gaining": 357000,
    "by_scheme": {
-    "thirty_hours": 97000,
+    "thirty_hours": 98000,
     "tax_free_childcare": 243000
    },
    "children_by_scheme": {
@@ -227,19 +227,19 @@
    "children_gaining_by_age": {
     "0-1": 28000,
     "2": 61000,
-    "3-4": 74000,
+    "3-4": 75000,
     "5-11": 193000,
     "12+": 0
    },
-   "mean_gain_gbp": 2183,
+   "mean_gain_gbp": 2197,
    "mean_gain_suppressed": false,
-   "families_losing": 11000
+   "families_losing": 0
   },
   "2029": {
-   "families_gaining": 301000,
+   "families_gaining": 304000,
    "children_gaining": 368000,
    "by_scheme": {
-    "thirty_hours": 100000,
+    "thirty_hours": 101000,
     "tax_free_childcare": 249000
    },
    "children_by_scheme": {
@@ -247,15 +247,15 @@
     "tax_free_childcare": 306000
    },
    "children_gaining_by_age": {
-    "0-1": 28000,
+    "0-1": 29000,
     "2": 62000,
-    "3-4": 79000,
+    "3-4": 80000,
     "5-11": 198000,
     "12+": 0
    },
-   "mean_gain_gbp": 2219,
+   "mean_gain_gbp": 2227,
    "mean_gain_suppressed": false,
-   "families_losing": 12000
+   "families_losing": 0
   }
  },
  "distribution": {
@@ -312,23 +312,23 @@
     },
     {
      "decile": 8,
-     "mean_change_gbp": 5.27,
+     "mean_change_gbp": 5.44,
      "pct_change": 0.007,
      "share_gaining_pct": 0.76,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 22.47,
-     "pct_change": 0.026,
+     "mean_change_gbp": 25.31,
+     "pct_change": 0.029,
      "share_gaining_pct": 1.66,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 157.41,
-     "pct_change": 0.095,
-     "share_gaining_pct": 6.84,
+     "mean_change_gbp": 160.83,
+     "pct_change": 0.097,
+     "share_gaining_pct": 6.87,
      "suppressed": false
     }
    ],
@@ -365,19 +365,19 @@
     },
     {
      "region": "East of England",
-     "total_change_bn": 0.108,
+     "total_change_bn": 0.111,
      "families_gaining": 34000,
      "suppressed": false
     },
     {
      "region": "London",
-     "total_change_bn": 0.238,
-     "families_gaining": 88000,
+     "total_change_bn": 0.245,
+     "families_gaining": 89000,
      "suppressed": false
     },
     {
      "region": "South East",
-     "total_change_bn": 0.09,
+     "total_change_bn": 0.098,
      "families_gaining": 77000,
      "suppressed": false
     },
@@ -409,25 +409,25 @@
    "by_family_type": [
     {
      "family_type": "Lone parent",
-     "total_change_bn": 0.012,
+     "total_change_bn": 0.014,
      "families_gaining": 7000,
      "suppressed": false
     },
     {
      "family_type": "Couple, one child",
-     "total_change_bn": 0.204,
-     "families_gaining": 75000,
+     "total_change_bn": 0.207,
+     "families_gaining": 76000,
      "suppressed": false
     },
     {
      "family_type": "Couple, two children",
-     "total_change_bn": 0.254,
-     "families_gaining": 145000,
+     "total_change_bn": 0.265,
+     "families_gaining": 146000,
      "suppressed": false
     },
     {
      "family_type": "Couple, three or more children",
-     "total_change_bn": 0.069,
+     "total_change_bn": 0.072,
      "families_gaining": 42000,
      "suppressed": false
     },
@@ -492,23 +492,23 @@
     },
     {
      "decile": 8,
-     "mean_change_gbp": 5.47,
+     "mean_change_gbp": 5.65,
      "pct_change": 0.007,
      "share_gaining_pct": 0.77,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 27.4,
-     "pct_change": 0.031,
+     "mean_change_gbp": 30.3,
+     "pct_change": 0.034,
      "share_gaining_pct": 1.8,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 163.6,
-     "pct_change": 0.096,
-     "share_gaining_pct": 6.92,
+     "mean_change_gbp": 167.09,
+     "pct_change": 0.099,
+     "share_gaining_pct": 6.96,
      "suppressed": false
     }
    ],
@@ -521,13 +521,13 @@
     },
     {
      "region": "North West",
-     "total_change_bn": 0.018,
-     "families_gaining": 21000,
+     "total_change_bn": 0.019,
+     "families_gaining": 22000,
      "suppressed": false
     },
     {
      "region": "Yorkshire and the Humber",
-     "total_change_bn": 0.024,
+     "total_change_bn": 0.025,
      "families_gaining": 6000,
      "suppressed": false
     },
@@ -539,25 +539,25 @@
     },
     {
      "region": "West Midlands",
-     "total_change_bn": 0.022,
+     "total_change_bn": 0.023,
      "families_gaining": 15000,
      "suppressed": false
     },
     {
      "region": "East of England",
-     "total_change_bn": 0.112,
+     "total_change_bn": 0.114,
      "families_gaining": 35000,
      "suppressed": false
     },
     {
      "region": "London",
-     "total_change_bn": 0.259,
+     "total_change_bn": 0.266,
      "families_gaining": 92000,
      "suppressed": false
     },
     {
      "region": "South East",
-     "total_change_bn": 0.098,
+     "total_change_bn": 0.106,
      "families_gaining": 79000,
      "suppressed": false
     },
@@ -589,25 +589,25 @@
    "by_family_type": [
     {
      "family_type": "Lone parent",
-     "total_change_bn": 0.012,
+     "total_change_bn": 0.014,
      "families_gaining": 7000,
      "suppressed": false
     },
     {
      "family_type": "Couple, one child",
-     "total_change_bn": 0.214,
+     "total_change_bn": 0.216,
      "families_gaining": 79000,
      "suppressed": false
     },
     {
      "family_type": "Couple, two children",
-     "total_change_bn": 0.275,
-     "families_gaining": 149000,
+     "total_change_bn": 0.287,
+     "families_gaining": 150000,
      "suppressed": false
     },
     {
      "family_type": "Couple, three or more children",
-     "total_change_bn": 0.072,
+     "total_change_bn": 0.075,
      "families_gaining": 43000,
      "suppressed": false
     },
@@ -672,23 +672,23 @@
     },
     {
      "decile": 8,
-     "mean_change_gbp": 6.3,
+     "mean_change_gbp": 6.48,
      "pct_change": 0.008,
      "share_gaining_pct": 0.8,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 29.15,
-     "pct_change": 0.032,
+     "mean_change_gbp": 32.16,
+     "pct_change": 0.035,
      "share_gaining_pct": 2.11,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 179.46,
-     "pct_change": 0.104,
-     "share_gaining_pct": 7.13,
+     "mean_change_gbp": 183.41,
+     "pct_change": 0.106,
+     "share_gaining_pct": 7.21,
      "suppressed": false
     }
    ],
@@ -701,13 +701,13 @@
     },
     {
      "region": "North West",
-     "total_change_bn": 0.03,
-     "families_gaining": 23000,
+     "total_change_bn": 0.031,
+     "families_gaining": 24000,
      "suppressed": false
     },
     {
      "region": "Yorkshire and the Humber",
-     "total_change_bn": 0.03,
+     "total_change_bn": 0.031,
      "families_gaining": 7000,
      "suppressed": false
     },
@@ -719,26 +719,26 @@
     },
     {
      "region": "West Midlands",
-     "total_change_bn": 0.023,
+     "total_change_bn": 0.024,
      "families_gaining": 16000,
      "suppressed": false
     },
     {
      "region": "East of England",
-     "total_change_bn": 0.114,
+     "total_change_bn": 0.117,
      "families_gaining": 35000,
      "suppressed": false
     },
     {
      "region": "London",
-     "total_change_bn": 0.286,
-     "families_gaining": 103000,
+     "total_change_bn": 0.294,
+     "families_gaining": 104000,
      "suppressed": false
     },
     {
      "region": "South East",
-     "total_change_bn": 0.1,
-     "families_gaining": 79000,
+     "total_change_bn": 0.109,
+     "families_gaining": 81000,
      "suppressed": false
     },
     {
@@ -769,25 +769,25 @@
    "by_family_type": [
     {
      "family_type": "Lone parent",
-     "total_change_bn": 0.012,
+     "total_change_bn": 0.015,
      "families_gaining": 7000,
      "suppressed": false
     },
     {
      "family_type": "Couple, one child",
-     "total_change_bn": 0.236,
+     "total_change_bn": 0.238,
      "families_gaining": 89000,
      "suppressed": false
     },
     {
      "family_type": "Couple, two children",
-     "total_change_bn": 0.308,
-     "families_gaining": 155000,
+     "total_change_bn": 0.321,
+     "families_gaining": 157000,
      "suppressed": false
     },
     {
      "family_type": "Couple, three or more children",
-     "total_change_bn": 0.074,
+     "total_change_bn": 0.077,
      "families_gaining": 43000,
      "suppressed": false
     },
@@ -852,23 +852,23 @@
     },
     {
      "decile": 8,
-     "mean_change_gbp": 8.38,
+     "mean_change_gbp": 8.85,
      "pct_change": 0.011,
-     "share_gaining_pct": 0.83,
+     "share_gaining_pct": 0.86,
      "suppressed": false
     },
     {
      "decile": 9,
-     "mean_change_gbp": 27.64,
-     "pct_change": 0.03,
+     "mean_change_gbp": 30.62,
+     "pct_change": 0.033,
      "share_gaining_pct": 2.08,
      "suppressed": false
     },
     {
      "decile": 10,
-     "mean_change_gbp": 183.99,
-     "pct_change": 0.104,
-     "share_gaining_pct": 7.23,
+     "mean_change_gbp": 188.05,
+     "pct_change": 0.106,
+     "share_gaining_pct": 7.31,
      "suppressed": false
     }
    ],
@@ -882,7 +882,7 @@
     {
      "region": "North West",
      "total_change_bn": 0.031,
-     "families_gaining": 23000,
+     "families_gaining": 24000,
      "suppressed": false
     },
     {
@@ -899,26 +899,26 @@
     },
     {
      "region": "West Midlands",
-     "total_change_bn": 0.032,
+     "total_change_bn": 0.033,
      "families_gaining": 18000,
      "suppressed": false
     },
     {
      "region": "East of England",
-     "total_change_bn": 0.117,
+     "total_change_bn": 0.119,
      "families_gaining": 36000,
      "suppressed": false
     },
     {
      "region": "London",
-     "total_change_bn": 0.292,
-     "families_gaining": 103000,
+     "total_change_bn": 0.301,
+     "families_gaining": 104000,
      "suppressed": false
     },
     {
      "region": "South East",
-     "total_change_bn": 0.104,
-     "families_gaining": 82000,
+     "total_change_bn": 0.113,
+     "families_gaining": 83000,
      "suppressed": false
     },
     {
@@ -949,26 +949,26 @@
    "by_family_type": [
     {
      "family_type": "Lone parent",
-     "total_change_bn": 0.012,
+     "total_change_bn": 0.015,
      "families_gaining": 7000,
      "suppressed": false
     },
     {
      "family_type": "Couple, one child",
-     "total_change_bn": 0.241,
+     "total_change_bn": 0.243,
      "families_gaining": 90000,
      "suppressed": false
     },
     {
      "family_type": "Couple, two children",
-     "total_change_bn": 0.318,
-     "families_gaining": 159000,
+     "total_change_bn": 0.332,
+     "families_gaining": 161000,
      "suppressed": false
     },
     {
      "family_type": "Couple, three or more children",
-     "total_change_bn": 0.084,
-     "families_gaining": 45000,
+     "total_change_bn": 0.088,
+     "families_gaining": 46000,
      "suppressed": false
     },
     {
@@ -990,7 +990,7 @@
     },
     {
      "group": "Mother over £100,000",
-     "families_gaining": 49000,
+     "families_gaining": 50000,
      "suppressed": false
     },
     {
@@ -1028,7 +1028,7 @@
     },
     {
      "group": "Mother over £100,000",
-     "families_gaining": 48000,
+     "families_gaining": 49000,
      "suppressed": false
     },
     {
@@ -1061,12 +1061,12 @@
    "families_gaining_by_earner": [
     {
      "group": "Father over £100,000",
-     "families_gaining": 214000,
+     "families_gaining": 216000,
      "suppressed": false
     },
     {
      "group": "Mother over £100,000",
-     "families_gaining": 54000,
+     "families_gaining": 55000,
      "suppressed": false
     },
     {
@@ -1099,12 +1099,12 @@
    "families_gaining_by_earner": [
     {
      "group": "Father over £100,000",
-     "families_gaining": 221000,
+     "families_gaining": 223000,
      "suppressed": false
     },
     {
      "group": "Mother over £100,000",
-     "families_gaining": 54000,
+     "families_gaining": 55000,
      "suppressed": false
     },
     {
@@ -1168,7 +1168,7 @@
   {
    "label": "Children under 3 using the working parent entitlement",
    "year": 2025,
-   "model": 428000,
+   "model": 422000,
    "official": 501700,
    "unit": "children",
    "source": "DfE, Education provision: children under 5 years of age, January 2026 (published 2 July 2026) (9 months to 2 years registered)",
@@ -1179,13 +1179,13 @@
   {
    "label": "3- and 4-year-olds using the working parent entitlement",
    "year": 2025,
-   "model": 402000,
+   "model": 352000,
    "official": 388700,
    "unit": "children",
    "source": "DfE, Education provision: children under 5 years of age, January 2026 (published 2 July 2026)",
    "url": "https://explore-education-statistics.service.gov.uk/find-statistics/education-provision-children-under-5",
    "dataset": "Microcosm UK 2024-25 (national release)",
-   "note": "The model gives 4-year-olds in reception funded hours (compulsory school age starts at 5 in the model), so it counts more 3-4-year-olds than DfE."
+   "note": "Model: a 3- or 4-year-old counts once the family's working-parent hours go beyond the universal 15 (a family drawing 15 hours or fewer keeps the universal hours; corrections.py), which lowers the count; the model also gives 4-year-olds in reception funded hours (compulsory school age starts at 5 in the model), which raises it."
   },
   {
    "label": "People with income of £100,000 or more",
@@ -1956,7 +1956,7 @@
    119098,
    119628
   ],
-  "notes": "Computed with policyengine.py's household calculator (calculate_household), the same model release as the population runs. Net income is household net income (after tax and benefits, including the value of funded hours at the local-authority funding rate and the Tax-Free Childcare top-up) minus the family's own childcare spending of £20,000 a year (£10,000 per child), held fixed in both scenarios as in the population run. Both parents are under 40, work, pass the minimum income test and make no pension contributions, so adjusted net income equals employment income. Funded hours are valued at 30 hours x 38 weeks for each child (the model's default usage for a single household). The personal allowance taper between £100,000 and £125,140 applies in both scenarios. At exactly £100,000 the model already withdraws the 30 hours (it tests income < £100,000, where the law allows up to and including £100,000) but keeps Tax-Free Childcare."
+  "notes": "Computed with policyengine.py's household calculator (calculate_household), the same model release and the same model corrections (corrections.py) as the population runs. Net income is household net income (after tax and benefits, including the value of funded hours at the local-authority funding rate and the Tax-Free Childcare top-up) minus the family's own childcare spending of £20,000 a year (£10,000 per child), held fixed in both scenarios as in the population run. Both parents are under 40, work, pass the minimum income test and make no pension contributions, so adjusted net income equals employment income. Funded hours are valued at 30 hours x 38 weeks for each child (the model's default usage for a single household). The personal allowance taper between £100,000 and £125,140 applies in both scenarios. Exactly £100,000 still qualifies for both schemes, as in law (a parent is excluded only if income exceeds £100,000); the support is lost from £100,001."
  },
  "household_grid": {
   "year": 2027,
@@ -24775,10 +24775,10 @@
    ],
    "alternative": "Parents respond: OBR participation elasticities and a childcare-price elasticity of hours",
    "effect_bn": {
-    "2026": -0.024,
-    "2027": -0.026,
-    "2028": -0.028,
-    "2029": -0.03
+    "2026": -0.022,
+    "2027": -0.024,
+    "2028": -0.026,
+    "2029": -0.028
    }
   },
   {
@@ -24819,7 +24819,7 @@
     "label": "DfE funding technical note",
     "url": "https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note"
    },
-   "modelled": "Each family's weekly extended hours come from the dataset's draw of maximum_extended_childcare_hours_usage, which averages about 15 of the 30 hours. DfE's January 2025 census implies about 28.5; the draw is under review upstream (PolicyEngine/microcosm#1126). The model also switches off a 3- or 4-year-old's universal 15 hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930).",
+   "modelled": "Each family's weekly extended hours come from the dataset's draw of maximum_extended_childcare_hours_usage, which averages about 15 of the 30 hours. DfE's January 2025 census implies about 28.5; the draw is under review upstream (PolicyEngine/microcosm#1126). policyengine-uk switches off a 3- or 4-year-old's universal 15 hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930); we keep them, as the law does, and count only the hours above them as extended (corrections.py), so a family that becomes eligible never loses funded hours.",
    "sources": [
     {
      "label": "maximum_extended_childcare_hours_usage",
@@ -24844,10 +24844,10 @@
    ],
    "alternative": "Every family uses all 30 extended hours",
    "effect_bn": {
-    "2026": 0.573,
-    "2027": 0.616,
-    "2028": 0.687,
-    "2029": 0.719
+    "2026": 0.557,
+    "2027": 0.6,
+    "2028": 0.669,
+    "2029": 0.7
    }
   },
   {
@@ -24906,8 +24906,8 @@
    "effect_bn": {
     "2026": -0.014,
     "2027": -0.015,
-    "2028": -0.015,
-    "2029": -0.024
+    "2028": -0.016,
+    "2029": -0.025
    }
   },
   {
@@ -24932,62 +24932,62 @@
   "extensive": {
    "offset_bn": {
     "central": {
-     "2026": -0.003,
-     "2027": -0.003,
-     "2028": -0.003,
-     "2029": -0.003
+     "2026": -0.005,
+     "2027": -0.005,
+     "2028": -0.005,
+     "2029": -0.005
     },
     "low": {
-     "2026": -0.001,
-     "2027": -0.001,
-     "2028": -0.001,
-     "2029": -0.001
+     "2026": -0.002,
+     "2027": -0.002,
+     "2028": -0.002,
+     "2029": -0.002
     },
     "high": {
-     "2026": -0.006,
-     "2027": -0.006,
-     "2028": -0.006,
-     "2029": -0.006
+     "2026": -0.01,
+     "2027": -0.01,
+     "2028": -0.011,
+     "2029": -0.01
     }
    },
    "tax_and_ni_bn": {
     "central": {
-     "2026": -0.003,
-     "2027": -0.003,
-     "2028": -0.003,
-     "2029": -0.003
-    },
-    "low": {
-     "2026": -0.001,
-     "2027": -0.001,
-     "2028": -0.001,
-     "2029": -0.001
-    },
-    "high": {
      "2026": -0.005,
      "2027": -0.005,
-     "2028": -0.006,
-     "2029": -0.006
+     "2028": -0.005,
+     "2029": -0.005
+    },
+    "low": {
+     "2026": -0.002,
+     "2027": -0.002,
+     "2028": -0.002,
+     "2029": -0.002
+    },
+    "high": {
+     "2026": -0.009,
+     "2027": -0.009,
+     "2028": -0.01,
+     "2029": -0.01
     }
    },
    "entrants": {
     "central": {
-     "2026": 600,
-     "2027": 600,
-     "2028": 600,
-     "2029": 600
+     "2026": 1100,
+     "2027": 1100,
+     "2028": 1100,
+     "2029": 1100
     },
     "low": {
-     "2026": 200,
-     "2027": 200,
-     "2028": 200,
-     "2029": 200
+     "2026": 400,
+     "2027": 400,
+     "2028": 400,
+     "2029": 400
     },
     "high": {
-     "2026": 1100,
-     "2027": 1200,
-     "2028": 1200,
-     "2029": 1200
+     "2026": 2100,
+     "2027": 2200,
+     "2028": 2300,
+     "2029": 2200
     }
    },
    "leavers": {
@@ -25012,10 +25012,50 @@
    },
    "ftes": {
     "central": {
-     "2026": 300,
-     "2027": 300,
-     "2028": 300,
-     "2029": 300
+     "2026": 500,
+     "2027": 500,
+     "2028": 600,
+     "2029": 500
+    },
+    "low": {
+     "2026": 200,
+     "2027": 200,
+     "2028": 200,
+     "2029": 200
+    },
+    "high": {
+     "2026": 1100,
+     "2027": 1100,
+     "2028": 1100,
+     "2029": 1100
+    }
+   },
+   "earnings_bn": {
+    "central": {
+     "2026": 0.017,
+     "2027": 0.018,
+     "2028": 0.019,
+     "2029": 0.018
+    },
+    "low": {
+     "2026": 0.006,
+     "2027": 0.006,
+     "2028": 0.006,
+     "2029": 0.006
+    },
+    "high": {
+     "2026": 0.033,
+     "2027": 0.035,
+     "2028": 0.038,
+     "2029": 0.037
+    }
+   },
+   "implied_by_over_limit": {
+    "central": {
+     "2026": 200,
+     "2027": 200,
+     "2028": 200,
+     "2029": 200
     },
     "low": {
      "2026": 100,
@@ -25024,30 +25064,50 @@
      "2029": 100
     },
     "high": {
-     "2026": 600,
-     "2027": 600,
-     "2028": 600,
-     "2029": 600
+     "2026": 300,
+     "2027": 300,
+     "2028": 400,
+     "2029": 400
     }
    },
-   "earnings_bn": {
+   "non_worker_rule_entrants": {
     "central": {
-     "2026": 0.009,
-     "2027": 0.009,
-     "2028": 0.01,
-     "2029": 0.01
+     "2026": 500,
+     "2027": 500,
+     "2028": 500,
+     "2029": 500
     },
     "low": {
-     "2026": 0.003,
-     "2027": 0.003,
-     "2028": 0.003,
-     "2029": 0.003
+     "2026": 200,
+     "2027": 200,
+     "2028": 200,
+     "2029": 200
     },
     "high": {
-     "2026": 0.017,
-     "2027": 0.018,
-     "2028": 0.019,
-     "2029": 0.019
+     "2026": 900,
+     "2027": 900,
+     "2028": 1000,
+     "2029": 900
+    }
+   },
+   "entry_capped": {
+    "central": {
+     "2026": 0,
+     "2027": 0,
+     "2028": 0,
+     "2029": 0
+    },
+    "low": {
+     "2026": 0,
+     "2027": 0,
+     "2028": 0,
+     "2029": 0
+    },
+    "high": {
+     "2026": 0,
+     "2027": 0,
+     "2028": 0,
+     "2029": 0
     }
    }
   },
@@ -25089,13 +25149,13 @@
      "2026": 2700,
      "2027": 2800,
      "2028": 3000,
-     "2029": 3000
+     "2029": 3100
     }
    },
    "earnings_bn": {
     "central": {
      "2026": 0.073,
-     "2027": 0.078,
+     "2027": 0.079,
      "2028": 0.082,
      "2029": 0.086
     },
@@ -25109,24 +25169,24 @@
      "2026": 0.146,
      "2027": 0.157,
      "2028": 0.164,
-     "2029": 0.171
+     "2029": 0.172
     }
    },
    "workers_price_falls": {
     "central": {
-     "2026": 197000,
+     "2026": 196000,
      "2027": 203000,
      "2028": 209000,
      "2029": 214000
     },
     "low": {
-     "2026": 197000,
+     "2026": 196000,
      "2027": 203000,
      "2028": 209000,
      "2029": 214000
     },
     "high": {
-     "2026": 197000,
+     "2026": 196000,
      "2027": 203000,
      "2028": 209000,
      "2029": 214000
@@ -25134,44 +25194,44 @@
    },
    "mean_price_change_pct": {
     "central": {
-     "2026": -16.3,
-     "2027": -16.7,
-     "2028": -17.3,
-     "2029": -17.2
+     "2026": -16.4,
+     "2027": -16.8,
+     "2028": -17.5,
+     "2029": -17.3
     },
     "low": {
-     "2026": -16.3,
-     "2027": -16.7,
-     "2028": -17.3,
-     "2029": -17.2
+     "2026": -16.4,
+     "2027": -16.8,
+     "2028": -17.5,
+     "2029": -17.3
     },
     "high": {
-     "2026": -16.3,
-     "2027": -16.7,
-     "2028": -17.3,
-     "2029": -17.2
+     "2026": -16.4,
+     "2027": -16.8,
+     "2028": -17.5,
+     "2029": -17.3
     }
    }
   },
   "intensive_over_limit": {
    "offset_bn": {
     "central": {
-     "2026": 0.172,
-     "2027": 0.181,
-     "2028": 0.2,
-     "2029": 0.206
+     "2026": 0.173,
+     "2027": 0.183,
+     "2028": 0.202,
+     "2029": 0.208
     },
     "low": {
-     "2026": 0.057,
+     "2026": 0.058,
      "2027": 0.061,
-     "2028": 0.067,
+     "2028": 0.068,
      "2029": 0.069
     },
     "high": {
-     "2026": 0.343,
-     "2027": 0.362,
-     "2028": 0.4,
-     "2029": 0.411
+     "2026": 0.346,
+     "2027": 0.364,
+     "2028": 0.404,
+     "2029": 0.415
     }
    },
    "ftes": {
@@ -25189,92 +25249,112 @@
     },
     "high": {
      "2026": 3900,
-     "2027": 4200,
+     "2027": 4100,
      "2028": 4400,
-     "2029": 4400
+     "2029": 4500
     }
    },
    "earnings_bn": {
     "central": {
-     "2026": 0.332,
-     "2027": 0.35,
-     "2028": 0.391,
-     "2029": 0.41
+     "2026": 0.335,
+     "2027": 0.353,
+     "2028": 0.396,
+     "2029": 0.414
     },
     "low": {
-     "2026": 0.111,
-     "2027": 0.117,
-     "2028": 0.13,
-     "2029": 0.137
+     "2026": 0.112,
+     "2027": 0.118,
+     "2028": 0.132,
+     "2029": 0.138
     },
     "high": {
-     "2026": 0.665,
-     "2027": 0.701,
-     "2028": 0.783,
-     "2029": 0.819
+     "2026": 0.671,
+     "2027": 0.707,
+     "2028": 0.791,
+     "2029": 0.828
     }
+   }
+  },
+  "intensive_displacement": {
+   "offset_bn": {
+    "low": {
+     "2026": 0.026,
+     "2027": 0.028,
+     "2028": 0.03,
+     "2029": 0.031
+    },
+    "high": {
+     "2026": 0.028,
+     "2027": 0.03,
+     "2028": 0.032,
+     "2029": 0.034
+    }
+   },
+   "displacement": {
+    "low": 0.714,
+    "high": 1.0
    }
   },
   "total_offset_bn": {
    "central": {
-    "2026": 0.024,
-    "2027": 0.026,
-    "2028": 0.028,
-    "2029": 0.03
+    "2026": 0.022,
+    "2027": 0.024,
+    "2028": 0.026,
+    "2029": 0.028
    },
    "low": {
-    "2026": 0.008,
-    "2027": 0.009,
-    "2028": 0.009,
-    "2029": 0.01
+    "2026": 0.007,
+    "2027": 0.008,
+    "2028": 0.008,
+    "2029": 0.009
    },
    "high": {
-    "2026": 0.049,
-    "2027": 0.053,
-    "2028": 0.057,
-    "2029": 0.06
+    "2026": 0.045,
+    "2027": 0.049,
+    "2028": 0.052,
+    "2029": 0.056
    }
   },
   "dynamic_cost_bn": {
    "central": {
-    "2026": 0.515,
-    "2027": 0.547,
-    "2028": 0.602,
-    "2029": 0.625
+    "2026": 0.536,
+    "2027": 0.569,
+    "2028": 0.625,
+    "2029": 0.65
    },
    "low": {
-    "2026": 0.531,
-    "2027": 0.564,
-    "2028": 0.621,
-    "2029": 0.645
+    "2026": 0.551,
+    "2027": 0.585,
+    "2028": 0.643,
+    "2029": 0.669
    },
    "high": {
-    "2026": 0.49,
-    "2027": 0.52,
-    "2028": 0.573,
-    "2029": 0.595
+    "2026": 0.513,
+    "2027": 0.544,
+    "2028": 0.599,
+    "2029": 0.622
    }
   },
   "population": {
    "2026": {
-    "responding_adults": 1157000,
+    "responding_adults": 1145000,
     "adults_moved_outside_population": 0
    },
    "2027": {
-    "responding_adults": 1214000,
+    "responding_adults": 1202000,
     "adults_moved_outside_population": 0
    },
    "2028": {
-    "responding_adults": 1253000,
+    "responding_adults": 1240000,
     "adults_moved_outside_population": 0
    },
    "2029": {
-    "responding_adults": 1296000,
+    "responding_adults": 1278000,
     "adults_moved_outside_population": 0
    }
   },
   "assumptions": {
-   "participation_elasticities": "OBR Table A1, by sex, partner's work, age of youngest child and earnings quintile, converted to the gain to work (Appendix E)",
+   "participation_elasticities": "OBR Table A1, by sex, partner's work, age of youngest child and earnings quintile, converted to the gain to work and applied to the employed share (Adam and Phillips, Appendix E)",
    "price_elasticity_central": -0.15,
    "price_elasticity_low": -0.05,
    "price_elasticity_high": -0.3,
@@ -25285,16 +25365,23 @@
    },
    "hours_price_elasticity": -0.042,
    "hours_for_new_entrants": 18.8,
-   "free_hours_displacement": 0.9053
+   "free_hours_displacement": 0.9053,
+   "free_hours_displacement_range": {
+    "low": 0.714,
+    "high": 1.0
+   },
+   "hours_price_elasticity_status": "extrapolated scenario assumption, not an estimated price elasticity",
+   "elasticity_scales_status": "illustrative, not a sourced uncertainty interval"
   },
-  "responding_population": "Adults (the first two in each family; not self-employed, students or aged 60 and over) in a family whose youngest child is under 12 and in which at least one adult's income, as the limits test it, is over £100,000. Mechanically, the partner of a parent over the limit, who under the reform brings the family the 30 hours and Tax-Free Childcare by working.",
+  "responding_population": "Adults (the first two in each family; not self-employed, students, disabled (receiving DLA or PIP) or aged 60 and over, the OBR's exclusions) in a family whose youngest child is under 12 and in which at least one adult's income, as the limits test it, is over £100,000. Mechanically, the partner of a parent over the limit, who under the reform brings the family the 30 hours and Tax-Free Childcare by working.",
   "not_modelled": "The response of parents over £100,000 is not in the dynamic cost: neither those who today keep their income below the limit and would earn more without it (bunching; CenTax's +£210m intensive margin in 2029-30), nor their hours response to cheaper childcare (published separately as intensive_over_limit).",
   "notes": [
    "Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less both offsets, at the same bound. Both apply to the total: they are not split by scheme.",
-   "Moving into work (extensive margin): the expected change in each adult's probability of working, from the OBR elasticities and the change in their gain to work, net of the childcare they would buy. The offset is entrants' earnings less the rise in their household's net income (tax and National Insurance paid, less the childcare support the family now receives) and less the Tax-Free Childcare top-up on the care they start buying.",
-   "Hours (intensive margin): a childcare-price elasticity of hours of -0.042 (Brewer et al., measured on mothers) for responding adults in work, at or below £100,000, whose out-of-pocket childcare cost falls; the model recomputes tax and benefits on the extra earnings. It is a total-hours estimate, so it overlaps slightly with the extensive margin.",
+   "Moving into work (extensive margin): the OBR elasticities are the percentage change in the probability of working for a percentage change in the gain to work (net of the childcare a parent would buy), converted from in-work income by the gain over in-work income. As in Adam and Phillips (Appendix E) they apply to the employed share: new employment is the sum over working adults of their own response, and it is shared among the non-working adults (who are the ones entering) in proportion to theirs. The offset is entrants' earnings less the rise in their household's net income (tax and National Insurance paid, less the childcare support the family now receives) and less the Tax-Free Childcare top-up on the care they start buying.",
+   "Hours (intensive margin): -0.042 is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, which we treat as a 100% price fall and apply to responding adults in work, at or below £100,000, whose out-of-pocket childcare cost falls; the model recomputes tax and benefits on the extra earnings. It is a total-hours estimate, so it overlaps with the extensive margin.",
+   "Newly funded hours are assumed to displace paid care at 90.5% of their value (1 - 54/570, IFS BN189, which counts all displaced non-family care as paid). It is an assumption, published at 71.4% (only subsidisable care displaced, 1 - 163/570) and 100% (intensive_displacement), at central elasticities.",
    "Sensitivity, not in the dynamic cost (intensive_over_limit): the parent over £100,000 responding to the cheaper childcare with the same elasticity. Their earnings are large and taxed at up to 62%, so it would add £0.21bn in 2029-30; the elasticity is not measured on this group.",
-   "Low and high scale every elasticity by 1/3 and 2 (childcare-price elasticities of maternal employment of -0.05 and -0.30 against -0.15).",
+   "Low and high scale every elasticity by 1/3 and 2. The range is illustrative, not a sourced uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
    "The income and family-type breakdowns, who gains and the household calculator are static."
   ]
  },
@@ -25302,25 +25389,26 @@
   {
    "source": "Conservative Party",
    "figure": "£0.7bn a year",
-   "ours": 0.482,
+   "ours": 0.505,
    "ours_label": "Static gross cost of the 30 funded hours in 2029-30",
    "year": 2029,
-   "like_for_like": "The Conservatives put the cost at about £700m a year when they announced the pledge (PA, BBC), to be paid for by cutting staff at arm's-length public bodies (about £1.6bn by the end of the decade); they published no method. City AM says the costing 'is based on a recent report by the Centre for the Analysis of Taxation' and that removing the Tax-Free Childcare limit as well 'pushed up the costs slightly'. CenTax (Removing the childcare cliff-edge: impacts and cost of reform, September 2026, Table 4.2) covers the free childcare hours only: a static cost of £980m in 2030 (CenTax label tax years by their later year, so this is 2029-30) and a net cost of £640m after £340m of extra revenue: £210m of tax from parents who no longer keep their income below £100,000 and £130m of tax and National Insurance from partners who enter work. The £0.7bn is therefore close to CenTax's net free-hours figure with a small addition for Tax-Free Childcare. Our figures are static, so the like-for-like comparison is our static cost of the 30 funded hours in 2029-30, £0.48bn, against CenTax's static £0.98bn. Our total for both schemes, £0.66bn (range £0.63bn to £1.43bn), covers both schemes on the same static basis.",
+   "like_for_like": "The Conservatives put the cost at about £700m a year when they announced the pledge (PA, BBC), to be paid for by cutting staff at arm's-length public bodies (about £1.6bn by the end of the decade); they published no method. City AM says the costing 'is based on a recent report by the Centre for the Analysis of Taxation' and that removing the Tax-Free Childcare limit as well 'pushed up the costs slightly'. CenTax (Removing the childcare cliff-edge: impacts and cost of reform, September 2026, Table 4.2) covers the free childcare hours only: a static cost of £980m in 2030 (CenTax label tax years by their later year, so this is 2029-30) and a net cost of £640m after £340m of extra revenue: £210m of tax from parents who no longer keep their income below £100,000 and £130m of tax and National Insurance from partners who enter work. The £0.7bn is therefore close to CenTax's net free-hours figure with a small addition for Tax-Free Childcare. Our figures are static, so the like-for-like comparison is our static cost of the 30 funded hours in 2029-30, £0.51bn, against CenTax's static £0.98bn. Our total for both schemes, £0.68bn (range £0.65bn to £1.43bn), covers both schemes on the same static basis.",
    "url": "https://www.cityam.com/badenoch-vows-to-end-100k-childcare-cliff-edge-introduced-under-last-tory-government/",
    "announcement_url": "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge",
    "underlying_source": "CenTax, Removing the childcare cliff-edge: impacts and cost of reform (2026)",
    "underlying_source_url": "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf",
    "underlying_static_bn": 0.98,
    "underlying_net_bn": 0.64,
-   "difference_from_underlying_static_bn": -0.498
+   "difference_from_underlying_static_bn": -0.475
   }
  ],
  "limitations": [
   "Eligibility uses each parent's realised annual adjusted net income, while the law tests the income a parent expects when applying or reconfirming (SI 2022/1134 reg 14(3)(c)(i) and 15(3)(b)(i); SI 2015/448 reg 15(1)). A parent who expected to stay under £100,000 but ended the year above it can already receive support, and the model counts it as a reform cost; a parent who expected to exceed £100,000 but ended below it is modelled as eligible today. CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 claimed and received some free childcare (Removing the childcare cliff-edge, September 2026, pp. 5-6 and 59-60). The net direction for the cost is not known, and it is not tested.",
-  "Four-year-olds in reception still receive funded hours in the model (compulsory school age starts at 5), so the baseline counts more funded 3- and 4-year-olds than DfE.",
+  "Four-year-olds in reception still receive funded hours in the model (compulsory school age starts at 5), which overstates the funded 3- and 4-year-olds slightly.",
   "Childcare spending is held fixed: a family that gains funded hours would in practice pay for fewer hours, which would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly.",
   "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), 1-6% below DfE's 2026-27 national average rates (see baseline_validation), so the 30-hours leg is slightly understated.",
-  "Funded hours, baseline context: the central baseline spends £5.8bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives £9.7bn. DfE's total is illustrative (based partly on forecasts) and is context only: bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ. Most of the gap is the dataset's draw of weekly extended hours used; it is filed upstream as PolicyEngine/microcosm#1126.",
+  "A partner who does not work because of caring or incapacity: for the 30 hours the model now applies SI 2022/1134 reg 14(4)/15(4) through the benefits it holds (carer's allowance, ESA, incapacity benefit, severe disablement allowance, the Universal Credit carer element; corrections.py), but not limited capability for work or NI credits, which the data do not hold. Tax-Free Childcare has the same route (SI 2015/448 reg 13: the partner is treated as having the minimum income), which policyengine-uk 2.102.3 does not apply and this analysis does not correct (fixed upstream in policyengine-uk#2079), so the Tax-Free Childcare leg is slightly understated for such families.",
+  "Funded hours, baseline context: the central baseline spends £6.0bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives £10.0bn. DfE's total is illustrative (based partly on forecasts) and is context only: bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ. Most of the gap is the dataset's draw of weekly extended hours used; it is filed upstream as PolicyEngine/microcosm#1126.",
   "Microcosm holds 1.89 million people with income of £100,000 or more in 2025-26 against HMRC's projected 1.95 million (see baseline_validation).",
   "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), so no suppressed cell can be recovered from the published UK totals."
  ]
