@@ -11,7 +11,8 @@ const router = { replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => searchParams }));
 
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
-import LandingTab, { CENTAX } from "./LandingTab";
+import LandingTab from "./LandingTab";
+import { CENTAX } from "./Comparison";
 import WhoGainsTab, { DECILE_MEASURES, listOf, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
@@ -111,7 +112,7 @@ describe("budget impact", () => {
   });
 
   it("compares like for like: our 30 hours cost against CenTax's static cost of the free hours", () => {
-    render(<LandingTab data={data} />);
+    render(<MethodTab data={data} />);
     const b = data.benchmarks[0];
     const topic = screen.getByTestId("benchmark");
     expect(within(topic).getByRole("link", { name: "City AM" }).getAttribute("href")).toBe(b.url);
@@ -221,15 +222,18 @@ describe("methodology", () => {
     expect(within(screen.getByTestId("limitations")).getAllByRole("listitem")).toHaveLength(data.limitations.length);
   });
 
-  it("states every modelling assumption, with each tested alternative's effect in £m from the file", () => {
+  it("compares every modelling choice in one table, with each tested alternative's effect in £m from the file", () => {
     render(<MethodTab data={data} />);
+    const table = screen.getByTestId("comparison-table");
+    const final = years.at(-1);
     for (const a of data.modelling_assumptions) {
-      const row = screen.getByTestId(`assumption-${a.id}`);
-      expect(row.textContent).toContain(a.title);
-      expect(within(row).getByRole("link", { name: a.source.label }).getAttribute("href")).toBe(a.source.url);
+      expect(table.textContent, a.id).toContain(a.ours);
       if (a.effect_bn) {
-        const m = Math.round(a.effect_bn[years[0]] * 1000);
-        expect(row.textContent).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
+        const m = Math.round(a.effect_bn[final] * 1000);
+        expect(table.textContent, a.id).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
+        const row = screen.getByTestId(`effect-${a.id}`);
+        const m0 = Math.round(a.effect_bn[years[0]] * 1000);
+        expect(row.textContent).toContain(`£${Math.abs(m0).toLocaleString("en-GB")}m`);
       }
     }
   });

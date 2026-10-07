@@ -20,7 +20,6 @@ const SECTIONS = {
   budget: [
     { id: "at-a-glance", title: "At a glance" },
     { id: "each-year", title: "Each year" },
-    { id: "comparisons", title: "Against the £0.7bn" },
     { id: "thirty-hours", title: "Inside the 30 hours" },
   ],
   "who-gains": [
@@ -31,7 +30,7 @@ const SECTIONS = {
   method: [
     { id: "model", title: "How we cost it" },
     { id: "limits", title: "How the limits work" },
-    { id: "assumptions", title: "Assumptions" },
+    { id: "assumptions", title: "Compared with others" },
     { id: "validation", title: "Validation" },
     { id: "limitations", title: "Limitations" },
   ],

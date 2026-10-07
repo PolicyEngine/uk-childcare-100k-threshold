@@ -6,7 +6,6 @@ import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, Responsiv
 import { colors, schemeColors } from "../lib/colors";
 import {
   fyLabel,
-  getBenchmarks,
   getBudget,
   getBudgetComparisons,
   getRecipients,
@@ -30,14 +29,6 @@ const nb = (year) => fyLabel(year).replace("-", "‑");
  * 2030: removing the £100,000 limit on the free childcare hours only (not Tax-Free Childcare). The figure City AM
  * reports as the party's is based on this report.
  */
-export const CENTAX = { year: 2030, staticBn: 0.98, netBn: 0.64 };
-// CenTax, Removing the childcare cliff-edge (September 2026), Table 4.2, 2030 (= tax year 2029-30), free hours only.
-// Negative net = the reform raises money once behaviour is allowed for.
-export const CENTAX_SCENARIOS = [
-  { id: "central", label: "CenTax, central scenario", staticBn: 0.98, netBn: 0.64 },
-  { id: "high", label: "CenTax, high-cost scenario", staticBn: 1.01, netBn: 0.77 },
-  { id: "low", label: "CenTax, low-cost scenario", staticBn: 0.7, netBn: -0.16 },
-];
 
 /** £bn as a signed £m figure: -0.006 -> "-£6m", 0.362 -> "+£362m". */
 export function formatSignedM(v) {
@@ -185,7 +176,7 @@ function CostChart({ rows }) {
             <YAxis tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, digits)} {...axis} />
             <Tooltip
               cursor={{ fill: colors.gray[100] }}
-              content={<CustomTooltip formatter={(v) => formatBn(v, 2)} />}
+              content={<CustomTooltip formatter={(v) => formatBn(v, 2)} totalLabel="Total" />}
             />
             {SCHEMES.map((s) => (
               <Bar key={s} dataKey={s} name={SCHEME_LABELS[s]} stackId="cost" fill={schemeColors[s]} isAnimationActive={false} maxBarSize={80} />
@@ -232,93 +223,6 @@ function SeriesTable({ years, rows, testId, format = (v) => formatBn(v, 2) }) {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function BenchmarkTable({ data }) {
-  // CenTax's estimates are for 2030 (tax year 2029-30): compare with our last year.
-  const last = getBudget(data).rows.at(-1);
-  const benchmark = getBenchmarks(data)[0];
-  const [central, high, low] = ["central", "high", "low"].map((id) => CENTAX_SCENARIOS.find((c) => c.id === id));
-  const net = (v) => (v < 0 ? `raises ${formatBn(-v, 2)}` : formatBn(v, 2));
-  const rows = [
-    ["Covers", "30 hours and Tax-Free Childcare", "Free hours only", "30 hours and Tax-Free Childcare"],
-    ["Year", nb(last.year), `${nb(last.year)} (labelled 2030)`, "Not stated"],
-    [
-      "Static cost",
-      `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)}, Tax-Free Childcare ${formatBn(last.tax_free_childcare, 2)})`,
-      `${formatBn(central.staticBn, 2)} central (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)} across scenarios)`,
-      "Not given",
-    ],
-    [
-      "After parents change how much they work",
-      "Not modelled",
-      `${formatBn(central.netBn, 2)} central (${net(low.netBn)} to ${net(high.netBn)} across scenarios)`,
-      "About £0.7bn a year; basis not stated",
-    ],
-    [
-      "Method published",
-      <a key="pe" href="https://github.com/PolicyEngine/uk-childcare-100k-threshold" target="_blank" rel="noreferrer">Yes: code and data versions</a>,
-      <a key="ct" href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">Yes: report, Table 4.2</a>,
-      "No",
-    ],
-  ];
-  return (
-    <div className="overflow-x-auto">
-      <table className="data-table" data-testid="comparison-table">
-        <thead>
-          <tr>
-            <th />
-            <th>PolicyEngine</th>
-            <th>CenTax</th>
-            <th>Conservatives</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(([label, ...cells]) => (
-            <tr key={label}>
-              <td className="font-medium text-slate-700">{label}</td>
-              {cells.map((c, i) => (
-                <td key={i} className="tabular-nums">{c}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function BenchmarkNotes({ data }) {
-  const benchmark = getBenchmarks(data)[0];
-  return (
-    <div className="space-y-3" data-testid="benchmark">
-      <p>
-        The Conservatives put the cost at about £700m a year when they announced the pledge, to be paid for by
-        cutting staff at arm&apos;s-length public bodies. Their{" "}
-        <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
-          announcement
-        </a>{" "}
-        covers both the free hours and Tax-Free Childcare, but publishes no method.{" "}
-        <a href={benchmark.url} target="_blank" rel="noreferrer">
-          City AM
-        </a>{" "}
-        says the figure is based on{" "}
-        <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
-          CenTax&apos;s report
-        </a>
-        , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
-        &ldquo;pushed up the costs slightly&rdquo;.
-      </p>
-      <p data-testid="benchmark-like-for-like">
-        Compare figures on the same basis. Our 30 hours cost and CenTax&apos;s static cost both cover the free hours
-        before any change in how much parents work, so they are the like-for-like pair. CenTax&apos;s net figures
-        allow for parents earning more once the limit goes (fewer keep their income just below £100,000) and partners
-        moving into work, which brings in extra tax. The party&apos;s £0.7bn is close to CenTax&apos;s central net
-        figure plus a small addition for Tax-Free Childcare. CenTax label tax years by their later year, so their
-        2030 is 2029-30.
-      </p>
     </div>
   );
 }
@@ -497,16 +401,6 @@ export default function LandingTab({ data }) {
         }
       >
         <CostChart rows={rows} />
-      </Section>
-
-      <Section
-        id="comparisons"
-        title="How does our cost compare with other estimates?"
-        lead="Published costings of removing the £100,000 limit, by what each covers and whether it allows for parents changing how much they work. Our 30 hours cost and CenTax's static cost are the like-for-like pair."
-        details={<BenchmarkNotes data={data} />}
-        detailsTitle="Where the figures come from"
-      >
-        <BenchmarkTable data={data} />
       </Section>
 
       <Section

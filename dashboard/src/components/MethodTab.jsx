@@ -2,6 +2,7 @@
 
 import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
+import { BenchmarkNotes, UnifiedComparison } from "./Comparison";
 import { Section } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
@@ -159,40 +160,29 @@ const signedM = (v) => {
   return `${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`;
 };
 
-function AssumptionTable({ rows, years }) {
+/** Each tested alternative and how much it moves the cost in every year. */
+function EffectsTable({ rows, years }) {
+  const tested = rows.filter((r) => r.effects);
   return (
     <div className="overflow-x-auto">
-      <table className="data-table" data-testid="assumption-table">
+      <table className="data-table" data-testid="effects-table">
         <thead>
           <tr>
-            <th>Assumption</th>
-            <th>What we model</th>
-            <th>What the source says</th>
             <th>Alternative we test</th>
-            <th>Change in the cost</th>
+            {years.map((y) => (
+              <th key={y} className="whitespace-nowrap">{fyLabel(y)}</th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} data-testid={`assumption-${r.id}`}>
-              <td className="font-medium text-slate-800">{r.title}</td>
-              <td className="min-w-[180px]">{r.ours}</td>
-              <td className="min-w-[200px]">
-                {r.source_says}.{" "}
-                <a href={r.source.url} target="_blank" rel="noreferrer">
-                  {r.source.label}
-                </a>
+          {tested.map((r) => (
+            <tr key={r.id} data-testid={`effect-${r.id}`}>
+              <td>
+                <span className="font-medium text-slate-800">{r.title}:</span> {r.alternative}
               </td>
-              <td className="min-w-[180px]">{r.alternative ?? "None"}</td>
-              <td className="whitespace-nowrap tabular-nums" data-testid={r.effects ? `assumption-effect-${r.id}` : undefined}>
-                {r.effects
-                  ? years.map((y, i) => (
-                      <span key={y} className="block">
-                        <span className="text-slate-500">{fyLabel(y)}</span> {signedM(r.effects[i])}
-                      </span>
-                    ))
-                  : "Not tested"}
-              </td>
+              {r.effects.map((v, i) => (
+                <td key={years[i]} className="whitespace-nowrap tabular-nums">{signedM(v)}</td>
+              ))}
             </tr>
           ))}
         </tbody>
@@ -323,12 +313,18 @@ export default function MethodTab({ data }) {
 
       <Section
         id="assumptions"
-        title="What do the figures assume?"
-        lead="Each row is a choice the analysis code makes, set against what the source says. Where we test an alternative, the last column shows how much it changes the cost in each year; the changes are separate and do not add up. More detail explains each choice and links to the code and data behind it."
-        details={<AssumptionNotes rows={modelling} takeUp={<AssumptionsTable rows={assumptions} />} />}
-        detailsTitle="Each assumption in full, with sources"
+        title="How do we compare with other estimates?"
+        lead={`Our costing set against CenTax's, the Conservatives' figure, and the official sources and law, first on the cost and then on each modelling choice. The "If we change it" column shows how much the cost moves in ${fyLabel(meta.years.at(-1))} when we rerun with the alternative described under More detail; each change is separate and they do not add up.`}
+        details={
+          <>
+            <AssumptionNotes rows={modelling} takeUp={<AssumptionsTable rows={assumptions} />} />
+            <EffectsTable rows={modelling} years={meta.years} />
+            <BenchmarkNotes data={data} />
+          </>
+        }
+        detailsTitle="Each choice in full, the effect in every year, and sources"
       >
-        <AssumptionTable rows={modelling} years={meta.years} />
+        <UnifiedComparison data={data} />
       </Section>
 
       <Section
