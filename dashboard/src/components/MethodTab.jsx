@@ -247,7 +247,11 @@ function LabourSupplySection({ data }) {
         </li>
         <li>
           <strong>Moving into work (extensive margin).</strong>{" "}
-          The OBR&apos;s participation elasticities (
+          The{" "}
+          <a href="https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf" target="_blank" rel="noreferrer">
+            OBR&apos;s participation elasticities
+          </a>{" "}
+          (
           {a.participation_elasticities}) applied to each adult&apos;s gain to work, one minus their replacement rate.
           The gain to work is net of the childcare they would then pay for, less the Tax-Free Childcare the scenario
           would pay on it. Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random
@@ -255,7 +259,15 @@ function LabourSupplySection({ data }) {
         </li>
         <li>
           <strong>Hours (intensive margin).</strong> A childcare-price elasticity of hours of {a.hours_price_elasticity}{" "}
-          (Brewer et al., measured on mothers) for responding adults in work, at or below £100,000, whose out-of-pocket
+          (
+          <a
+            href="https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Brewer, Cattan, Crawford and Rabe, IFS WP20/09, Table 1
+          </a>
+          ; measured on mothers) for responding adults in work, at or below £100,000, whose out-of-pocket
           childcare cost falls. Newly funded hours replace {formatPct(a.free_hours_displacement * 100, 1)} of their value
           in paid care, capped at what the family spends. The model recomputes tax and benefits on the extra earnings.
         </li>

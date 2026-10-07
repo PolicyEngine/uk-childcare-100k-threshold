@@ -74,27 +74,34 @@ export function ReplicationLine({ meta }) {
 }
 
 /** An on/off switch with its label. */
+const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf";
+const BREWER_URL =
+  "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17";
+
+/** A switch with its label; the hint sits outside the clickable label so a link in it does not flip the switch. */
 function Toggle({ on, onChange, label, hint, testId }) {
   return (
-    <label className="flex cursor-pointer flex-wrap items-center gap-x-2 gap-y-0.5" title={hint}>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={label}
-        data-testid={testId}
-        onClick={() => onChange(!on)}
-        className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-          on ? "bg-[color:var(--pe-color-primary-600)]" : "bg-slate-300"
-        }`}
-      >
-        <span
-          className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`}
-        />
-      </button>
-      <span className={on ? "font-semibold text-slate-900" : "text-slate-600"}>{label}</span>
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+      <label className="flex cursor-pointer items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label={label}
+          data-testid={testId}
+          onClick={() => onChange(!on)}
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+            on ? "bg-[color:var(--pe-color-primary-600)]" : "bg-slate-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`}
+          />
+        </button>
+        <span className={on ? "font-semibold text-slate-900" : "text-slate-600"}>{label}</span>
+      </label>
       <span className="text-xs text-slate-500">{hint}</span>
-    </label>
+    </div>
   );
 }
 
@@ -124,7 +131,15 @@ export function LabourSupplyControl({ data, setting, onChange, tab }) {
           on={setting.extensive}
           onChange={(v) => onChange({ ...setting, extensive: v })}
           label="Extensive margin"
-          hint="Moving into work: OBR participation elasticities on the gain to work"
+          hint={
+            <>
+              Moving into work:{" "}
+              <a href={OBR_ELASTICITIES_URL} target="_blank" rel="noreferrer" className="underline">
+                OBR participation elasticities
+              </a>{" "}
+              on the gain to work
+            </>
+          }
           testId="toggle-extensive"
         />
         <span className="h-5 w-px bg-slate-200" aria-hidden />
@@ -132,7 +147,14 @@ export function LabourSupplyControl({ data, setting, onChange, tab }) {
           on={setting.intensive}
           onChange={(v) => onChange({ ...setting, intensive: v })}
           label="Intensive margin"
-          hint={`Hours: childcare-price elasticity ${a.hours_price_elasticity}`}
+          hint={
+            <>
+              Hours: childcare-price elasticity{" "}
+              <a href={BREWER_URL} target="_blank" rel="noreferrer" className="underline">
+                {a.hours_price_elasticity}
+              </a>
+            </>
+          }
           testId="toggle-intensive"
         />
         {any ? (
