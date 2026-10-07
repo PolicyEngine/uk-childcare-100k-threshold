@@ -313,12 +313,13 @@ function ThirtyHoursWaterfall({ ext, univ, targ, net }) {
       : []),
     { name: "Net 30 hours cost", base: 0, value: net, signed: net, fill: schemeColors.thirty_hours },
   ];
-  const values = steps.map((d) => d.base + d.value);
+  const rows = steps.map((d) => ({ ...d, span: [d.base, d.base + d.value] }));
+  const values = rows.map((d) => d.base + d.value);
   return (
     <>
       <div style={{ height: 320 }} data-testid="components-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={steps} margin={{ top: 24, right: 20, left: 10, bottom: 0 }}>
+          <BarChart data={rows} margin={{ top: 24, right: 20, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
             <XAxis dataKey="name" tick={{ ...AXIS_STYLE, width: 130 }} interval={0} height={48} />
             <YAxis tick={AXIS_STYLE} tickFormatter={(v) => `£${Math.round(v * 1000)}m`} {...niceAxis([0, ...values])} />
@@ -333,8 +334,8 @@ function ThirtyHoursWaterfall({ ext, univ, targ, net }) {
                 ) : null
               }
             />
-            <Bar dataKey="base" stackId="w" fill="transparent" isAnimationActive={false} />
-            <Bar dataKey="value" stackId="w" isAnimationActive={false} maxBarSize={90} radius={[4, 4, 0, 0]}>
+            {/* Each bar floats from where the running total starts to where it ends: no spacer bar. */}
+            <Bar dataKey="span" isAnimationActive={false} maxBarSize={90} radius={4}>
               {steps.map((d) => (
                 <Cell key={d.name} fill={d.fill} />
               ))}
