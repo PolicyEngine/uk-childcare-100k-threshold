@@ -106,9 +106,10 @@ describe("budget impact", () => {
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
   });
 
-  it("labels 2026-27 illustrative in the tables", () => {
-    render(<LandingTab data={data} />);
-    expect(within(screen.getByTestId("components-table")).getAllByRole("columnheader").map((h) => h.textContent)).toContain("2026-27 (illustrative)");
+  it("labels 2026-27 illustrative where years are chosen", () => {
+    render(<WhoGainsTab data={data} />);
+    const options = within(screen.getByTestId("year-select")).getAllByRole("option").map((o) => o.textContent);
+    expect(options).toContain("2026-27 (illustrative)");
   });
 
   it("compares like for like: our 30 hours cost against CenTax's static cost of the free hours", () => {
@@ -125,10 +126,6 @@ describe("budget impact", () => {
     expect(screen.getByTestId("benchmark-like-for-like").textContent).toMatch(/like-for-like pair/);
   });
 
-  it("shows the 30 hours components", () => {
-    render(<LandingTab data={data} />);
-    expect(within(screen.getByTestId("components-table")).getAllByRole("row").length).toBeGreaterThan(2);
-  });
 });
 
 describe("who gains", () => {

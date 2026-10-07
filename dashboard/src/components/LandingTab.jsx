@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 
-import { Bar, BarChart, CartesianGrid, Cell, LabelList, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { colors, schemeColors } from "../lib/colors";
 import {
   fyLabel,
   getBudget,
   getBudgetComparisons,
   getRecipients,
-  getThirtyHoursComponents,
   isNum,
   LEAD_YEAR,
   SCHEME_LABELS,
@@ -209,127 +208,6 @@ function CostChart({ rows }) {
   );
 }
 
-/** A table of figures by year, one row per series and one column per year. */
-function SeriesTable({ years, rows, testId, format = (v) => formatBn(v, 2) }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="data-table" data-testid={testId}>
-        <thead>
-          <tr>
-            <th />
-            {years.map((y) => (
-              <th key={y} className="whitespace-nowrap">{yearHeading(y)}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.label}>
-              <td>{r.label}</td>
-              {r.values.map((v, i) => (
-                <td key={years[i]} className="whitespace-nowrap tabular-nums">
-                  {(r.format ?? format)(v)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** Waterfall: the extended hours gained, less the hours the model stops paying, gives the 30 hours cost. */
-function ThirtyHoursWaterfall({ ext, univ, targ, net }) {
-  const steps = [
-    { name: "Working-parent hours paid", base: 0, value: ext, signed: ext, fill: colors.primary[400] },
-    { name: "Universal 15 hours no longer paid", base: ext + univ, value: -univ, signed: univ, fill: colors.gray[400] },
-    ...(Math.abs(targ) >= 0.0005
-      ? [{ name: "Low-income 2-year-old hours no longer paid", base: ext + univ + targ, value: -targ, signed: targ, fill: colors.gray[400] }]
-      : []),
-    { name: "Net 30 hours cost", base: 0, value: net, signed: net, fill: schemeColors.thirty_hours },
-  ];
-  // Every bar starts at zero: what is paid goes up, what the model stops paying goes down, then the net.
-  const rows = steps.map((d) => ({ ...d, span: d.signed }));
-  const values = rows.map((d) => d.signed);
-  return (
-    <>
-      <div style={{ height: 320 }} data-testid="components-chart">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 24, right: 20, left: 10, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
-            <XAxis dataKey="name" tick={{ ...AXIS_STYLE, width: 130 }} interval={0} height={48} />
-            <YAxis tick={AXIS_STYLE} tickFormatter={(v) => `£${Math.round(v * 1000)}m`} {...niceAxis([0, ...values])} />
-            <Tooltip
-              cursor={{ fill: colors.gray[100] }}
-              content={({ active, payload }) =>
-                active && payload?.length ? (
-                  <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
-                    <div className="font-semibold text-slate-800">{payload[0].payload.name}</div>
-                    <div className="text-slate-600">{formatSignedM(payload[0].payload.signed)}</div>
-                  </div>
-                ) : null
-              }
-            />
-            <ReferenceLine y={0} stroke={colors.gray[500]} />
-            <Bar dataKey="span" isAnimationActive={false} maxBarSize={90} radius={4}>
-              {steps.map((d) => (
-                <Cell key={d.name} fill={d.fill} />
-              ))}
-              <LabelList
-                dataKey="signed"
-                content={({ x, y, width, height, value }) => (
-                  <text
-                    x={x + width / 2}
-                    y={value < 0 ? Math.max(y, y + height) + 16 : Math.min(y, y + height) - 6}
-                    textAnchor="middle"
-                    fontSize={12}
-                    fill={colors.gray[700]}
-                  >
-                    {formatSignedM(value)}
-                  </text>
-                )}
-              />
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <ChartLogo />
-    </>
-  );
-}
-
-function ThirtyHoursComponents({ data, year }) {
-  const budget = getBudget(data);
-  const comps = getThirtyHoursComponents(data);
-  const i = budget.years.indexOf(year);
-  return (
-    <ThirtyHoursWaterfall
-      ext={comps.extended[i]}
-      univ={comps.universal[i]}
-      targ={comps.targeted[i]}
-      net={budget.rows[i].thirty_hours}
-    />
-  );
-}
-
-function ThirtyHoursTable({ data }) {
-  const years = getBudget(data).years;
-  const comps = getThirtyHoursComponents(data);
-  return (
-    <SeriesTable
-      years={years}
-      testId="components-table"
-      format={formatSignedM}
-      rows={[
-        { label: "Working-parent hours paid", values: comps.extended },
-        { label: "Universal 15 hours no longer paid", values: comps.universal },
-        ...(comps.targeted.some((v) => Math.abs(v) >= 0.0005) ? [{ label: "Low-income 2-year-old hours no longer paid", values: comps.targeted }] : []),
-      ]}
-    />
-  );
-}
-
 /** True when two series match to within rounding in every year. */
 const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
 
@@ -415,24 +293,6 @@ export default function LandingTab({ data }) {
         <CostChart rows={rows} />
       </Section>
 
-      <Section
-        id="thirty-hours"
-        title="How is the 30 hours cost built up?"
-        lead={`Read the bars from left to right, for ${fyLabel(budget.years[li])} (the year chosen in the cards). Bars above zero are what the model pays newly eligible families for the working-parent hours. Bars below zero are what it stops paying: for a 3- or 4-year-old it treats the working-parent hours as replacing the universal 15 hours, and for a 2-year-old the 15 low-income hours. The last bar is what is left, the net 30 hours cost, the same figure as in the chart above.`}
-        details={
-          <>
-            <p>
-              In law the universal 15 hours have no income test and stay alongside the extended hours. The
-              model&apos;s swap only nets out correctly when a family uses all 30 hours; families in the data use
-              about half, so this lowers the 30 hours cost. See &ldquo;Hours of childcare used&rdquo; on the
-              Methodology tab.
-            </p>
-            <ThirtyHoursTable data={data} />
-          </>
-        }
-      >
-        <ThirtyHoursComponents data={data} year={budget.years[li]} />
-      </Section>
     </div>
   );
 }

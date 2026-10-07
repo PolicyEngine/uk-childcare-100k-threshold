@@ -20,7 +20,6 @@ const SECTIONS = {
   budget: [
     { id: "at-a-glance", title: "At a glance" },
     { id: "each-year", title: "Each year" },
-    { id: "thirty-hours", title: "Inside the 30 hours" },
   ],
   "who-gains": [
     { id: "household", title: "Your household" },
