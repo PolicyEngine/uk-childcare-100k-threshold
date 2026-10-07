@@ -15,7 +15,9 @@ import { formatBn } from "../lib/formatters";
 
 const nb = (year) => fyLabel(year).replace("-", "\u2011");
 
-export const CENTAX = { year: 2030, staticBn: 0.98, netBn: 0.64 };
+export const CENTAX = { year: 2030, staticBn: 0.98, netBn: 0.64, parentsBn: 0.21, partnersBn: 0.13 };
+// Their £0.34bn behavioural gain: £0.21bn of tax from parents who stop holding income below £100,000 (intensive
+// margin) and £0.13bn of tax and NI from partners entering work (extensive margin).
 // CenTax, Removing the childcare cliff-edge (September 2026), Table 4.2, 2030 (= tax year 2029-30), free hours only.
 // Negative net = the reform raises money once behaviour is allowed for.
 export const CENTAX_SCENARIOS = [

@@ -273,6 +273,32 @@ describe("the labour supply control", () => {
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%2Cint&bound=high", { scroll: false });
   });
 
+  it("sits under the tab bar on Budget impact and Who gains, not on Methodology", () => {
+    render(<Dashboard data={data} />);
+    const tablist = screen.getByRole("tablist");
+    const control = screen.getByTestId("labour-supply-control");
+    // Below the tabs: the tab bar precedes the control in document order.
+    expect(tablist.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId("intro").contains(control)).toBe(false);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
+    expect(screen.getByTestId("labour-supply-note").textContent).toContain("always static");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
+    expect(screen.queryByTestId("labour-supply-control")).toBeNull();
+  });
+
+  it("explains labour supply on Methodology from the results file", () => {
+    const text = textOf(<MethodTab data={data} />);
+    const f = String(final);
+    expect(text).toContain(ls.responding_population);
+    expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
+    expect(text).toContain(ls.not_modelled);
+    expect(text).toContain(bn(ls.intensive_over_limit.offset_bn.central[f]));
+    expect(text).toContain(bn(CENTAX.parentsBn));
+    expect(text).toContain(bn(CENTAX.partnersBn));
+  });
+
   it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);

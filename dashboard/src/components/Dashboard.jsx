@@ -38,6 +38,7 @@ const SECTIONS = {
   method: [
     { id: "model", title: "How we cost it" },
     { id: "limits", title: "How the limits work" },
+    { id: "labour-supply", title: "Labour supply" },
     { id: "assumptions", title: "Compared with others" },
     { id: "validation", title: "Validation" },
     { id: "limitations", title: "Limitations" },
@@ -99,13 +100,24 @@ function Toggle({ on, onChange, label, hint, testId }) {
 
 /**
  * Labour supply: the page opens static. Each margin can be switched on; the elasticity setting scales both. Only the
- * cost figures on Budget impact and the comparison on Methodology change.
+ * cost figures on Budget impact and the comparison on Methodology change. Shown under the tab bar on Budget impact and
+ * Who gains; Methodology explains it.
  */
-export function LabourSupplyControl({ data, setting, onChange }) {
+export function LabourSupplyControl({ data, setting, onChange, tab }) {
   const a = getLabourSupply(data).assumptions;
   const any = setting.extensive || setting.intensive;
+  let note;
+  if (tab === "who-gains") {
+    note =
+      "The figures on this tab are always static: who gains, the breakdowns and the household calculator do not change with this setting.";
+  } else if (any) {
+    note =
+      "Changes the cost on this tab and in the comparison on Methodology. The response of parents over £100,000 is not included; Methodology explains what is and is not covered.";
+  } else {
+    note = "Off: the static costing, with nobody changing how much they work.";
+  }
   return (
-    <div className="mt-6" data-testid="labour-supply-control">
+    <div className="mb-8" data-testid="labour-supply-control">
       <span className="mb-1 block text-xs font-medium text-slate-500">Labour supply</span>
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
         <Toggle
@@ -140,9 +152,7 @@ export function LabourSupplyControl({ data, setting, onChange }) {
         ) : null}
       </div>
       <p className="mt-1.5 text-xs text-slate-500" data-testid="labour-supply-note">
-        {any
-          ? "Changes the cost on Budget impact and in the comparison on Methodology; who gains, the breakdowns and the household calculator stay static. The response of parents over £100,000 is not modelled."
-          : "Off: the static costing, with nobody changing how much they work. Who gains, the breakdowns and the household calculator are always static."}
+        {note}
       </p>
     </div>
   );
@@ -216,7 +226,6 @@ export function Dashboard({ data }) {
             <strong>Who gains</strong> lets you try your own household and shows where the gains go, and{" "}
             <strong>Methodology</strong> sets out our assumptions and how we compare with other estimates.
           </p>
-          <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} />
         </div>
 
         <div
@@ -236,6 +245,10 @@ export function Dashboard({ data }) {
             </button>
           ))}
         </div>
+
+        {activeTab === "budget" || activeTab === "who-gains" ? (
+          <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} tab={activeTab} />
+        ) : null}
 
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
           {activeTab === "budget" && <LandingTab data={data} setting={setting} />}

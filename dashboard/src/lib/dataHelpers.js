@@ -429,6 +429,14 @@ export function getLabourSupply(data) {
     notModelled: ls.not_modelled,
   };
   if (!isText(ls.not_modelled)) fail("labour_supply.not_modelled", "missing");
+  if (!isText(ls.responding_population)) fail("labour_supply.responding_population", "missing");
+  if (!isText(ls.assumptions?.participation_elasticities)) fail("labour_supply.assumptions.participation_elasticities", "missing");
+  for (const k of ["hours_for_new_entrants", "free_hours_displacement"]) {
+    if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
+  }
+  for (const b of ["low", "high"]) {
+    if (!isNum(ls.assumptions?.elasticity_scales?.[b])) fail(`labour_supply.assumptions.elasticity_scales.${b}`, "missing");
+  }
   for (const k of ["hours_price_elasticity", "price_elasticity_central", "price_elasticity_low", "price_elasticity_high"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
