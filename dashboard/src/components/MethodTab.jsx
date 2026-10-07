@@ -1,6 +1,6 @@
 "use client";
 
-import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation, yearHeading } from "../lib/dataHelpers";
+import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { Section } from "./ui";
 
@@ -87,7 +87,11 @@ function ValidationTable({ rows }) {
               {showDataset ? <td>{r.dataset}</td> : null}
               <td className="whitespace-nowrap">{fyLabel(r.year)}</td>
               <td className="tabular-nums">{formatUnit(r.model, r.unit)}</td>
-              <td className="tabular-nums">{formatUnit(r.official, r.unit)}</td>
+              <td className="tabular-nums">
+                <a href={r.url} target="_blank" rel="noreferrer">
+                  {formatUnit(r.official, r.unit)}
+                </a>
+              </td>
               <td className="tabular-nums">{r.official === 0 ? "n/a" : (r.model / r.official).toFixed(2)}</td>
               <td className="min-w-[220px]">
                 <a href={r.url} target="_blank" rel="noreferrer">
@@ -155,45 +159,67 @@ const signedM = (v) => {
   return `${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`;
 };
 
-function AssumptionList({ rows, years, takeUp }) {
+function AssumptionTable({ rows, years }) {
   return (
-    <div className="space-y-4" data-testid="assumption-list">
+    <div className="overflow-x-auto">
+      <table className="data-table" data-testid="assumption-table">
+        <thead>
+          <tr>
+            <th>Assumption</th>
+            <th>What we model</th>
+            <th>What the source says</th>
+            <th>Alternative we test</th>
+            <th>Change in the cost</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id} data-testid={`assumption-${r.id}`}>
+              <td className="font-medium text-slate-800">{r.title}</td>
+              <td className="min-w-[180px]">{r.ours}</td>
+              <td className="min-w-[200px]">
+                {r.source_says}.{" "}
+                <a href={r.source.url} target="_blank" rel="noreferrer">
+                  {r.source.label}
+                </a>
+              </td>
+              <td className="min-w-[180px]">{r.alternative ?? "None"}</td>
+              <td className="whitespace-nowrap tabular-nums" data-testid={r.effects ? `assumption-effect-${r.id}` : undefined}>
+                {r.effects
+                  ? years.map((y, i) => (
+                      <span key={y} className="block">
+                        <span className="text-slate-500">{fyLabel(y)}</span> {signedM(r.effects[i])}
+                      </span>
+                    ))
+                  : "Not tested"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function AssumptionNotes({ rows, takeUp }) {
+  return (
+    <div className="space-y-3">
       {rows.map((r) => (
-        <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4" data-testid={`assumption-${r.id}`}>
-          <h3 className="text-base font-semibold text-slate-900">{r.title}</h3>
-          <p className="mt-1 text-sm leading-6 text-slate-600">
-            <span className="font-medium text-slate-700">What we model: </span>
-            {r.modelled}
+        <div key={r.id}>
+          <p>
+            <span className="font-semibold text-slate-700">{r.title}. </span>
+            {r.modelled}{" "}
+            {(r.sources ?? []).map((x, i) => (
+              <span key={x.url + x.label}>
+                {i === 0 ? "Sources: " : "; "}
+                <a href={x.url} target="_blank" rel="noreferrer">
+                  {x.label}
+                </a>
+                {i === r.sources.length - 1 ? "." : ""}
+              </span>
+            ))}
           </p>
-          {r.id === "take_up" ? <div className="mt-3">{takeUp}</div> : null}
-          {r.alternative ? (
-            <>
-              <p className="mt-2 text-sm leading-6 text-slate-600">
-                <span className="font-medium text-slate-700">What we test instead: </span>
-                {r.alternative}
-              </p>
-              <div className="mt-2 overflow-x-auto">
-                <table className="data-table" data-testid={`assumption-effect-${r.id}`}>
-                  <thead>
-                    <tr>
-                      <th>Change in the cost</th>
-                      {years.map((y) => (
-                        <th key={y} className="whitespace-nowrap">{yearHeading(y)}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td>Against our estimate</td>
-                      {r.effects.map((v, i) => (
-                        <td key={years[i]} className="tabular-nums">{signedM(v)}</td>
-                      ))}
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-            </>
-          ) : null}
+          {r.id === "take_up" ? <div className="mt-2">{takeUp}</div> : null}
         </div>
       ))}
     </div>
@@ -298,10 +324,11 @@ export default function MethodTab({ data }) {
       <Section
         id="assumptions"
         title="What do the figures assume?"
-        lead="Every figure rests on the choices below, each as the analysis code makes it. Where an assumption is uncertain we run the costing again with an alternative, and show how much that alternative changes the cost in each year; the effects are separate and do not add up."
-        boxed={false}
+        lead="Each row is a choice the analysis code makes, set against what the source says. Where we test an alternative, the last column shows how much it changes the cost in each year; the changes are separate and do not add up. More detail explains each choice and links to the code and data behind it."
+        details={<AssumptionNotes rows={modelling} takeUp={<AssumptionsTable rows={assumptions} />} />}
+        detailsTitle="Each assumption in full, with sources"
       >
-        <AssumptionList rows={modelling} years={meta.years} takeUp={<AssumptionsTable rows={assumptions} />} />
+        <AssumptionTable rows={modelling} years={meta.years} />
       </Section>
 
       <Section

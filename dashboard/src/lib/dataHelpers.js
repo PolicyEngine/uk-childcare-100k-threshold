@@ -314,7 +314,9 @@ export function getModellingAssumptions(data) {
   const years = getYears(data);
   if (!Array.isArray(rows) || rows.length === 0) fail("modelling_assumptions", "missing");
   rows.forEach((r, i) => {
-    if (!isText(r?.id) || !isText(r.title) || !isText(r.modelled)) fail(`modelling_assumptions.${i}`, "incomplete");
+    if (!isText(r?.id) || !isText(r.title) || !isText(r.modelled) || !isText(r.ours) || !isText(r.source_says)) fail(`modelling_assumptions.${i}`, "incomplete");
+    if (!isText(r.source?.label) || !isText(r.source?.url)) fail(`modelling_assumptions.${i}.source`, "missing");
+    if ("sources" in r && !(Array.isArray(r.sources) && r.sources.every((x) => isText(x?.label) && isText(x?.url)))) fail(`modelling_assumptions.${i}.sources`, "invalid");
     if ("alternative" in r || "effect_bn" in r) {
       if (!isText(r.alternative)) fail(`modelling_assumptions.${i}.alternative`, "missing");
       byYear(r.effect_bn, years, `modelling_assumptions.${i}.effect_bn`);

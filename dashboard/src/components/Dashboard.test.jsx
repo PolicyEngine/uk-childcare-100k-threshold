@@ -224,11 +224,12 @@ describe("methodology", () => {
   it("states every modelling assumption, with each tested alternative's effect in £m from the file", () => {
     render(<MethodTab data={data} />);
     for (const a of data.modelling_assumptions) {
-      const box = screen.getByTestId(`assumption-${a.id}`);
-      expect(box.textContent).toContain(a.title);
+      const row = screen.getByTestId(`assumption-${a.id}`);
+      expect(row.textContent).toContain(a.title);
+      expect(within(row).getByRole("link", { name: a.source.label }).getAttribute("href")).toBe(a.source.url);
       if (a.effect_bn) {
         const m = Math.round(a.effect_bn[years[0]] * 1000);
-        expect(within(box).getByTestId(`assumption-effect-${a.id}`).textContent).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
+        expect(row.textContent).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
       }
     }
   });

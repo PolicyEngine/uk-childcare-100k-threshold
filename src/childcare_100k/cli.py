@@ -31,6 +31,7 @@ from .config import (
 )
 from .datasets import MICROCOSM
 from .engine import is_current, load_meta, run_isolated
+from .validation import DFE_FUNDING_URL
 from .household import cliff_example, household_grid
 from .validation import baseline_validation
 
@@ -140,6 +141,19 @@ def data_limitations(rows):
     ]
 
 
+SALARY_SACRIFICE_URL = (
+    "https://www.gov.uk/government/publications/salary-sacrifice-reform-for-pension-contributions-effective-from-"
+    "6-april-2029/salary-sacrifice-reform-for-pension-contributions"
+)
+PEUK = "https://github.com/PolicyEngine/policyengine-uk/blob/2.102.3/policyengine_uk/variables/gov"
+MICROCOSM_UK = "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk"
+THIS_REPO = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k"
+
+
+def _src(label, url):
+    return {"label": label, "url": url}
+
+
 def modelling_assumptions(a, effects):
     """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
     e30, etfc = a["would_claim_30_hours_pct"], a["would_claim_tfc_pct"]
@@ -147,59 +161,98 @@ def modelling_assumptions(a, effects):
         {
             "id": "static",
             "title": "No change in work, pay or childcare",
+            "ours": "No change in work, pay or pension contributions",
+            "source_says": "CenTax allow for parents earning more and partners entering work (see the comparison on Budget impact)",
+            "source": _src("CenTax, Table 4.2", CENTAX_REPORT_URL),
             "modelled": "Both runs use the same households with the same earnings, hours of work and childcare "
                         "spending. Nobody works more or less, or changes their pension contributions, because the "
                         "limit goes.",
+            "sources": [_src("Our runs (engine.py)", f"{THIS_REPO}/engine.py")],
         },
         {
             "id": "take_up",
             "title": "Who claims",
-            "modelled": "Each family's decision to claim comes from the dataset's existing take-up draws "
-                        "(would_claim_extended_childcare, would_claim_tfc), held fixed for newly eligible families. "
-                        f"In {a['year']}-{(a['year'] + 1) % 100:02d}, {e30['families_with_child_under_5']}% of families "
-                        f"with a child under 5 would claim the 30 hours ({e30['of_which_parent_over_100k']}% where a "
-                        f"parent is over £100,000), and {etfc['families_with_child_under_12']}% of families with a "
-                        f"child under 12 would claim Tax-Free Childcare ({etfc['of_which_parent_over_100k']}%).",
+            "ours": f"{int(e30['families_with_child_under_5'] + 0.5)}% of eligible families claim the 30 hours and "
+                    f"{int(etfc['families_with_child_under_12'] + 0.5)}% Tax-Free Childcare, unchanged by the reform",
+            "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
+            "source": _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
+            "modelled": "Each family's decision to claim comes from the dataset's existing take-up draws, held "
+                        "fixed for newly eligible families: a family that would not claim today does not claim under "
+                        "the reform either. The table shows the rates the draws give.",
+            "sources": [
+                _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
+                _src("would_claim_extended_childcare",
+                     f"{PEUK}/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"),
+                _src("would_claim_tfc", f"{PEUK}/hmrc/tax_free_childcare/would_claim_tfc.py"),
+                _src("How we compute the rates (aggregate.py)", f"{THIS_REPO}/aggregate.py"),
+            ],
         },
         {
             "id": "hours",
             "title": "Hours of childcare used",
+            "ours": f"About {a['mean_extended_hours_usage']:.0f} of the 30 extended hours a week",
+            "source_says": "DfE January 2025 census implies about 28.5 hours",
+            "source": _src("DfE funding technical note", DFE_FUNDING_URL),
             "modelled": "Each family's weekly extended hours come from the dataset's draw of "
                         f"{HOURS_USAGE_VARIABLE}, which averages about {a['mean_extended_hours_usage']:.0f} of the "
                         "30 hours. DfE's January 2025 census implies about 28.5; the draw is under review upstream "
                         "(PolicyEngine/microcosm#1126). The model also switches off a 3- or 4-year-old's universal 15 "
                         "hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930).",
-            "alternative": "Every family uses all 30 extended hours, today and under the reform.",
+            "sources": [
+                _src(HOURS_USAGE_VARIABLE,
+                     f"{PEUK}/dfe/extended_childcare_entitlement/{HOURS_USAGE_VARIABLE}.py"),
+                _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
+                _src("microcosm#1126", "https://github.com/PolicyEngine/microcosm/issues/1126"),
+                _src("policyengine-uk#1930", "https://github.com/PolicyEngine/policyengine-uk/issues/1930"),
+                _src("DfE funding technical note", DFE_FUNDING_URL),
+            ],
+            "alternative": "Every family uses all 30 extended hours",
             "effect_bn": effects["full_30_hour_usage"],
         },
         {
             "id": "under_ones",
             "title": "Babies under one",
+            "ours": "No funded hours below age 1",
+            "source_says": "Eligible from the term after the child turns 9 months",
+            "source": _src("GOV.UK: childcare if you work", "https://www.gov.uk/free-childcare-if-working"),
             "modelled": "The model holds ages in whole years and gives age 0 no funded hours, so 9- to 11-month-olds "
                         "never qualify.",
-            "alternative": "Add newly eligible 9- to 11-month-olds outside the model, from the term after they turn "
-                           "9 months, at 30 hours x 38 weeks x the under-2 funding rate and the model's take-up.",
+            "sources": [_src("Under-1s adjustment (aggregate.py)", f"{THIS_REPO}/aggregate.py")],
+            "alternative": "Add 9- to 11-month-olds outside the model, from the term after they turn 9 months, at the "
+                           "under-2 funding rate",
             "effect_bn": effects["under_ones"],
         },
         {
             "id": "income_test",
             "title": "The income each limit tests",
+            "ours": "Income before pension contributions; 59% of childcare spending through Tax-Free Childcare",
+            "source_says": "The law deducts pension contributions (ITA 2007 s58)",
+            "source": _src("Income Tax Act 2007 s58", "https://www.legislation.gov.uk/ukpga/2007/3/section/58"),
             "modelled": "Adjusted net income as policyengine-uk computes it: each parent's realised income for the "
                         "year, before pension contributions and Gift Aid are deducted. From 2029-30 we remove pension "
                         "salary sacrifice that the model adds back to pay under the new National Insurance cap, "
                         "because HMRC says the cap leaves adjusted net income unchanged (corrections.py). Tax-Free "
                         "Childcare is paid on the dataset's share of childcare spending that goes through an account "
                         "(59%).",
-            "alternative": "Deduct pension contributions before testing the £100,000 limit, and put "
-                           f"{ROUTED_SHARE_LOW:.0%} of childcare spending through Tax-Free Childcare accounts, counted "
-                           "together so no family's gain is cut twice.",
+            "sources": [
+                _src("Income Tax Act 2007 s58", "https://www.legislation.gov.uk/ukpga/2007/3/section/58"),
+                _src("HMRC: salary sacrifice reform from April 2029", SALARY_SACRIFICE_URL),
+                _src("Our correction (corrections.py)", f"{THIS_REPO}/corrections.py"),
+                _src("Tax-Free Childcare share of spending (Microcosm)", f"{MICROCOSM_UK}/take_up_contract.json"),
+            ],
+            "alternative": "Deduct pension contributions before the £100,000 test, and put "
+                           f"{ROUTED_SHARE_LOW:.0%} of childcare spending through Tax-Free Childcare accounts",
             "effect_bn": effects[agg.JOINT_LOW],
         },
         {
             "id": "timing",
             "title": "In force for the whole year",
+            "ours": "Whole of each year from 2026-27",
+            "source_says": "\"A future Conservative government\"; no start date",
+            "source": _src("Conservative announcement", CONSERVATIVE_ANNOUNCEMENT_URL),
             "modelled": "The limit is removed for the whole of each fiscal year from 2026-27 to 2029-30. The pledge "
                         "gives no start date and 2026-27 is already half over, so 2026-27 is illustrative.",
+            "sources": [_src("Conservative announcement", CONSERVATIVE_ANNOUNCEMENT_URL)],
         },
     ]
 

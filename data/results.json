@@ -26,8 +26,8 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-07T11:39:37+00:00",
-  "git_revision": "7c952d4665b913dc9f24c8ab1ec57bf7a30e1ee2",
+  "generated_at": "2026-10-07T11:43:13+00:00",
+  "git_revision": "9284d1f9a0a35a29a952bafd30941e821f085e03",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 13.4,
@@ -24588,18 +24588,82 @@
   {
    "id": "static",
    "title": "No change in work, pay or childcare",
-   "modelled": "Both runs use the same households with the same earnings, hours of work and childcare spending. Nobody works more or less, or changes their pension contributions, because the limit goes."
+   "ours": "No change in work, pay or pension contributions",
+   "source_says": "CenTax allow for parents earning more and partners entering work (see the comparison on Budget impact)",
+   "source": {
+    "label": "CenTax, Table 4.2",
+    "url": "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf"
+   },
+   "modelled": "Both runs use the same households with the same earnings, hours of work and childcare spending. Nobody works more or less, or changes their pension contributions, because the limit goes.",
+   "sources": [
+    {
+     "label": "Our runs (engine.py)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/engine.py"
+    }
+   ]
   },
   {
    "id": "take_up",
    "title": "Who claims",
-   "modelled": "Each family's decision to claim comes from the dataset's existing take-up draws (would_claim_extended_childcare, would_claim_tfc), held fixed for newly eligible families. In 2026-27, 64.5% of families with a child under 5 would claim the 30 hours (70.4% where a parent is over £100,000), and 87.8% of families with a child under 12 would claim Tax-Free Childcare (86.0%)."
+   "ours": "65% of eligible families claim the 30 hours and 88% Tax-Free Childcare, unchanged by the reform",
+   "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
+   "source": {
+    "label": "Microcosm take-up contract",
+    "url": "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+   },
+   "modelled": "Each family's decision to claim comes from the dataset's existing take-up draws, held fixed for newly eligible families: a family that would not claim today does not claim under the reform either. The table shows the rates the draws give.",
+   "sources": [
+    {
+     "label": "Microcosm take-up contract",
+     "url": "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+    },
+    {
+     "label": "would_claim_extended_childcare",
+     "url": "https://github.com/PolicyEngine/policyengine-uk/blob/2.102.3/policyengine_uk/variables/gov/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"
+    },
+    {
+     "label": "would_claim_tfc",
+     "url": "https://github.com/PolicyEngine/policyengine-uk/blob/2.102.3/policyengine_uk/variables/gov/hmrc/tax_free_childcare/would_claim_tfc.py"
+    },
+    {
+     "label": "How we compute the rates (aggregate.py)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/aggregate.py"
+    }
+   ]
   },
   {
    "id": "hours",
    "title": "Hours of childcare used",
+   "ours": "About 15 of the 30 extended hours a week",
+   "source_says": "DfE January 2025 census implies about 28.5 hours",
+   "source": {
+    "label": "DfE funding technical note",
+    "url": "https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note"
+   },
    "modelled": "Each family's weekly extended hours come from the dataset's draw of maximum_extended_childcare_hours_usage, which averages about 15 of the 30 hours. DfE's January 2025 census implies about 28.5; the draw is under review upstream (PolicyEngine/microcosm#1126). The model also switches off a 3- or 4-year-old's universal 15 hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930).",
-   "alternative": "Every family uses all 30 extended hours, today and under the reform.",
+   "sources": [
+    {
+     "label": "maximum_extended_childcare_hours_usage",
+     "url": "https://github.com/PolicyEngine/policyengine-uk/blob/2.102.3/policyengine_uk/variables/gov/dfe/extended_childcare_entitlement/maximum_extended_childcare_hours_usage.py"
+    },
+    {
+     "label": "Microcosm take-up contract",
+     "url": "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+    },
+    {
+     "label": "microcosm#1126",
+     "url": "https://github.com/PolicyEngine/microcosm/issues/1126"
+    },
+    {
+     "label": "policyengine-uk#1930",
+     "url": "https://github.com/PolicyEngine/policyengine-uk/issues/1930"
+    },
+    {
+     "label": "DfE funding technical note",
+     "url": "https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note"
+    }
+   ],
+   "alternative": "Every family uses all 30 extended hours",
    "effect_bn": {
     "2026": 0.573,
     "2027": 0.616,
@@ -24610,8 +24674,20 @@
   {
    "id": "under_ones",
    "title": "Babies under one",
+   "ours": "No funded hours below age 1",
+   "source_says": "Eligible from the term after the child turns 9 months",
+   "source": {
+    "label": "GOV.UK: childcare if you work",
+    "url": "https://www.gov.uk/free-childcare-if-working"
+   },
    "modelled": "The model holds ages in whole years and gives age 0 no funded hours, so 9- to 11-month-olds never qualify.",
-   "alternative": "Add newly eligible 9- to 11-month-olds outside the model, from the term after they turn 9 months, at 30 hours x 38 weeks x the under-2 funding rate and the model's take-up.",
+   "sources": [
+    {
+     "label": "Under-1s adjustment (aggregate.py)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/aggregate.py"
+    }
+   ],
+   "alternative": "Add 9- to 11-month-olds outside the model, from the term after they turn 9 months, at the under-2 funding rate",
    "effect_bn": {
     "2026": 0.045,
     "2027": 0.047,
@@ -24622,8 +24698,32 @@
   {
    "id": "income_test",
    "title": "The income each limit tests",
+   "ours": "Income before pension contributions; 59% of childcare spending through Tax-Free Childcare",
+   "source_says": "The law deducts pension contributions (ITA 2007 s58)",
+   "source": {
+    "label": "Income Tax Act 2007 s58",
+    "url": "https://www.legislation.gov.uk/ukpga/2007/3/section/58"
+   },
    "modelled": "Adjusted net income as policyengine-uk computes it: each parent's realised income for the year, before pension contributions and Gift Aid are deducted. From 2029-30 we remove pension salary sacrifice that the model adds back to pay under the new National Insurance cap, because HMRC says the cap leaves adjusted net income unchanged (corrections.py). Tax-Free Childcare is paid on the dataset's share of childcare spending that goes through an account (59%).",
-   "alternative": "Deduct pension contributions before testing the £100,000 limit, and put 58% of childcare spending through Tax-Free Childcare accounts, counted together so no family's gain is cut twice.",
+   "sources": [
+    {
+     "label": "Income Tax Act 2007 s58",
+     "url": "https://www.legislation.gov.uk/ukpga/2007/3/section/58"
+    },
+    {
+     "label": "HMRC: salary sacrifice reform from April 2029",
+     "url": "https://www.gov.uk/government/publications/salary-sacrifice-reform-for-pension-contributions-effective-from-6-april-2029/salary-sacrifice-reform-for-pension-contributions"
+    },
+    {
+     "label": "Our correction (corrections.py)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/corrections.py"
+    },
+    {
+     "label": "Tax-Free Childcare share of spending (Microcosm)",
+     "url": "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+    }
+   ],
+   "alternative": "Deduct pension contributions before the £100,000 test, and put 58% of childcare spending through Tax-Free Childcare accounts",
    "effect_bn": {
     "2026": -0.014,
     "2027": -0.015,
@@ -24634,7 +24734,19 @@
   {
    "id": "timing",
    "title": "In force for the whole year",
-   "modelled": "The limit is removed for the whole of each fiscal year from 2026-27 to 2029-30. The pledge gives no start date and 2026-27 is already half over, so 2026-27 is illustrative."
+   "ours": "Whole of each year from 2026-27",
+   "source_says": "\"A future Conservative government\"; no start date",
+   "source": {
+    "label": "Conservative announcement",
+    "url": "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge"
+   },
+   "modelled": "The limit is removed for the whole of each fiscal year from 2026-27 to 2029-30. The pledge gives no start date and 2026-27 is already half over, so 2026-27 is illustrative.",
+   "sources": [
+    {
+     "label": "Conservative announcement",
+     "url": "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge"
+    }
+   ]
   }
  ],
  "benchmarks": [
