@@ -270,3 +270,37 @@ def test_cliff_example_is_the_grid_default():
     d = g["default"]
     s = g["series"][f"{d['parent']}|{d['children']}|{d['spend_per_child']}"]
     assert c["earnings"] == g["earnings"] and c["net_income_baseline"] == s["baseline"]
+
+
+# ── Labour supply ───────────────────────────────────────────────────────────
+
+
+def test_labour_supply_block():
+    ls = RESULTS["labour_supply"]
+    static = RESULTS["budget"]["gross_bn"]["total"]
+    for bound in ("central", "low", "high"):
+        for block in ("extensive", "intensive", "intensive_over_limit"):
+            _by_year(ls[block]["offset_bn"][bound])
+            _by_year(ls[block]["ftes"][bound])
+        _by_year(ls["extensive"]["entrants"][bound])
+        for y in YEAR_KEYS:
+            total = ls["extensive"]["offset_bn"][bound][y] + ls["intensive"]["offset_bn"][bound][y]
+            assert ls["total_offset_bn"][bound][y] == pytest.approx(total, abs=0.0015)
+            # The dynamic cost is the published static total less both margins (not the over-limit sensitivity).
+            assert ls["dynamic_cost_bn"][bound][y] == pytest.approx(static[y] - ls["total_offset_bn"][bound][y], abs=0.0015)
+            # The reform only adds work-conditional support, so (to rounding) nobody leaves work.
+            assert ls["extensive"]["leavers"][bound][y] <= 100
+            assert ls["extensive"]["entrants"][bound][y] >= 0
+    for y in YEAR_KEYS:
+        lo, mid, hi = (ls["intensive"]["offset_bn"][b][y] for b in ("low", "central", "high"))
+        assert lo <= mid <= hi
+        assert ls["population"][y]["adults_moved_outside_population"] == 0
+    assert "bunching" in ls["not_modelled"]
+
+
+def test_static_assumption_carries_the_labour_supply_effect():
+    row = next(r for r in RESULTS["modelling_assumptions"] if r["id"] == "static")
+    assert row["alternative"].startswith("Parents respond")
+    offset = RESULTS["labour_supply"]["total_offset_bn"]["central"]
+    for y in YEAR_KEYS:
+        assert row["effect_bn"][y] == pytest.approx(-offset[y], abs=0.0005)

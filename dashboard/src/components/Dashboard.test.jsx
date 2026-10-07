@@ -17,7 +17,7 @@ import WhoGainsTab, { DECILE_MEASURES, listOf, sortGroups, SUPPRESSED } from "./
 import MethodTab from "./MethodTab";
 import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
 import { formatThousands } from "../lib/formatters";
-import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data } from "../lib/testUtils";
+import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
 const years = data.meta.years;
 const final = years.at(-1);
@@ -245,5 +245,74 @@ describe("methodology", () => {
     render(<MethodTab data={data} />);
     const text = screen.getByTestId("versions-table").textContent;
     for (const k of ["policyengine", "policyengine_uk", "dataset_release", "dataset_revision", "dataset_sha256"]) expect(text, k).toContain(data.meta[k]);
+  });
+});
+
+describe("the labour supply control", () => {
+  const ls = data.labour_supply;
+  const lead = String(LEAD_YEAR);
+
+  it("opens static, and switching a margin on changes the cost card and the URL", () => {
+    router.replace.mockClear();
+    render(<Dashboard data={data} />);
+    expect(screen.getByTestId("toggle-extensive").getAttribute("aria-checked")).toBe("false");
+    expect(screen.getByTestId("toggle-intensive").getAttribute("aria-checked")).toBe("false");
+    expect(screen.queryByTestId("bound-select")).toBeNull();
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(data.budget.gross_bn.total[lead]));
+
+    fireEvent.click(screen.getByTestId("toggle-intensive"));
+    const cost = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.central[lead];
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
+    expect(screen.getByTestId("card-cost").textContent).toContain("hours, central elasticities");
+    expect(router.replace).toHaveBeenLastCalledWith("/?ls=int", { scroll: false });
+
+    fireEvent.click(screen.getByTestId("toggle-extensive"));
+    fireEvent.change(screen.getByTestId("bound-select"), { target: { value: "high" } });
+    const both = data.budget.gross_bn.total[lead] - ls.total_offset_bn.high[lead];
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(both));
+    expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%2Cint&bound=high", { scroll: false });
+  });
+
+  it("sits under the tab bar on Budget impact and Who gains, not on Methodology", () => {
+    render(<Dashboard data={data} />);
+    const tablist = screen.getByRole("tablist");
+    const control = screen.getByTestId("labour-supply-control");
+    // Below the tabs: the tab bar precedes the control in document order.
+    expect(tablist.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByTestId("intro").contains(control)).toBe(false);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
+    expect(screen.getByTestId("labour-supply-note").textContent).toContain("always static");
+
+    fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
+    expect(screen.queryByTestId("labour-supply-control")).toBeNull();
+  });
+
+  it("explains labour supply on Methodology from the results file", () => {
+    const text = textOf(<MethodTab data={data} />);
+    const f = String(final);
+    expect(text).toContain(ls.responding_population);
+    expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
+    expect(text).toContain(ls.not_modelled);
+    expect(text).toContain(bn(ls.intensive_over_limit.offset_bn.central[f]));
+    expect(text).toContain(bn(CENTAX.parentsBn));
+    expect(text).toContain(bn(CENTAX.partnersBn));
+  });
+
+  it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
+    const f = String(final);
+    const off = textOf(<MethodTab data={data} />);
+    expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])} (${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
+    expect(off).toContain("bunching not modelled");
+    const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
+    const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
+    expect(on).toContain(`${bn(cost)} (moving into work, low elasticities; bunching not modelled)`);
+  });
+
+  it("shows the money back in the yearly chart only when a margin is on", () => {
+    expect(textOf(<LandingTab data={data} />)).not.toContain("Back from parents working more");
+    expect(textOf(<LandingTab data={data} setting={{ extensive: true, intensive: true, bound: "central" }} />)).toContain(
+      "Back from parents working more",
+    );
   });
 });

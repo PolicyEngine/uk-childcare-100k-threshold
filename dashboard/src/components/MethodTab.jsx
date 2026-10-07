@@ -1,8 +1,18 @@
 "use client";
 
-import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation } from "../lib/dataHelpers";
+import {
+  fyLabel,
+  getAssumptions,
+  getLabourSupply,
+  getLimitations,
+  getMeta,
+  getModellingAssumptions,
+  getReform,
+  getValidation,
+  STATIC_SETTING,
+} from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
-import { BenchmarkNotes, UnifiedComparison } from "./Comparison";
+import { BenchmarkNotes, CENTAX, UnifiedComparison } from "./Comparison";
 import { Expandable, Section } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
@@ -216,7 +226,80 @@ function AssumptionNotes({ rows, takeUp }) {
   );
 }
 
-export default function MethodTab({ data }) {
+function LabourSupplySection({ data }) {
+  const ls = getLabourSupply(data);
+  const a = ls.assumptions;
+  const raw = data.labour_supply;
+  const li = ls.years.length - 1;
+  const year = fyLabel(ls.years[li]);
+  const over = ls.overLimit.offset;
+  const entrants = Math.round(ls.extensive.entrants.central[li] / 100) * 100;
+  const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
+  return (
+    <Section
+      id="labour-supply"
+      title="Labour supply"
+      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the tax and National Insurance paid on extra work, net of the childcare support it brings."
+    >
+      <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
+        <li>
+          <strong>Who responds.</strong> {raw.responding_population}
+        </li>
+        <li>
+          <strong>Moving into work (extensive margin).</strong>{" "}
+          The{" "}
+          <a href="https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf" target="_blank" rel="noreferrer">
+            OBR&apos;s participation elasticities
+          </a>{" "}
+          (
+          {a.participation_elasticities}) applied to each adult&apos;s gain to work, one minus their replacement rate.
+          The gain to work is net of the childcare they would then pay for, less the Tax-Free Childcare the scenario
+          would pay on it. Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random
+          draws.
+        </li>
+        <li>
+          <strong>Hours (intensive margin).</strong> A childcare-price elasticity of hours of {a.hours_price_elasticity}{" "}
+          (
+          <a
+            href="https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Brewer, Cattan, Crawford and Rabe, IFS WP20/09, Table 1
+          </a>
+          ; measured on mothers) for responding adults in work, at or below £100,000, whose out-of-pocket
+          childcare cost falls. Newly funded hours replace {formatPct(a.free_hours_displacement * 100, 1)} of their value
+          in paid care, capped at what the family spends. The model recomputes tax and benefits on the extra earnings.
+        </li>
+        <li>
+          <strong>Low and high elasticities.</strong> Every elasticity is multiplied by {scale(a.elasticity_scales.low)} for the
+          low end and by {scale(a.elasticity_scales.high)} for the high end: childcare-price elasticities of {a.price_elasticity_low} and{" "}
+          {a.price_elasticity_high} against {a.price_elasticity_central} central.
+        </li>
+        <li>
+          <strong>Why so few move into work.</strong>{" "}
+          In a family where one parent is over £100,000, the partner&apos;s
+          replacement rate is about 0.9, so the gain to work and the OBR elasticity applied to it are small; and the tax
+          entrants pay is largely offset by the childcare support their family then receives. The model finds about{" "}
+          {formatCount(entrants)} entrants in {year}.
+        </li>
+        <li>
+          <strong>Not included.</strong> {ls.notModelled} Their hours response alone would bring back{" "}
+          {formatBn(over.central[li], 2)} in {year} ({formatBn(over.low[li], 2)} to {formatBn(over.high[li], 2)}), shown
+          here as a sensitivity and not counted in the dynamic cost.
+        </li>
+        <li>
+          <strong>Against CenTax.</strong> CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
+          {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
+          {formatBn(CENTAX.partnersBn, 2)} from partners entering work. The first is the response not included here;
+          for the second we find about zero, for the reasons above.
+        </li>
+      </ul>
+    </Section>
+  );
+}
+
+export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const meta = getMeta(data);
   const reform = getReform(data);
   const validation = getValidation(data);
@@ -244,7 +327,8 @@ export default function MethodTab({ data }) {
             runs. Families gaining, and how much, come from the same comparison, household by household.
           </li>
           <li>
-            The costing is static: parents work, earn and pay for childcare exactly as they do today in both runs.
+            The headline costing is static: parents work, earn and pay for childcare exactly as they do today in both
+            runs. A labour supply response can be added on Budget impact; the Labour supply section below explains it.
           </li>
           <li>
             Further runs change one uncertain assumption at a time (how many hours families use, babies under one, and
@@ -311,6 +395,8 @@ export default function MethodTab({ data }) {
         </ul>
       </Section>
 
+      <LabourSupplySection data={data} />
+
       <Section
         id="assumptions"
         title="How do we compare with other estimates?"
@@ -325,7 +411,7 @@ export default function MethodTab({ data }) {
         detailsTitle="Each choice in full, the effect in every year, and sources"
       >
         <Expandable title="Show the comparison table" testId="comparison-expandable">
-          <UnifiedComparison data={data} />
+          <UnifiedComparison data={data} setting={setting} />
         </Expandable>
       </Section>
 

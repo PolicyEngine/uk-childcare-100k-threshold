@@ -5,7 +5,16 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LandingTab from "./LandingTab";
 import WhoGainsTab from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
-import { fyLabel, getMeta, getYears } from "../lib/dataHelpers";
+import {
+  fyLabel,
+  getLabourSupply,
+  getMeta,
+  getYears,
+  labourSupplyParams,
+  LS_BOUND_LABELS,
+  LS_BOUNDS,
+  parseLabourSupply,
+} from "../lib/dataHelpers";
 import { TabLayout } from "./ui";
 
 export const TAB_OPTIONS = [
@@ -29,6 +38,7 @@ const SECTIONS = {
   method: [
     { id: "model", title: "How we cost it" },
     { id: "limits", title: "How the limits work" },
+    { id: "labour-supply", title: "Labour supply" },
     { id: "assumptions", title: "Compared with others" },
     { id: "validation", title: "Validation" },
     { id: "limitations", title: "Limitations" },
@@ -63,6 +73,113 @@ export function ReplicationLine({ meta }) {
   );
 }
 
+/** An on/off switch with its label. */
+const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf";
+const BREWER_URL =
+  "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17";
+
+/** A switch with its label; the hint sits outside the clickable label so a link in it does not flip the switch. */
+function Toggle({ on, onChange, label, hint, testId }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+      <label className="flex cursor-pointer items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          aria-checked={on}
+          aria-label={label}
+          data-testid={testId}
+          onClick={() => onChange(!on)}
+          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+            on ? "bg-[color:var(--pe-color-primary-600)]" : "bg-slate-300"
+          }`}
+        >
+          <span
+            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`}
+          />
+        </button>
+        <span className={on ? "font-semibold text-slate-900" : "text-slate-600"}>{label}</span>
+      </label>
+      <span className="text-xs text-slate-500">{hint}</span>
+    </div>
+  );
+}
+
+/**
+ * Labour supply: the page opens static. Each margin can be switched on; the elasticity setting scales both. Only the
+ * cost figures on Budget impact and the comparison on Methodology change. Shown under the tab bar on Budget impact and
+ * Who gains; Methodology explains it.
+ */
+export function LabourSupplyControl({ data, setting, onChange, tab }) {
+  const a = getLabourSupply(data).assumptions;
+  const any = setting.extensive || setting.intensive;
+  let note;
+  if (tab === "who-gains") {
+    note =
+      "The figures on this tab are always static: who gains, the breakdowns and the household calculator do not change with this setting.";
+  } else if (any) {
+    note =
+      "Changes the cost on this tab and in the comparison on Methodology. The response of parents over £100,000 is not included; Methodology explains what is and is not covered.";
+  } else {
+    note = "Off: the static costing, with nobody changing how much they work.";
+  }
+  return (
+    <div className="mb-8" data-testid="labour-supply-control">
+      <span className="mb-1 block text-xs font-medium text-slate-500">Labour supply</span>
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
+        <Toggle
+          on={setting.extensive}
+          onChange={(v) => onChange({ ...setting, extensive: v })}
+          label="Extensive margin"
+          hint={
+            <>
+              Moving into work:{" "}
+              <a href={OBR_ELASTICITIES_URL} target="_blank" rel="noreferrer" className="underline">
+                OBR participation elasticities
+              </a>{" "}
+              on the gain to work
+            </>
+          }
+          testId="toggle-extensive"
+        />
+        <span className="h-5 w-px bg-slate-200" aria-hidden />
+        <Toggle
+          on={setting.intensive}
+          onChange={(v) => onChange({ ...setting, intensive: v })}
+          label="Intensive margin"
+          hint={
+            <>
+              Hours: childcare-price elasticity{" "}
+              <a href={BREWER_URL} target="_blank" rel="noreferrer" className="underline">
+                {a.hours_price_elasticity}
+              </a>
+            </>
+          }
+          testId="toggle-intensive"
+        />
+        {any ? (
+          <select
+            value={setting.bound}
+            onChange={(e) => onChange({ ...setting, bound: e.target.value })}
+            className="h-7 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-sm text-slate-700"
+            aria-label="Elasticities"
+            data-testid="bound-select"
+          >
+            {LS_BOUNDS.map((b) => (
+              <option key={b} value={b}>
+                {LS_BOUND_LABELS[b]} elasticities{b === "central" ? "" : ` (x${b === "low" ? "1/3" : "2"})`}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
+      <p className="mt-1.5 text-xs text-slate-500" data-testid="labour-supply-note">
+        {note}
+      </p>
+    </div>
+  );
+}
+
 export function Dashboard({ data }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -79,9 +196,30 @@ export function Dashboard({ data }) {
     setActiveTab(getInitialTab(tabParam));
   }
 
+  // Labour supply, kept in the URL beside the tab (?ls=ext,int&bound=low); static by default.
+  const lsParam = searchParams.get("ls");
+  const boundParam = searchParams.get("bound");
+  const [setting, setSetting] = useState(() => parseLabourSupply(lsParam, boundParam));
+  const [seenLs, setSeenLs] = useState(`${lsParam}|${boundParam}`);
+  if (`${lsParam}|${boundParam}` !== seenLs) {
+    setSeenLs(`${lsParam}|${boundParam}`);
+    setSetting(parseLabourSupply(lsParam, boundParam));
+  }
+
+  function replaceUrl(tab, ls) {
+    const params = new URLSearchParams([...(tab === DEFAULT_TAB ? [] : [["tab", tab]]), ...labourSupplyParams(ls)]);
+    const query = params.toString();
+    router.replace(query ? `/?${query}` : "/", { scroll: false });
+  }
+
   function handleTabChange(tab) {
     setActiveTab(tab);
-    router.replace(tab === DEFAULT_TAB ? "/" : `/?tab=${tab}`, { scroll: false });
+    replaceUrl(tab, setting);
+  }
+
+  function handleSettingChange(next) {
+    setSetting(next);
+    replaceUrl(activeTab, next);
   }
 
   return (
@@ -130,10 +268,14 @@ export function Dashboard({ data }) {
           ))}
         </div>
 
+        {activeTab === "budget" || activeTab === "who-gains" ? (
+          <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} tab={activeTab} />
+        ) : null}
+
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
-          {activeTab === "budget" && <LandingTab data={data} />}
+          {activeTab === "budget" && <LandingTab data={data} setting={setting} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
-          {activeTab === "method" && <MethodTab data={data} />}
+          {activeTab === "method" && <MethodTab data={data} setting={setting} />}
         </TabLayout>
 
         <footer className="mt-12 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">

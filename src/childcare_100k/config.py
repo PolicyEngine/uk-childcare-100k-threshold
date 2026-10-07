@@ -177,3 +177,46 @@ CENTAX_REPORT_URL = (
     "https://centax.org.uk/wp-content/uploads/2026/09/"
     "AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf"
 )
+
+# ── Labour supply (labour_supply.py, hours_response.py) ──────────────────
+# Ported from PolicyEngine/free-childcare-reform (src/free_childcare_reform/sources.py),
+# where each figure's derivation is set out in full.
+#
+# Weekly hours assumed for someone entering work: the OBR note's and policyengine-uk's
+# default. Load-bearing (it sets every entrant's earnings) and not varied in the bounds.
+HOURS_FOR_NEW_ENTRANTS = 18.8
+FULL_TIME_HOURS = 37.5
+LSR_WEEKS_PER_YEAR = 52
+# Low and high bounds scale both margins' elasticities by the ratio of the low and high
+# childcare-price elasticities of maternal employment to the central one (Akgündüz and
+# Plantenga's meta-analysis, read for the UK): -0.05 / -0.15 = 1/3 and -0.30 / -0.15 = 2.
+PRICE_ELASTICITY_CENTRAL = -0.15
+PRICE_ELASTICITY_LOW = -0.05
+PRICE_ELASTICITY_HIGH = -0.30
+ELASTICITY_SCALES = {
+    "central": 1.0,
+    "low": PRICE_ELASTICITY_LOW / PRICE_ELASTICITY_CENTRAL,
+    "high": PRICE_ELASTICITY_HIGH / PRICE_ELASTICITY_CENTRAL,
+}
+# Cap on the modelled proportional change in any one person's probability of working
+# (a numerical guard, not a published figure).
+PARTICIPATION_CHANGE_BOUND = 0.5
+# Childcare price elasticity of hours worked: Brewer, Cattan, Crawford and Rabe (IFS
+# WP20/09), +0.600 weekly hours on a mean of 14.319 (+4.19%) for full-time eligibility,
+# taken against a 100% price fall. A total-hours effect that contains the participation
+# channel, so adding it to the extensive margin overstates the whole slightly.
+HOURS_PRICE_ELASTICITY = -0.042
+BREWER_HOURS_URL = (
+    "https://ifs.org.uk/sites/default/files/output_url_files/"
+    "WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41"
+)
+OBR_PARTICIPATION_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf"
+AKGUNDUZ_PLANTENGA_URL = "https://www.uu.nl/sites/default/files/rebo_use_dp_2015_15-14.pdf"
+# Of the free hours a family is newly offered, the share that displaces care it was
+# already paying for: 1 - 54/570 (IFS BN189), so newly free hours cut out-of-pocket
+# spending by 90.5% of their value, capped at what the family spends.
+FREE_HOURS_DISPLACEMENT = 1 - 54 / 570
+# The responding population: adults in a benefit unit whose youngest child is under 12
+# (the Tax-Free Childcare band, which contains the 30 hours' 9 months-4 years) and in
+# which at least one adult's income, as the limits test it, is over £100,000.
+YOUNGEST_CHILD_MAX_AGE = 11
