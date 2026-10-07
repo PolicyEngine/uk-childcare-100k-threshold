@@ -9,15 +9,19 @@ import pytest
 
 from childcare_100k import config
 from childcare_100k import labour_supply as ls
-from childcare_100k.hours_response import out_of_pocket_prices, price_change
+from childcare_100k import hours_response as hr
 
 
 def _base(**overrides):
+    """Four adults: in work at or below the limit, in work over it, in work without childcare spend, not in work."""
     n = 4
     base = {
         "actual_cost": np.array([10_000.0, 10_000.0, 0.0, 8_000.0]),
         "bu_tfc": np.zeros(n),
         "bu_free": np.zeros(n),
+        "tfc_rate": np.zeros(n),
+        "hh_net_income": np.full(n, 100_000.0),
+        "income_elasticity": np.array([-0.185, -0.05, -0.05, -0.185]),
         "employment_income": np.array([40_000.0, 120_000.0, 30_000.0, 0.0]),
         "weekly_hours": np.array([30.0, 40.0, 30.0, 0.0]),
         "eligible": np.ones(n, bool),
@@ -28,27 +32,88 @@ def _base(**overrides):
     return base
 
 
-def test_out_of_pocket_price_displaces_free_hours_and_applies_tfc_to_the_rest():
-    base = _base()
-    ref = {"bu_tfc": np.array([2_000.0, 2_000.0, 0.0, 0.0]), "bu_free": np.array([4_000.0, 4_000.0, 0.0, 0.0])}
-    before, after = out_of_pocket_prices(base, ref)
-    np.testing.assert_allclose(before, [10_000, 10_000, 0, 8_000])
-    remaining = 10_000 - 4_000 * config.FREE_HOURS_DISPLACEMENT
-    np.testing.assert_allclose(after[:2], remaining * (1 - 0.2))
-    # Newly free hours never take the price below zero.
-    big = {"bu_tfc": np.zeros(4), "bu_free": np.full(4, 50_000.0)}
-    assert (out_of_pocket_prices(base, big)[1] >= 0).all()
+def _ref(free=0.0, tfc_rate=0.0, gain=0.0, n=4):
+    return {"bu_free": np.full(n, free), "bu_tfc": np.zeros(n), "tfc_rate": np.full(n, tfc_rate),
+            "hh_net_income": np.full(n, 100_000.0 + gain)}
 
 
-def test_price_change_splits_the_parent_over_the_limit_from_everyone_else():
-    base = _base()
-    ref = {"bu_tfc": np.array([2_000.0, 2_000.0, 0.0, 1_000.0]), "bu_free": np.zeros(4)}
-    respond, change = price_change(base, ref, "at_or_below_limit")
-    # Only the worker at or below the limit who pays for childcare responds.
-    assert respond.tolist() == [True, False, False, False]
-    assert change[0] == pytest.approx(-0.2)
-    respond, change = price_change(base, ref, "over_limit")
-    assert respond.tolist() == [False, True, False, False]
+def test_funded_hours_below_the_familys_paid_care_are_not_a_price_change():
+    """Funded hours worth less than the paid care bought: the marginal hour is still bought at full price."""
+    covered, change = hr.marginal_price_change(_base(), _ref(free=4_000.0))
+    assert not covered.any()
+    np.testing.assert_allclose(change, 0.0)
+
+
+def test_funded_hours_covering_all_paid_care_make_the_marginal_hour_free():
+    covered, change = hr.marginal_price_change(_base(), _ref(free=12_000.0))
+    # 12,000 x 90.5% covers the 10,000 and 8,000 families; the family with no spend is not "covered".
+    assert covered.tolist() == [True, True, False, True]
+    np.testing.assert_allclose(change[covered], -1.0)
+    # At the low displacement (71.4%) the 8,000 family is covered and the 10,000 families are not.
+    covered_low, _ = hr.marginal_price_change(_base(), _ref(free=12_000.0),
+                                              config.FREE_HOURS_DISPLACEMENT_RANGE["low"])
+    assert covered_low.tolist() == [False, False, False, True]
+
+
+def test_tax_free_childcare_is_a_price_change_only_where_the_cap_does_not_bind():
+    # Newly received below the cap: 20% of routed spend (59.3%) off each marginal pound.
+    _, change = hr.marginal_price_change(_base(), _ref(tfc_rate=0.2 * 0.593))
+    np.testing.assert_allclose(change[[0, 1, 3]], -0.2 * 0.593)
+    # At the cap the model's marginal rate is zero: no price change, whatever the top-up's size.
+    capped = _ref(tfc_rate=0.0)
+    capped["bu_tfc"] = np.full(4, 2_000.0)
+    np.testing.assert_allclose(hr.marginal_price_change(_base(), capped)[1], 0.0)
+
+
+def test_each_group_responds_to_price_and_income_separately():
+    base, ref = _base(), _ref(tfc_rate=0.1, gain=5_000.0)
+    s = hr.earnings_shares(base, ref, 1.0, "at_or_below_limit")
+    # The price: only adults in work whose family pays for childcare; the income: every adult in work.
+    assert s["respond_price"].tolist() == [True, False, False, False]
+    assert s["respond_income"].tolist() == [True, False, True, False]
+    assert s["price"][0] == pytest.approx(config.HOURS_PRICE_ELASTICITY * -0.1)
+    assert s["income"][0] == pytest.approx(-0.185 * 0.05)
+    over = hr.earnings_shares(base, ref, 2.0, "over_limit")
+    assert over["respond_price"].tolist() == [False, True, False, False]
+    # The bounds scale both elasticities.
+    assert over["price"][1] == pytest.approx(2 * config.HOURS_PRICE_ELASTICITY * -0.1)
+    assert over["income"][1] == pytest.approx(2 * -0.05 * 0.05)
+
+
+class _FakeSim:
+    """Household net income = 60% of earnings, one person per household: enough to sign the offsets."""
+
+    def __init__(self, base):
+        self.emp = base["employment_income"].copy()
+        self.w = base["weights"]
+
+    def calculate(self, variable, year, map_to=None):
+        return {"household_net_income": 0.6 * self.emp, "household_weight": self.w,
+                "employment_income": self.emp}[variable]
+
+    def reset_calculations(self):
+        pass
+
+    def set_input(self, variable, year, value):
+        assert variable == "employment_income"
+        self.emp = np.asarray(value, float)
+
+
+@pytest.mark.parametrize("group", hr.GROUPS)
+def test_price_effect_brings_money_back_and_the_income_effect_costs_money(group):
+    """The signs, by hand: a cheaper marginal hour raises hours (offset > 0); a richer family works less (< 0)."""
+    base, ref = _base(), _ref(tfc_rate=0.1, gain=5_000.0)
+    r = hr.hours_response(_FakeSim(base), 2029, base, ref, 1.0, group)
+    worker = 0 if group == "at_or_below_limit" else 1
+    emp = base["employment_income"][worker]
+    price_earn = emp * config.HOURS_PRICE_ELASTICITY * -0.1
+    assert r["price_earnings"] == pytest.approx(price_earn)
+    assert r["price_offset"] == pytest.approx(0.4 * price_earn) and r["price_offset"] > 0
+    assert r["income_offset"] < 0
+    assert r["offset"] == pytest.approx(r["price_offset"] + r["income_offset"])
+    # Funded hours that leave paid care to buy are a lump sum: no price effect, only the income effect.
+    lump = hr.hours_response(_FakeSim(base), 2029, base, _ref(free=4_000.0, gain=4_000.0), 1.0, group)
+    assert lump["price_offset"] == 0 and lump["income_offset"] < 0
 
 
 def _prep(pct, elasticity, emp, eligible=None, over_limit=None):
@@ -194,3 +259,41 @@ def test_entrant_subsidy_uses_the_models_disabled_child_cap_and_age(child_age):
     model = float(sim.calculate("tax_free_childcare", 2027).sum())
     assert subsidy[1] == pytest.approx(3_000)
     assert model == pytest.approx(3_000)
+
+
+def _paying_couple(spend, year=2027):
+    situation = _couple(120_000, year)
+    situation["people"]["b"]["employment_income"] = {year: 30_000}
+    situation["people"]["b"]["hours_worked"] = {year: 1_560}
+    situation["people"]["child"]["childcare_expenses"] = {year: spend}
+    return situation
+
+
+@pytest.mark.parametrize("spend, reform, expected", [
+    (5_000, True, 0.2),   # newly eligible, below the £2,000 cap: 20p off each marginal pound
+    (15_000, True, 0.0),  # at the cap: the top-up is a lump sum
+    (5_000, False, 0.0),  # baseline: a parent over £100,000, no Tax-Free Childcare
+])
+def test_marginal_tax_free_childcare_rate_is_the_models(spend, reform, expected):
+    from policyengine_uk import Simulation
+    from policyengine_uk.utils.scenario import Scenario
+
+    scenario = Scenario(parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS)) if reform else None
+    sim = Simulation(situation=_paying_couple(spend), scenario=scenario)
+    rate = hr.tfc_marginal_rate(sim, 2027)
+    np.testing.assert_allclose(rate, expected, atol=1e-3)
+    # The simulation is restored.
+    assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(spend)
+
+
+def test_income_elasticities_are_the_obrs_for_the_costed_year():
+    from policyengine_uk import Simulation
+
+    situation = _paying_couple(5_000)
+    situation["people"]["a"]["gender"] = {2027: "MALE"}
+    situation["people"]["b"]["gender"] = {2027: "FEMALE"}
+    situation["benunits"]["bu"]["is_married"] = {2027: True}
+    e = ls.income_elasticities(Simulation(situation=situation), 2027)
+    # A man in a couple, and a woman in a couple whose youngest child is 3-4 (OBR Table A2).
+    assert e[0] == pytest.approx(-0.05)
+    assert e[1] == pytest.approx(-0.173)

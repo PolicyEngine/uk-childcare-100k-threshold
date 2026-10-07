@@ -210,10 +210,12 @@ PARTICIPATION_CHANGE_BOUND = 0.5
 # estimated price elasticity. Brewer, Cattan, Crawford and Rabe (IFS WP20/09, Table A.3
 # panel B) estimate +0.600 weekly hours on a mean of 14.319 (+4.19%) for mothers whose
 # youngest child becomes eligible for full-time instead of part-time free care. Treating
-# that eligibility as a 100% price fall, and applying the result to every working adult
-# with a child under 12, extends it to an intervention, parents and child ages it was not
-# estimated on. A total-hours effect that contains the participation channel, so adding
-# it to the extensive margin overstates the whole slightly.
+# that eligibility as a 100% price fall, and applying the result to the change in the price
+# of the marginal hour of paid care of every working adult in the responding population
+# (hours_response.py), extends it to interventions, parents and child ages it was not
+# estimated on. A total-hours effect that contains the participation channel, so adding it
+# to the extensive margin overstates the whole slightly. The hours margin's income effect
+# uses the OBR income elasticities from policyengine-uk (no setting here).
 HOURS_PRICE_ELASTICITY = -0.042
 BREWER_HOURS_URL = (
     "https://ifs.org.uk/sites/default/files/output_url_files/"
@@ -221,9 +223,10 @@ BREWER_HOURS_URL = (
 )
 OBR_PARTICIPATION_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf"
 AKGUNDUZ_PLANTENGA_URL = "https://www.uu.nl/sites/default/files/rebo_use_dp_2015_15-14.pdf"
-# An assumption, not a measured figure: of the free hours a family is newly offered,
-# the share assumed to displace care it was already paying for, so newly free hours cut
-# out-of-pocket spending by this share of their value, capped at what the family spends.
+# An assumption, not a measured figure: of the free hours a family is newly offered, the
+# share assumed to displace care it was already paying for. The hours margin uses it to
+# decide whether newly funded hours cover all the paid care a family buys (then the
+# marginal hour is free; otherwise the funded hours are inframarginal, hours_response.py).
 # IFS BN189 (pp. 11-12): 570 more funded hours raised subsidisable care by 163 hours and
 # all care outside the immediate family by 54. 1 - 54/570 (90.5%, central) treats every
 # displaced hour of non-family care, paid or unpaid, as paid; 1 - 163/570 (71.4%, low)

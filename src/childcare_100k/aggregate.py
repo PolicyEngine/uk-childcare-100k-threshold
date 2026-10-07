@@ -397,20 +397,25 @@ def labour_supply(static_total, years=YEARS):
         "non_worker_rule_entrants": by_year("extensive", "non_worker_rule_entrants", lambda x: _round_to(x, 100)),
         "entry_capped": by_year("extensive", "entry_capped", lambda x: _round_to(x, 100)),
     }
-    # Hours response, everyone whose childcare gets cheaper, whatever their income: the adults at or
-    # below £100,000 and the parent over it, each computed with the same elasticity.
-    at_or_below = {
-        "offset_bn": by_year("intensive", "offset", _bn),
-        "ftes": by_year("intensive", "ftes", lambda x: _round_to(x, 100)),
-        "earnings_bn": by_year("intensive", "earnings", _bn),
-        "workers_price_falls": by_year("intensive", "workers_price_falls", _k),
-        "mean_price_change_pct": by_year("intensive", "mean_price_change", lambda x: round(100 * x, 1)),
-    }
-    over_limit = {
-        "offset_bn": by_year("intensive_over_limit", "offset", _bn),
-        "ftes": by_year("intensive_over_limit", "ftes", lambda x: _round_to(x, 100)),
-        "earnings_bn": by_year("intensive_over_limit", "earnings", _bn),
-    }
+    # Hours response (hours_response.py) of every responding adult in work, split by their own income: a price
+    # effect (positive: money back) and an income effect (negative: money out), and the net of the two.
+    def group(margin):
+        return {
+            "offset_bn": by_year(margin, "offset", _bn),
+            "price_offset_bn": by_year(margin, "price_offset", _bn),
+            "income_offset_bn": by_year(margin, "income_offset", _bn),
+            "ftes": by_year(margin, "ftes", lambda x: _round_to(x, 100)),
+            "price_ftes": by_year(margin, "price_ftes", lambda x: _round_to(x, 100)),
+            "income_ftes": by_year(margin, "income_ftes", lambda x: _round_to(x, 100)),
+            "earnings_bn": by_year(margin, "earnings", _bn),
+            # Diagnostics (thousands of adults; mean changes in %, among those responding to each).
+            "workers": by_year(margin, "workers", _k),
+            "workers_paying_for_childcare": by_year(margin, "workers_paying", _k),
+            "workers_price_falls": by_year(margin, "workers_price_falls", _k),
+            "workers_fully_covered": by_year(margin, "workers_fully_covered", _k),
+            "mean_price_change_pct": by_year(margin, "mean_price_change", lambda x: round(100 * x, 1)),
+            "mean_income_change_pct": by_year(margin, "mean_income_change", lambda x: round(100 * x, 2)),
+        }
 
     def both(metric, fn):
         return {b: {str(y): fn(get(y, "intensive", b, metric) + get(y, "intensive_over_limit", b, metric))
@@ -418,15 +423,20 @@ def labour_supply(static_total, years=YEARS):
 
     intensive = {
         "offset_bn": both("offset", _bn),
+        "price_offset_bn": both("price_offset", _bn),
+        "income_offset_bn": both("income_offset", _bn),
         "ftes": both("ftes", lambda x: _round_to(x, 100)),
         "earnings_bn": both("earnings", _bn),
-        "at_or_below_limit": at_or_below,
-        "over_limit": over_limit,
+        "at_or_below_limit": group("intensive"),
+        "over_limit": group("intensive_over_limit"),
     }
-    # Sensitivity, not in the dynamic cost: the free-hours displacement assumption varied alone, central elasticities.
+    # Sensitivity, not in the dynamic cost: the free-hours displacement assumption (which families' paid care the
+    # newly funded hours fully cover) varied alone, central elasticities, both groups.
     intensive_displacement = {
         "offset_bn": {side: {str(y): _bn(float(z[f"{y}/intensive_displacement/{side}/offset"])) for y in years}
                       for side in FREE_HOURS_DISPLACEMENT_RANGE},
+        "price_offset_bn": {side: {str(y): _bn(float(z[f"{y}/intensive_displacement/{side}/price_offset"]))
+                                   for y in years} for side in FREE_HOURS_DISPLACEMENT_RANGE},
         "displacement": {side: round(v, 4) for side, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
     }
     total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)

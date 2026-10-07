@@ -286,9 +286,16 @@ def test_labour_supply_block():
         for y in YEAR_KEYS:
             total = ls["extensive"]["offset_bn"][bound][y] + ls["intensive"]["offset_bn"][bound][y]
             assert ls["total_offset_bn"][bound][y] == pytest.approx(total, abs=0.0015)
-            # Hours cover every parent whose childcare gets cheaper, whatever their income.
+            # Hours cover every responding adult in work, whatever their income.
             parts = ls["intensive"]["at_or_below_limit"]["offset_bn"][bound][y] + ls["intensive"]["over_limit"]["offset_bn"][bound][y]
             assert ls["intensive"]["offset_bn"][bound][y] == pytest.approx(parts, abs=0.0015)
+            # Each group's hours offset is its price effect (money back) plus its income effect (money out).
+            for g in ("at_or_below_limit", "over_limit"):
+                part = ls["intensive"][g]
+                assert part["price_offset_bn"][bound][y] >= 0
+                assert part["income_offset_bn"][bound][y] <= 0
+                assert part["offset_bn"][bound][y] == pytest.approx(
+                    part["price_offset_bn"][bound][y] + part["income_offset_bn"][bound][y], abs=0.0015)
             # The dynamic cost is the published static total less both offsets.
             assert ls["dynamic_cost_bn"][bound][y] == pytest.approx(static[y] - ls["total_offset_bn"][bound][y], abs=0.0015)
             # The reform only adds work-conditional support, so (to rounding) nobody leaves work.
@@ -298,7 +305,7 @@ def test_labour_supply_block():
         lo, mid, hi = (ls["intensive"]["offset_bn"][b][y] for b in ("low", "central", "high"))
         assert lo <= mid <= hi
         assert ls["population"][y]["adults_moved_outside_population"] == 0
-    assert "bunching" in ls["not_modelled"]
+    assert "bunching" in ls["not_modelled"].lower()
 
 
 def test_static_assumption_carries_the_labour_supply_effect():

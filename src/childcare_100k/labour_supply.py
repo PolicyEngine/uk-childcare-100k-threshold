@@ -39,17 +39,22 @@ year (:func:`excluded`).
 The responding population
 =========================
 
-Adults (the first two in each benefit unit, not self-employed, students, disabled
-(receiving DLA or PIP) or aged 60 and over: the OBR's exclusions, Table A4) in a benefit unit whose youngest child is under 12,
-and in which at least one adult's income, as the limits test it (adjusted net income
-less salary sacrifice returned to pay, ``corrections.py``), is over £100,000 in the
-baseline. Under 12 because Tax-Free Childcare runs to 11 and contains the 30 hours'
-9 months-4 years band: following Brewer et al., a parent whose *youngest* child is in
-the band is the one the support frees to work. The over-£100,000 condition is where
-the reform changes anything: mechanically, the partner of someone over the limit,
-who today gains no childcare support by working and under the reform brings the
-family the 30 hours and Tax-Free Childcare by doing so. Outside this population the
-reform leaves the gain to work unchanged, which the job checks and records.
+Every adult (the first two in each benefit unit, not self-employed, students, disabled
+(receiving DLA or PIP) or aged 60 and over: the OBR's exclusions, Table A4) in a
+benefit unit whose youngest child is under 12 and in which at least one adult's income,
+as the limits test it (adjusted net income less salary sacrifice returned to pay,
+``corrections.py``), is over £100,000 in the baseline: the parent over the limit as
+well as their partner. Under 12 because Tax-Free Childcare runs to 11 and contains the
+30 hours' 9 months-4 years band: following Brewer et al., a parent whose *youngest*
+child is in the band is the one the support frees to work. The over-£100,000 condition
+is where the reform changes anything. Outside this population the reform leaves the
+gain to work unchanged, which the job checks and records.
+
+Who can respond on each margin follows from the population: moving into work (this
+module) is open to its non-workers, in practice the partner of someone over the limit,
+who today gains no childcare support by working and under the reform brings the family
+the 30 hours and Tax-Free Childcare by doing so; the hours response
+(``hours_response.py``) is open to its adults in work, at or below the limit and over it.
 
 The gain to work
 ================
@@ -70,8 +75,8 @@ childcare support the family now receives), less the Tax-Free Childcare top-up o
 the care they start buying. That can be negative: under this reform an entrant's
 family typically becomes eligible for both schemes.
 
-Not modelled: parents above £100,000 who today keep their income below the limit
-(CenTax's intensive margin, bunching at £100,000).
+Not modelled: bunching, parents who today keep their income at or below £100,000 and
+would earn more without the limit.
 """
 
 from __future__ import annotations
@@ -86,6 +91,7 @@ from policyengine_uk.dynamics.participation import (
     calculate_participation_elasticities,
     impute_wages_for_nonworkers,
 )
+from policyengine_uk.dynamics.progression import calculate_labour_net_income_elasticities
 
 from .config import (
     BASELINE_LIMIT,
@@ -175,6 +181,20 @@ def elasticities(sim, year):
     try:
         quintile = calculate_earnings_quintile(sim, year, HOURS_FOR_NEW_ENTRANTS)
         return np.asarray(calculate_participation_elasticities(sim, quintile), float)
+    finally:
+        sim.default_calculation_period = previous
+
+
+def income_elasticities(sim, year):
+    """OBR Table A2 income elasticities of hours (upstream), for the costed year.
+
+    ``calculate_labour_net_income_elasticities`` reads the simulation's default period,
+    so it is moved to the costed year for the call and restored.
+    """
+    previous = sim.default_calculation_period
+    sim.default_calculation_period = year
+    try:
+        return np.asarray(calculate_labour_net_income_elasticities(sim), float)
     finally:
         sim.default_calculation_period = previous
 
@@ -282,6 +302,21 @@ def gain_to_work(sim, year, entrant_earnings, actual_cost, imputed_cost):
     }
 
 
+def hours_inputs(sim, year):
+    """What the hours margin reads from one scenario (hours_response.py), on each person."""
+    from .hours_response import tfc_marginal_rate
+
+    return {
+        "bu_tfc": per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float)),
+        "bu_free": per_person(sim, year, sum(
+            values(sim, v, year, "benunit").astype(float)
+            for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
+                      "targeted_childcare_entitlement"))),
+        "tfc_rate": tfc_marginal_rate(sim, year),
+        "hh_net_income": values(sim, "household_net_income", year, "person").astype(float),
+    }
+
+
 def baseline_side(sim, year):
     """Everything the response needs from the baseline simulation, for one year."""
     respond = responding(sim, year)
@@ -301,12 +336,9 @@ def baseline_side(sim, year):
         "actual_cost": actual_cost,
         "imputed_cost": imputed_cost,
         "elasticity_wrt_income": elasticity,
-        # The hours margin's prices (hours_response.py).
-        "bu_tfc": per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float)),
-        "bu_free": per_person(sim, year, sum(
-            values(sim, v, year, "benunit").astype(float)
-            for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
-                      "targeted_childcare_entitlement"))),
+        # The hours margin (hours_response.py).
+        "income_elasticity": income_elasticities(sim, year),
+        **hours_inputs(sim, year),
     }
     out.update({f"gtw_{k}": v for k, v in gain_to_work(sim, year, entrant_earnings, actual_cost, imputed_cost).items()})
     return out
@@ -316,11 +348,7 @@ def reform_side(sim, year, base):
     """The reform's gain to work, on the baseline's imputed earnings and childcare."""
     out = {f"gtw_{k}": v for k, v in gain_to_work(
         sim, year, base["entrant_earnings"], base["actual_cost"], base["imputed_cost"]).items()}
-    out["bu_tfc"] = per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float))
-    out["bu_free"] = per_person(sim, year, sum(
-        values(sim, v, year, "benunit").astype(float)
-        for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
-                  "targeted_childcare_entitlement")))
+    out.update(hours_inputs(sim, year))
     return out
 
 
@@ -420,7 +448,7 @@ def run(build_simulation, log=print):
     ``build_simulation(scenario)`` returns a corrected policyengine.py simulation
     (engine._simulation). Returns flat arrays for the run cache: ``{year}/{margin}/{bound}/{metric}``.
     """
-    from .hours_response import hours_response
+    from .hours_response import GROUPS, hours_response
 
     sim = build_simulation("baseline")
     base = {}
@@ -447,10 +475,12 @@ def run(build_simulation, log=print):
                 arrays[f"{y}/intensive/{bound}/{k}"] = v
             for k, v in hours_response(sim, y, base[y], ref, scale, "over_limit").items():
                 arrays[f"{y}/intensive_over_limit/{bound}/{k}"] = v
-        # The displacement assumption varied on its own, at central elasticities (hours_response.py).
+        # The displacement assumption varied on its own, at central elasticities, both groups summed
+        # (hours_response.py): it sets which families' paid care the newly funded hours fully cover.
         for side, displacement in FREE_HOURS_DISPLACEMENT_RANGE.items():
-            for k, v in hours_response(sim, y, base[y], ref, 1.0, "at_or_below_limit", displacement).items():
-                arrays[f"{y}/intensive_displacement/{side}/{k}"] = v
+            parts = [hours_response(sim, y, base[y], ref, 1.0, g, displacement) for g in GROUPS]
+            for k in parts[0]:
+                arrays[f"{y}/intensive_displacement/{side}/{k}"] = sum(p[k] for p in parts)
     del sim
     gc.collect()
     return arrays
