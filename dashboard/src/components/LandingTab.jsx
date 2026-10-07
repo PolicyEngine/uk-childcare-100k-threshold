@@ -58,47 +58,50 @@ function Card({ label, value, detail, testId, children }) {
 }
 
 /** Small vertical bars, one per item, the first (or `highlight`) darkest. */
-function MiniBars({ items, label, highlight = 0, onSelect, format }) {
-  const W = 240;
-  const H = 46;
-  const max = Math.max(...items.map((d) => d.value), 0) || 1;
-  const gap = 8;
-  const bw = (W - gap * (items.length - 1)) / items.length;
+/** A tooltip shown above its trigger on hover or keyboard focus, styled like the charts' tooltips. */
+function Tip({ text, children, className = "", style }) {
   return (
-    <div className="mt-auto pt-4" data-testid="mini-strip">
-      <svg viewBox={`0 0 ${W} ${H + 14}`} className="h-auto w-full" role="img" aria-label={label}>
-        {items.map((d, i) => {
-          const h = (Math.max(0, d.value) / max) * H;
-          return (
-            <g
-              key={d.label}
-              className={onSelect ? "cursor-pointer [&:hover>rect.bar]:opacity-80" : undefined}
+    <span className={`group/tip relative ${className}`} style={style}>
+      {children}
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute bottom-full left-1/2 z-20 mb-2 -translate-x-1/2 whitespace-nowrap rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-800 opacity-0 shadow-lg transition-opacity group-hover/tip:opacity-100 group-focus-within/tip:opacity-100"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
+/** Small vertical bars, one per item, the selected one darkest; hover shows the value, click selects. */
+function MiniBars({ items, label, highlight = 0, onSelect, format }) {
+  const max = Math.max(...items.map((d) => d.value), 0) || 1;
+  return (
+    <div className="mt-auto pt-4" data-testid="mini-strip" aria-label={label}>
+      <div className="flex h-12 items-end gap-2 border-b border-slate-300">
+        {items.map((d, i) => (
+          <Tip key={d.label} text={format ? `${d.label}: ${format(d.value)}` : d.label} className="flex h-full flex-1 items-end">
+            <button
+              type="button"
+              aria-label={`${d.label}${format ? `: ${format(d.value)}` : ""}`}
+              aria-pressed={i === highlight}
               onClick={onSelect ? () => onSelect(i) : undefined}
-              role={onSelect ? "button" : undefined}
-              aria-label={onSelect ? `${d.label}${format ? `: ${format(d.value)}` : ""}` : undefined}
-              aria-pressed={onSelect ? i === highlight : undefined}
-            >
-              <title>{format ? `${d.label}: ${format(d.value)}` : d.label}</title>
-              {/* A full-height hit area, so a short bar is as easy to click as a tall one. */}
-              {onSelect ? <rect x={i * (bw + gap)} y={0} width={bw} height={H + 14} fill="transparent" /> : null}
-              <rect
-                className="bar"
-                x={i * (bw + gap)}
-                y={H - h}
-                width={bw}
-                height={h}
-                rx={2}
-                fill={d.color ?? (i === highlight ? colors.primary[600] : colors.primary[200])}
-                opacity={d.color && onSelect && highlight >= 0 && i !== highlight ? 0.35 : 1}
-              />
-              <text x={i * (bw + gap) + bw / 2} y={H + 12} textAnchor="middle" fontSize={10} fill={i === highlight && onSelect ? colors.gray[800] : colors.gray[500]} fontWeight={i === highlight && onSelect ? 600 : 400}>
-                {d.label}
-              </text>
-            </g>
-          );
-        })}
-        <line x1={0} x2={W} y1={H + 0.5} y2={H + 0.5} stroke={colors.gray[300]} />
-      </svg>
+              className="w-full rounded-t-sm transition-opacity hover:opacity-80"
+              style={{
+                height: `${(100 * Math.max(0, d.value)) / max}%`,
+                backgroundColor: d.color ?? (i === highlight ? colors.primary[600] : colors.primary[200]),
+              }}
+            />
+          </Tip>
+        ))}
+      </div>
+      <div className="mt-1 flex gap-2">
+        {items.map((d, i) => (
+          <span key={d.label} className={`flex-1 text-center text-[11px] ${i === highlight ? "font-semibold text-slate-800" : "text-slate-500"}`}>
+            {d.label}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }
@@ -115,18 +118,18 @@ function SplitBar({ thirty, tfc, selected, onSelect }) {
     <div className="mt-auto pt-4" data-testid="mini-strip" aria-label="Split of the cost between the two schemes">
       <div className="flex gap-0.5">
       {parts.map((p) => (
+        <Tip key={p.id} text={`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)} (${formatPct(p.pct, 0)})`} className="flex min-w-0" style={{ flexGrow: p.grow, flexBasis: 0 }}>
         <button
-          key={p.id}
           type="button"
-          title={`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)} (${formatPct(p.pct, 0)})`}
           aria-label={`${SCHEME_LABELS[p.id]}: ${formatBn(p.value, 2)}`}
           aria-pressed={selected === p.id}
           onClick={() => onSelect(selected === p.id ? null : p.id)}
-          className="min-w-0 overflow-hidden rounded-md px-2 py-1.5 text-left text-xs transition-opacity hover:opacity-90"
-          style={{ flexGrow: p.grow, flexBasis: 0, backgroundColor: schemeColors[p.id], color: p.ink, opacity: selected && selected !== p.id ? 0.35 : 1 }}
+          className="w-full min-w-0 overflow-hidden rounded-md px-2 py-1.5 text-left text-xs transition-opacity hover:opacity-90"
+          style={{ backgroundColor: schemeColors[p.id], color: p.ink, opacity: selected && selected !== p.id ? 0.35 : 1 }}
         >
           <span className="block truncate font-semibold">{formatPct(p.pct, 0)}</span>
         </button>
+        </Tip>
       ))}
       </div>
       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-600">
@@ -147,10 +150,9 @@ function BarList({ items, selected, onSelect, format }) {
   return (
     <div className="mt-auto space-y-2 pt-4" data-testid="mini-strip">
       {items.map((d) => (
+        <Tip key={d.id} text={`${d.label}: ${format(d.value)} families`} className="block">
         <button
-          key={d.id}
           type="button"
-          title={`${d.label}: ${format(d.value)}`}
           aria-label={`${d.label}: ${format(d.value)}`}
           aria-pressed={selected === d.id}
           onClick={() => onSelect(selected === d.id ? null : d.id)}
@@ -163,6 +165,7 @@ function BarList({ items, selected, onSelect, format }) {
           </span>
           <span className="tabular-nums font-medium text-slate-800">{format(d.value)}</span>
         </button>
+        </Tip>
       ))}
     </div>
   );
