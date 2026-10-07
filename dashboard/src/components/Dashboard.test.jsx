@@ -95,8 +95,6 @@ describe("budget impact", () => {
     expect(card.textContent).toContain(b.figure);
     expect(card.textContent).toMatch(/traces to CenTax's cost of the free hours only/);
     expect(within(card).getByRole("link").getAttribute("href")).toBe(b.url);
-    const panel = screen.getByTestId("comparisons");
-    fireEvent.click(within(panel).getByRole("tab", { name: /£0.7bn figure/ }));
     const topic = screen.getByTestId("benchmark");
     expect(topic.textContent).toMatch(/covers both the free hours and Tax-Free Childcare/);
     expect(within(topic).getByRole("link", { name: /CenTax's report/ }).getAttribute("href")).toBe(b.underlying_source_url);
@@ -120,7 +118,6 @@ describe("budget impact", () => {
 
   it("shows the 30 hours components", () => {
     render(<LandingTab data={data} />);
-    fireEvent.click(within(screen.getByTestId("comparisons")).getByRole("tab", { name: /Inside the 30 hours/ }));
     expect(within(screen.getByTestId("components-table")).getAllByRole("row").length).toBeGreaterThan(2);
   });
 });

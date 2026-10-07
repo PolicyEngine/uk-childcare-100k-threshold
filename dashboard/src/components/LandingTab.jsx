@@ -20,7 +20,7 @@ import {
 import { formatBn, formatCurrency, formatPct, formatThousands } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, Section, TopicPanel } from "./ui";
+import { AXIS_STYLE, CustomTooltip, Section } from "./ui";
 
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
@@ -131,7 +131,7 @@ function CostChart({ rows }) {
             {SCHEMES.map((s) => (
               <Bar key={s} dataKey={s} name={SCHEME_LABELS[s]} stackId="cost" fill={schemeColors[s]} isAnimationActive={false} maxBarSize={80} />
             ))}
-            <Bar dataKey="range" name="Low to high" xAxisId="range" fill={colors.gray[800]} barSize={3} isAnimationActive={false} />
+            <Bar dataKey="range" name="Range (low to high estimate)" xAxisId="range" fill={colors.gray[800]} barSize={3} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -144,7 +144,7 @@ function CostChart({ rows }) {
         ))}
         <span className="flex items-center gap-2">
           <span className="inline-block h-3 w-[3px]" style={{ backgroundColor: colors.gray[800] }} />
-          Low to high range
+          Range: low to high estimate
         </span>
       </div>
       <ChartLogo />
@@ -229,88 +229,64 @@ function SensitivityTable({ sens }) {
   );
 }
 
-function ComparisonTopics({ data }) {
+function BenchmarkComparison({ data }) {
   const benchmark = getBenchmarks(data)[0];
-  const budget = getBudget(data);
-  const comps = getThirtyHoursComponents(data);
-  const years = budget.years;
   // CenTax's estimate is for 2030: compare with our last year, 2029-30.
-  const last = budget.rows.at(-1);
-
-  const topics = [
-    {
-      id: "conservatives",
-      title: "The £0.7bn figure",
-      summary: "Traces to CenTax's cost of the free hours alone",
-      testId: "topic-conservatives",
-      content: (
-        <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid="benchmark">
-          <p>
-            <a href={benchmark.url} target="_blank" rel="noreferrer">
-              City AM
-            </a>{" "}
-            reports the cost of the party&apos;s plan as about £700m a year and says it is based on{" "}
-            <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
-              CenTax&apos;s report
-            </a>
-            , which costs removing the limit on the free childcare hours only. The party&apos;s{" "}
-            <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
-              announcement
-            </a>{" "}
-            covers both the free hours and Tax-Free Childcare, and gives no figure, year or method.
-          </p>
-          <p data-testid="benchmark-centax">
-            CenTax estimate a static cost of {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year} for the free hours, and a
-            net cost of {formatBn(CENTAX.netBn, 2)} after £0.34bn of extra revenue: £0.21bn of tax from parents who no
-            longer keep their income below £100,000, and £0.13bn of tax and National Insurance from partners who enter
-            work. The £0.7bn is close to the net figure.
-          </p>
-          <p data-testid="benchmark-like-for-like">
-            Like for like, the comparison is our 30 hours cost with CenTax&apos;s static cost, both before any change
-            in how much parents work: {formatBn(last.thirty_hours, 2)} in {nb(last.year)} against{" "}
-            {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year}. Our total for both schemes, {formatBn(last.total, 2)},
-            also includes Tax-Free Childcare, which CenTax do not cost.
-          </p>
-        </div>
-      ),
-    },
-    {
-      id: "thirty-hours",
-      title: "Inside the 30 hours cost",
-      summary: "Extra hours gained, less universal hours switched off",
-      testId: "topic-thirty-hours",
-      content: (
-        <div className="space-y-4">
-          <p className="text-sm leading-6 text-slate-600">
-            The model switches off the universal 15 hours for a 3- or 4-year-old once the family qualifies for the
-            extended hours, so part of the gain is offset. The rows add up to the 30 hours cost in the chart.
-          </p>
-          <SeriesTable
-            years={years}
-            testId="components-table"
-            format={formatSignedM}
-            rows={[
-              { label: "Extended hours gained", values: comps.extended },
-              { label: "Universal hours switched off", values: comps.universal },
-              ...(comps.targeted.some((v) => Math.abs(v) >= 0.0005) ? [{ label: "Targeted 2-year-old hours", values: comps.targeted }] : []),
-            ]}
-          />
-        </div>
-      ),
-    },
-  ];
-  return <TopicPanel topics={topics} testId="comparisons" />;
+  const last = getBudget(data).rows.at(-1);
+  return (
+    <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid="benchmark">
+      <p>
+        <a href={benchmark.url} target="_blank" rel="noreferrer">
+          City AM
+        </a>{" "}
+        reports the cost of the party&apos;s plan as about £700m a year and says it is based on{" "}
+        <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
+          CenTax&apos;s report
+        </a>
+        , which costs removing the limit on the free childcare hours only. The party&apos;s{" "}
+        <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
+          announcement
+        </a>{" "}
+        covers both the free hours and Tax-Free Childcare, and gives no figure, year or method.
+      </p>
+      <p data-testid="benchmark-centax">
+        CenTax estimate a static cost of {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year} for the free hours, and a
+        net cost of {formatBn(CENTAX.netBn, 2)} after £0.34bn of extra revenue: £0.21bn of tax from parents who no
+        longer keep their income below £100,000, and £0.13bn of tax and National Insurance from partners who enter
+        work. The £0.7bn is close to the net figure.
+      </p>
+      <p data-testid="benchmark-like-for-like">
+        Like for like, the comparison is our 30 hours cost with CenTax&apos;s static cost, both before any change
+        in how much parents work: {formatBn(last.thirty_hours, 2)} in {nb(last.year)} against{" "}
+        {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year}. Our total for both schemes, {formatBn(last.total, 2)},
+        also includes Tax-Free Childcare, which CenTax do not cost.
+      </p>
+    </div>
+  );
 }
 
-const ASSUMPTIONS = [
-  { title: "No change in work", text: "Parents work and earn the same with or without the limit." },
-  { title: "30 hours in England only", text: "The funded hours are an English scheme; Scotland, Wales and Northern Ireland have their own." },
-  { title: "Tax-Free Childcare UK-wide", text: "The government top-up of 20% of childcare costs is open to families across the UK." },
-  {
-    title: "Microcosm data",
-    text: "Every figure uses Microcosm UK 2024-25, PolicyEngine's certified national dataset, run through policyengine.py.",
-  },
-];
+function ThirtyHoursComponents({ data }) {
+  const years = getBudget(data).years;
+  const comps = getThirtyHoursComponents(data);
+  return (
+    <div className="space-y-4">
+      <p className="text-sm leading-6 text-slate-600">
+        The model switches off the universal 15 hours for a 3- or 4-year-old once the family qualifies for the
+        extended hours, so part of the gain is offset. The rows add up to the 30 hours cost in the chart.
+      </p>
+      <SeriesTable
+        years={years}
+        testId="components-table"
+        format={formatSignedM}
+        rows={[
+          { label: "Extended hours gained", values: comps.extended },
+          { label: "Universal hours switched off", values: comps.universal },
+          ...(comps.targeted.some((v) => Math.abs(v) >= 0.0005) ? [{ label: "Targeted 2-year-old hours", values: comps.targeted }] : []),
+        ]}
+      />
+    </div>
+  );
+}
 
 /** True when two series match to within rounding in every year. */
 const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
@@ -395,15 +371,15 @@ export default function LandingTab({ data }) {
       <Section
         id="each-year"
         title="The cost each year"
-        lead="Central cost by scheme, with the low-to-high range around it."
+        lead="Each bar is our central estimate, split by scheme. The thin black line through it shows how far the cost could move if our main uncertain assumptions are wrong: its bottom is the low estimate and its top the high estimate. The next section shows what sets each end."
         detailsTitle="How to read this chart"
         details={
           <>
             <p>
               Each bar is the extra government spending in that fiscal year when neither the 30 hours nor Tax-Free
               Childcare is withdrawn above £100,000 of adjusted net income, with the policy in force for the whole
-              year. {fyLabel(budget.years[0])} is more than half over, so its full-year cost is illustrative. The line
-              through each bar runs from the low to the high end of the range, built from the adjustments below.
+              year. {fyLabel(budget.years[0])} is more than half over, so its full-year cost is illustrative. The thin
+              line through each bar runs from the low estimate to the high estimate.
             </p>
             {same(cmp.net, budget.rows.map((r) => r.total)) ? (
               <p data-testid="net-note">The cost is the same net of other taxes and benefits: nothing else changes for these families.</p>
@@ -423,24 +399,25 @@ export default function LandingTab({ data }) {
       <Section
         id="sensitivities"
         title="What moves the cost"
-        lead="The adjustments that build the low and high ends of the range, each added to the central cost."
+        lead="Each row is one assumption we are unsure of, and how much changing it moves the central cost. Adding the rows that lower the cost gives the low estimate; adding the rows that raise it gives the high estimate."
       >
         <SensitivityTable sens={sens} />
       </Section>
 
-      <Section id="assumptions" title="What these figures assume" lead="The main choices behind every cost on this page." boxed={false}>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" data-testid="assumptions">
-          {ASSUMPTIONS.map((a) => (
-            <div key={a.title} className="panel !p-4">
-              <p className="text-sm font-semibold text-slate-800">{a.title}</p>
-              <p className="mt-1 text-sm leading-6 text-slate-600">{a.text}</p>
-            </div>
-          ))}
-        </div>
+      <Section
+        id="comparisons"
+        title="How our cost compares with the £0.7bn"
+        lead="The Conservative plan has been reported as costing about £0.7bn a year. This traces that figure to its source and sets it against our estimate on the same basis."
+      >
+        <BenchmarkComparison data={data} />
       </Section>
 
-      <Section id="comparisons" title="Comparisons" lead="The £0.7bn figure and its source, and what makes up the 30 hours cost." boxed={false}>
-        <ComparisonTopics data={data} />
+      <Section
+        id="thirty-hours"
+        title="What makes up the 30 hours cost"
+        lead="Newly eligible families gain the extended hours, but the model stops their universal 15 hours at the same time, so the net cost is the first row less the second."
+      >
+        <ThirtyHoursComponents data={data} />
       </Section>
     </div>
   );

@@ -23,8 +23,8 @@ const SECTIONS = {
     { id: "at-a-glance", title: "At a glance" },
     { id: "each-year", title: "Each year" },
     { id: "sensitivities", title: "What moves the cost" },
-    { id: "assumptions", title: "Assumptions" },
-    { id: "comparisons", title: "Comparisons" },
+    { id: "comparisons", title: "Against the £0.7bn" },
+    { id: "thirty-hours", title: "Inside the 30 hours" },
   ],
   "who-gains": [
     { id: "deciles", title: "By income" },
@@ -95,20 +95,43 @@ export function Dashboard({ data }) {
 
       <main className="relative z-[1] mx-auto max-w-[1600px] px-6 py-10 md:px-10 md:py-12 lg:pl-24 lg:pr-[284px]">
         <div className="animate-[fadeIn_0.4s_ease-out]">
-          <p className="mb-3 text-[1.1rem] leading-relaxed text-slate-700" data-testid="intro">
-            Working parents lose the 30 funded hours of childcare in England, and Tax-Free Childcare across the UK, as
-            soon as either parent&apos;s adjusted net income goes above £100,000. On 4 October 2026 Conservative leader
-            Kemi Badenoch{" "}
+          <p className="mb-3 text-base leading-7 text-slate-700" data-testid="intro">
+            Working parents lose the 30 funded hours of childcare in England, and Tax-Free Childcare across the UK, once
+            either parent&apos;s adjusted net income passes £100,000. On 4 October 2026 Conservative leader Kemi
+            Badenoch{" "}
             <a href={ANNOUNCEMENT_URL} target="_blank" rel="noreferrer" className="underline">
               pledged
             </a>{" "}
-            to remove this limit, paid for by savings elsewhere in public spending. We cost removing it from both schemes with{" "}
+            to remove this limit, paid for by savings elsewhere in public spending. This dashboard costs removing it from
+            both schemes with{" "}
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
             </a>
-            {` from ${period}`}, and show who gains and how the £100,000 cliff disappears for a family
-            near the limit.
+            {` from ${period}`}. The four tabs cover:
           </p>
+          <ul className="mb-3 list-disc space-y-2 pl-6 text-base leading-7 text-slate-700" data-testid="tab-guide">
+            <li>
+              <strong>Budget impact</strong>: what removing the limit adds to government spending each year, split
+              between the 30 hours and Tax-Free Childcare, with a low and a high estimate around it. It also shows which
+              uncertain assumptions move the cost most, and how our figure compares with the £0.7bn reported for the
+              pledge.
+            </li>
+            <li>
+              <strong>Who gains</strong>: only families with a parent above £100,000 gain, so this tab shows where they
+              sit in the income distribution, how many families and children gain from each scheme, and how the gains
+              split across England, Scotland, Wales and Northern Ireland.
+            </li>
+            <li>
+              <strong>The cliff</strong>: one example family&apos;s net income as a parent&apos;s earnings rise past
+              £100,000, with and without the limit. It explains why earning one pound more can leave the family worse
+              off today, and how removing the limit smooths that drop.
+            </li>
+            <li>
+              <strong>Methodology</strong>: the data and model behind every figure, how the two income limits work,
+              the take-up assumptions for newly eligible families, how the baseline compares with official statistics,
+              and what the costing does not capture.
+            </li>
+          </ul>
         </div>
 
         <div
