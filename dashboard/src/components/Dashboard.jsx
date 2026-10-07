@@ -152,9 +152,6 @@ export function LabourSupplyControl({ data, setting, onChange }) {
   );
   return (
     <div className="mb-8" data-testid="labour-supply-control">
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-sm font-semibold text-slate-800">If parents change how much they work</span>
-      </div>
       <div className="grid gap-3 md:grid-cols-2">
         <ResponseCard
           on={setting.extensive}
