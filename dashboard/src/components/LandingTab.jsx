@@ -262,21 +262,12 @@ export function netGrossGapM(net, gross) {
 function SchemesTable() {
   const rows = [
     ["Where", "England", "UK-wide"],
-    [
-      "What it gives",
-      "30 funded hours a week, 38 weeks a year, from 9 months until the child starts school. For 3- and 4-year-olds it is 15 extra hours on top of the universal 15, which have no income test.",
-      "£2 for every £8 a family pays a registered childcare provider, up to £2,000 a year per child (£4,000 for a disabled child), for children up to 11 (16 if disabled).",
-    ],
-    [
-      "Who qualifies today",
-      "Each parent must expect to earn at least the equivalent of 16 hours a week at the National Minimum or Living Wage, and neither may expect adjusted net income over £100,000. The test is on each parent separately.",
-      "The same two tests as the 30 hours.",
-    ],
-    [
-      "What the reform changes",
-      "Removes the £100,000 test. The minimum earnings test and every other condition stay.",
-      "Removes the £100,000 test. The minimum earnings test and every other condition stay.",
-    ],
+    ["What it is", "Free childcare hours (for 3- and 4-year-olds, 15 on top of the universal 15)", "20% top-up on childcare bills (£2 for every £8)"],
+    ["Children's ages", "9 months to school age", "Up to 11 (16 if disabled)"],
+    ["Most per child", "30 hours a week, 38 weeks a year", "£2,000 a year (£4,000 if disabled)"],
+    ["Earnings floor", "Each parent earns at least 16 hours a week at the minimum wage", "Same"],
+    ["Income limit today", "Neither parent over £100,000", "Same"],
+    ["After the reform", "No income limit; everything else unchanged", "Same"],
   ];
   return (
     <div className="overflow-x-auto">
