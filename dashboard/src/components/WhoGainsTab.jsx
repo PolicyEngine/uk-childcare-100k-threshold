@@ -76,7 +76,7 @@ function DecileChart({ rows: raw, measure }) {
               cursor={{ fill: colors.gray[100] }}
               content={<CustomTooltip formatter={(v) => m.format(v)} labelFormatter={(d) => `Decile ${d}`} />}
             />
-            <Bar dataKey={measure} name={m.label} fill={colors.primary[600]} isAnimationActive={false} maxBarSize={56} />
+            <Bar dataKey={measure} name={m.label} fill={colors.primary[600]} radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={56} />
           </BarChart>
         </ResponsiveContainer>
       </div>

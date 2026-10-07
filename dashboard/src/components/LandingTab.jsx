@@ -179,7 +179,19 @@ function CostChart({ rows }) {
               content={<CustomTooltip formatter={(v) => formatBn(v, 2)} totalLabel="Total" />}
             />
             {SCHEMES.map((s) => (
-              <Bar key={s} dataKey={s} name={SCHEME_LABELS[s]} stackId="cost" fill={schemeColors[s]} isAnimationActive={false} maxBarSize={80} />
+              <Bar
+                key={s}
+                dataKey={s}
+                name={SCHEME_LABELS[s]}
+                stackId="cost"
+                fill={schemeColors[s]}
+                // Only the top of the stack is rounded; a white edge separates the two schemes.
+                radius={s === SCHEMES.at(-1) ? [4, 4, 0, 0] : 0}
+                stroke="#fff"
+                strokeWidth={1}
+                isAnimationActive={false}
+                maxBarSize={80}
+              />
             ))}
           </BarChart>
         </ResponsiveContainer>
