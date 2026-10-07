@@ -262,6 +262,9 @@ def extract(sim, year, baseline_extras=False):
     out["bu_any_over_law"] = any_member(out["p_ani_net_pension_over"])  # ANI net of pension contributions
     out["bu_child_under_5"] = any_member(is_child & (age < 5))
     out["bu_child_under_12"] = any_member(is_child & (age < 12))
+    # For the breakdown by sex of the higher earner: each person's sex and whether they have earnings.
+    out["p_female"] = calc("gender").astype(str) == "FEMALE"
+    out["p_in_work"] = (calc("employment_income").astype(float) + calc("self_employment_income").astype(float)) > 0
     # Family type, as an integer code in config.FAMILY_TYPES order: lone parent, or a couple by number of children.
     n_children = np.bincount(out["p_benunit"], weights=is_child.astype(float), minlength=len(bu_ids))
     family = calc("family_type").astype(str)

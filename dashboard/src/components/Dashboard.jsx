@@ -34,6 +34,7 @@ const SECTIONS = {
     { id: "household", title: "Your household" },
     { id: "breakdown", title: "Where the gains go" },
     { id: "recipients", title: "Families gaining" },
+    { id: "gender", title: "Mothers and fathers" },
   ],
   method: [
     { id: "model", title: "How we cost it" },

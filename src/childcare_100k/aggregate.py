@@ -233,7 +233,7 @@ def _cell_ok(*n_records):
     return all(n == 0 or n >= MIN_CELL_RECORDS for n in n_records)
 
 
-_LABELS = ("decile", "region", "family_type")
+_LABELS = ("decile", "region", "family_type", "group", "higher_earner")
 
 
 def _suppress(cell):
@@ -422,3 +422,75 @@ def labour_supply(static_total, years=YEARS):
         "dynamic_cost_bn": dynamic,
         "population": checks,
     }
+
+
+EARNER_GROUPS = {
+    "father": "Father over £100,000",
+    "mother": "Mother over £100,000",
+    "both": "Both parents over £100,000",
+    "lone": "Lone parent over £100,000",
+}
+
+
+def _earner_counts(b, y):
+    """Per benefit unit: adults, adults over £100,000, and of those how many are women (baseline)."""
+    pb = b(y, "p_benunit")
+    adult = ~b(y, "p_is_child")
+    over = b(y, "p_ani_over") & adult
+    n = len(b(y, "bu_weight"))
+    count = lambda flag: np.bincount(pb, weights=flag.astype(float), minlength=n)  # noqa: E731
+    return pb, adult, over, count(adult), count(over), count(over & b(y, "p_female"))
+
+
+def gender(runs, years=YEARS):
+    """Families gaining by who is over £100,000, and, among couples with a child under 12 where exactly one
+    parent is over £100,000, the share whose other parent has no earnings, by the sex of the higher earner.
+
+    Descriptive and static: it says who the reform reaches, not how anyone's work changes. A couple gains only if
+    both parents pass the minimum earnings test, so a family whose other parent does not work gains nothing.
+    """
+    b, r = runs["baseline"], runs["reform"]
+    out = {}
+    for y in years:
+        bw = _weights(b, r, y, "bu")
+        d_bu = family_changes(b, r, y)[2]
+        gain = d_bu > GAIN_THRESHOLD
+        changed = np.abs(d_bu) > GAIN_THRESHOLD
+        pb, adult, over, n_adult, n_over, n_over_f = _earner_counts(b, y)
+        groups = {
+            "father": (n_adult == 2) & (n_over == 1) & (n_over_f == 0),
+            "mother": (n_adult == 2) & (n_over == 1) & (n_over_f == 1),
+            "both": (n_adult == 2) & (n_over == 2),
+            "lone": (n_adult == 1) & (n_over == 1),
+        }
+        fam = MicroSeries(gain.astype(float), weights=bw)
+        cells, sizes = [], []
+        for key, m in groups.items():
+            n_gain, n_changed = _records(gain & m), _records(changed & m)
+            sizes.append(n_changed)
+            if not _cell_ok(n_gain, n_changed):
+                cells.append({"group": EARNER_GROUPS[key], "families_gaining": None, "suppressed": True})
+                continue
+            cells.append({"group": EARNER_GROUPS[key], "families_gaining": _k(fam[m].sum()), "suppressed": False})
+
+        # The other parent in a couple where exactly one parent is over £100,000.
+        other_works = np.bincount(pb, weights=(adult & ~over & b(y, "p_in_work")).astype(float), minlength=len(bw)) > 0
+        couples = b(y, "bu_child_under_12") & (n_adult == 2) & (n_over == 1)
+        partner = []
+        for key in ("father", "mother"):
+            m = couples & groups[key]
+            not_working = m & ~other_works
+            n_all, n_nw = _records(m), _records(not_working)
+            if not _cell_ok(n_all, n_nw):
+                partner.append({"higher_earner": EARNER_GROUPS[key], "families": None, "partner_not_working_pct": None,
+                                "suppressed": True})
+                continue
+            total = MicroSeries(m.astype(float), weights=bw).sum()
+            partner.append({
+                "higher_earner": EARNER_GROUPS[key],
+                "families": _k(total),
+                "partner_not_working_pct": round(float(100 * MicroSeries(not_working.astype(float), weights=bw).sum() / total), 1),
+                "suppressed": False,
+            })
+        out[str(y)] = {"families_gaining_by_earner": _complement(cells, sizes), "partner_not_working": partner}
+    return out

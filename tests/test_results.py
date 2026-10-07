@@ -304,3 +304,15 @@ def test_static_assumption_carries_the_labour_supply_effect():
     offset = RESULTS["labour_supply"]["total_offset_bn"]["central"]
     for y in YEAR_KEYS:
         assert row["effect_bn"][y] == pytest.approx(-offset[y], abs=0.0005)
+
+
+@pytest.mark.parametrize("year", YEAR_KEYS)
+def test_gender_breakdown_adds_up_and_is_suppressed_safely(year):
+    g = RESULTS["gender"][year]
+    cells = g["families_gaining_by_earner"]
+    assert sum(c["suppressed"] for c in cells) != 1
+    shown = sum(c["families_gaining"] for c in cells if not c["suppressed"])
+    assert shown <= RESULTS["recipients"][year]["families_gaining"] + 2_000  # cells rounded to the nearest thousand
+    for p in g["partner_not_working"]:
+        if not p["suppressed"]:
+            assert 0 <= p["partner_not_working_pct"] <= 100

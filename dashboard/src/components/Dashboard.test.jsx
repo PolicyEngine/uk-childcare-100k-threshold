@@ -156,8 +156,18 @@ describe("who gains", () => {
           expect(rows[i].textContent).not.toMatch(/£0m|\b0\b/);
         } else expect(rows[i].textContent).toContain(c.families_gaining.toLocaleString("en-GB"));
       });
-      expect(screen.getByTestId("group-chart")).toBeTruthy();
+      expect(within(screen.getByTestId("section-breakdown")).getByTestId("group-chart")).toBeTruthy();
     }
+  });
+
+  it("splits families gaining by which parent is over £100,000, and shows the partner not working, from the file", () => {
+    render(<WhoGainsTab data={data} />);
+    const g = data.gender[LEAD_YEAR];
+    const section = screen.getByTestId("section-gender");
+    const shown = g.families_gaining_by_earner.filter((c) => !c.suppressed);
+    expect(shown.reduce((t, c) => t + c.families_gaining, 0)).toBeLessThanOrEqual(data.recipients[LEAD_YEAR].families_gaining);
+    for (const p of g.partner_not_working.filter((c) => !c.suppressed))
+      expect(within(section).getByTestId("partner-not-working").textContent).toContain(`${Math.round(p.partner_not_working_pct)}%`);
   });
 
   it("draws the families and children gaining, with the scheme counts from the file", () => {
