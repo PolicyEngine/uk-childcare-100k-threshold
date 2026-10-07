@@ -226,7 +226,7 @@ describe("methodology", () => {
     render(<MethodTab data={data} />);
     const table = screen.getByTestId("comparison-table");
     const final = years.at(-1);
-    for (const a of data.modelling_assumptions) {
+    for (const a of data.modelling_assumptions.filter((x) => x.effect_bn || x.id === "static")) {
       expect(table.textContent, a.id).toContain(a.ours);
       if (a.effect_bn) {
         const m = Math.round(a.effect_bn[final] * 1000);

@@ -48,7 +48,6 @@ export function BenchmarkNotes({ data }) {
 }
 
 
-const DFE_TAKE_UP_URL = "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025";
 const SI_2022_1134_URL = "https://www.legislation.gov.uk/uksi/2022/1134";
 
 /** £bn as a signed £m figure. */
@@ -72,12 +71,10 @@ export function UnifiedComparison({ data }) {
   const budget = getBudget(data);
   const last = budget.rows.at(-1);
   const li = budget.years.length - 1;
-  const benchmark = getBenchmarks(data)[0];
   const a = Object.fromEntries(getModellingAssumptions(data).map((r) => [r.id, r]));
   const [central, high, low] = ["central", "high", "low"].map((id) => CENTAX_SCENARIOS.find((c) => c.id === id));
   const net = (v) => (v < 0 ? `raises ${formatBn(-v, 2)}` : formatBn(v, 2));
   const eff = (id) => (a[id]?.effects ? signedM(a[id].effects[li]) : "Not tested");
-  const centax = <Link href={benchmark.underlying_source_url}>CenTax report</Link>;
   const groups = [
     {
       title: "Cost",
@@ -104,7 +101,6 @@ export function UnifiedComparison({ data }) {
     {
       title: "How it is modelled",
       rows: [
-        ["Data", "Microcosm UK 2024-25, survey-based", "", "HMRC administrative tax and childcare-account records", "Not stated", ""],
         [
           "Work, pay and pensions",
           a.static.ours,
@@ -112,14 +108,6 @@ export function UnifiedComparison({ data }) {
           "Parents stop keeping income below £100,000; partners move into work",
           "Not stated",
           "",
-        ],
-        [
-          "Who claims",
-          a.take_up.ours,
-          eff("take_up"),
-          "DfE take-up rates for newly eligible parents",
-          "Not stated",
-          <Link key="dfe" href={DFE_TAKE_UP_URL}>DfE funded early education statistics</Link>,
         ],
         [
           "Hours of childcare used",
@@ -147,22 +135,6 @@ export function UnifiedComparison({ data }) {
             After pension contributions (<Link href={a.income_test.source.url}>ITA 2007 s58</Link>); the income a parent
             expects (<Link href={SI_2022_1134_URL}>SI 2022/1134</Link>)
           </span>,
-        ],
-        [
-          "Years and timing",
-          `${a.timing.ours} to ${nb(last.year)}`,
-          eff("timing"),
-          "2027-28 and 2029-30 (labelled 2028 and 2030)",
-          <span key="t">No start date (<Link href={a.timing.source.url}>announcement</Link>)</span>,
-          "",
-        ],
-        [
-          "Method published",
-          <Link key="pe" href="https://github.com/PolicyEngine/uk-childcare-100k-threshold">Code and data versions</Link>,
-          "",
-          centax,
-          "No",
-          "",
         ],
       ],
     },
