@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LandingTab from "./LandingTab";
 import WhoGainsTab from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
-import { fyLabel, getYears } from "../lib/dataHelpers";
+import { fyLabel, getMeta, getYears } from "../lib/dataHelpers";
 import { TabLayout } from "./ui";
 
 export const TAB_OPTIONS = [
@@ -49,14 +49,19 @@ function getInitialTab(tabParam) {
 }
 
 /** "Replication code: PolicyEngine/uk-childcare-100k-threshold." */
-export function ReplicationLine() {
+export function ReplicationLine({ meta }) {
   return (
     <p data-testid="replication">
-      Replication code:{" "}
+      Built with{" "}
+      <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noreferrer">
+        policyengine.py {meta.policyengine}
+      </a>{" "}
+      (policyengine-uk {meta.policyengine_uk}) on {meta.dataset_label ?? meta.dataset}
+      {meta.dataset_release ? `, release ${meta.dataset_release}` : ""}. Replication code:{" "}
       <a href={REPO_URL} target="_blank" rel="noreferrer">
         PolicyEngine/uk-childcare-100k-threshold
       </a>
-      . Model and data versions are on the Methodology tab.
+      .
     </p>
   );
 }
@@ -145,7 +150,7 @@ export function Dashboard({ data }) {
         </TabLayout>
 
         <footer className="mt-12 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">
-          <ReplicationLine />
+          <ReplicationLine meta={getMeta(data)} />
         </footer>
       </main>
     </div>

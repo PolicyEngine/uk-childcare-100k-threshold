@@ -52,6 +52,12 @@ describe("the page", () => {
     }
   });
 
+  it("pins the policyengine.py, policyengine-uk and dataset release in the footer, from the file", () => {
+    render(<Dashboard data={data} />);
+    const text = screen.getByTestId("replication").textContent;
+    for (const k of ["policyengine", "policyengine_uk", "dataset_release"]) expect(text, k).toContain(data.meta[k]);
+  });
+
   it("states the modelled period in the intro, from the file", () => {
     render(<Dashboard data={data} />);
     expect(screen.getByTestId("intro").textContent).toContain(`from ${fy(years[0])} to ${fy(final)}`);
