@@ -83,14 +83,8 @@ const BREWER_URL =
 const CENTAX_BUNCHING_URL =
   "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42";
 
-/** What a response does to the reform's cost in a year: "Cuts the cost by £240m in 2029-30", or "Adds £5m…". */
-function effectLabel(v, year) {
-  const m = `£${Math.round(Math.abs(v) * 1000).toLocaleString("en-GB")}m`;
-  return v < 0 ? `Adds ${m} to the cost in ${year}` : `Cuts the cost by ${m} in ${year}`;
-}
-
 /** One response as a card: the whole header is the switch; the source link sits outside it. */
-function ResponseCard({ on, onChange, title, tag, description, source, value, year, testId }) {
+function ResponseCard({ on, onChange, title, tag, description, source, testId }) {
   return (
     <div
       className={`flex flex-col rounded-xl border p-4 transition-colors ${
@@ -120,12 +114,7 @@ function ResponseCard({ on, onChange, title, tag, description, source, value, ye
         </span>
       </button>
       <p className="mt-2 text-sm leading-5 text-slate-600">{description}</p>
-      <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-1 pt-3 text-xs">
-        <span className="text-slate-500">Source: {source}</span>
-        <span className={`whitespace-nowrap font-semibold ${on ? "text-slate-900" : "text-slate-400"}`}>
-          {effectLabel(value, year)}
-        </span>
-      </div>
+      <p className="mt-auto pt-3 text-xs text-slate-500">Source: {source}</p>
     </div>
   );
 }
@@ -138,12 +127,10 @@ function ResponseCard({ on, onChange, title, tag, description, source, value, ye
 export function LabourSupplyControl({ data, setting, onChange }) {
   const ls = getLabourSupply(data);
   const a = ls.assumptions;
-  const li = ls.years.length - 1;
-  const year = fyLabel(ls.years[li]);
   const b = setting.bound;
   const any = setting.extensive || setting.intensive || setting.bunching;
   const note = any
-    ? "Each card shows how much that response changes the reform's cost, through the tax and National Insurance paid on the extra earnings. Switched-on responses change the cost on this tab and in the comparison on Methodology, which explains each one. Who gains stays static."
+    ? "Switched-on responses change the cost on this tab and in the comparison on Methodology, which explains each one. Who gains stays static."
     : "All off: the static costing, with nobody changing how much they work. Switch a response on to see the cost after it.";
   const link = (href, text) => (
     <a href={href} target="_blank" rel="noreferrer" className="underline">
@@ -182,8 +169,6 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           title="Partners move into work"
           description="A partner who doesn't work may start, now that working brings the family childcare support."
           source={link(OBR_ELASTICITIES_URL, "OBR elasticities")}
-          value={ls.extensive.offset[b][li]}
-          year={year}
           testId="toggle-extensive"
         />
         <ResponseCard
@@ -193,8 +178,6 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           title="Parents work more hours"
           description="Parents in work, at any income, may work more as their childcare gets cheaper."
           source={<>{link(BREWER_URL, "Brewer et al.")}, assumed elasticity {a.hours_price_elasticity}</>}
-          value={ls.intensive.offset[b][li]}
-          year={year}
           testId="toggle-intensive"
         />
         <ResponseCard
@@ -204,8 +187,6 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           title="No more holding income under £100,000"
           description="Parents who keep their income just below the limit stop doing so. Not in our data, so taken from CenTax."
           source={link(CENTAX_BUNCHING_URL, "CenTax estimate")}
-          value={ls.bunching.offset[b][li]}
-          year={year}
           testId="toggle-bunching"
         />
       </div>
