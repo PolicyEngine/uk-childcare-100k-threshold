@@ -301,7 +301,7 @@ export default function LandingTab({ data }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`What removing the £100,000 limit on both schemes adds to government spending, and who gains. It opens on ${fyLabel(LEAD_YEAR)}, the first full year; click a year's bar to change it.`}
+        lead={`Today a family loses the 30 funded hours (England) and Tax-Free Childcare (UK-wide) as soon as either parent's adjusted net income goes over £100,000. The reform removes that limit from both schemes, so families keep the support however much a parent earns; every other condition, including the minimum earnings test, stays. These cards show what that adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year; click a year's bar to change it.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
