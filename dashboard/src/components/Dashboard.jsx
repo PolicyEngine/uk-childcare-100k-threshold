@@ -129,9 +129,7 @@ export function LabourSupplyControl({ data, setting, onChange }) {
   const a = ls.assumptions;
   const b = setting.bound;
   const any = setting.extensive || setting.intensive || setting.bunching;
-  const note = any
-    ? "Switched-on responses change the cost on this tab and in the comparison on Methodology, which explains each one. Who gains stays static."
-    : "All off: the static costing, with nobody changing how much they work. Switch a response on to see the cost after it.";
+  const note = any ? null : "All off: the static costing, with nobody changing how much they work. Switch a response on to see the cost after it.";
   const link = (href, text) => (
     <a href={href} target="_blank" rel="noreferrer" className="underline">
       {text}
@@ -190,9 +188,11 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           testId="toggle-bunching"
         />
       </div>
-      <p className="mt-2 text-xs text-slate-500" data-testid="labour-supply-note">
-        {note}
-      </p>
+      {note ? (
+        <p className="mt-2 text-xs text-slate-500" data-testid="labour-supply-note">
+          {note}
+        </p>
+      ) : null}
     </div>
   );
 }
