@@ -17,6 +17,7 @@ from microdf import MicroSeries
 
 from .config import (
     FAMILY_TYPES,
+    FREE_HOURS_DISPLACEMENT_RANGE,
     FREE_HOURS_VARIABLES,
     GAIN_THRESHOLD,
     MIN_CELL_RECORDS,
@@ -116,7 +117,7 @@ def budget_block(runs, years=YEARS):
 
 
 def thirty_hours_components(runs, years=YEARS):
-    """The 30-hours leg split by entitlement (£bn). The universal line is the 3-4-year-olds' switch."""
+    """The 30-hours leg split by entitlement (£bn). The universal and targeted lines stay at zero (corrections.py)."""
     b, r = runs["baseline"], runs["reform"]
     out = {}
     for v in FREE_HOURS_VARIABLES:
@@ -389,6 +390,12 @@ def labour_supply(static_total, years=YEARS):
         "leavers": by_year("extensive", "leavers", lambda x: _round_to(x, 100)),
         "ftes": by_year("extensive", "ftes", lambda x: _round_to(x, 100)),
         "earnings_bn": by_year("extensive", "earnings", _bn),
+        # Diagnostics for the participation rule (labour_supply.participation_response): the part of the
+        # entrants implied by workers over £100,000, and the entrants the earlier rule (e x dG/G applied to
+        # each non-worker) would give.
+        "implied_by_over_limit": by_year("extensive", "implied_by_over_limit", lambda x: _round_to(x, 100)),
+        "non_worker_rule_entrants": by_year("extensive", "non_worker_rule_entrants", lambda x: _round_to(x, 100)),
+        "entry_capped": by_year("extensive", "entry_capped", lambda x: _round_to(x, 100)),
     }
     intensive = {
         "offset_bn": by_year("intensive", "offset", _bn),
@@ -402,6 +409,12 @@ def labour_supply(static_total, years=YEARS):
         "offset_bn": by_year("intensive_over_limit", "offset", _bn),
         "ftes": by_year("intensive_over_limit", "ftes", lambda x: _round_to(x, 100)),
         "earnings_bn": by_year("intensive_over_limit", "earnings", _bn),
+    }
+    # Sensitivity, not in the dynamic cost: the free-hours displacement assumption varied alone, central elasticities.
+    intensive_displacement = {
+        "offset_bn": {side: {str(y): _bn(float(z[f"{y}/intensive_displacement/{side}/offset"])) for y in years}
+                      for side in FREE_HOURS_DISPLACEMENT_RANGE},
+        "displacement": {side: round(v, 4) for side, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
     }
     total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
                  for y in years} for b in BOUNDS}
@@ -418,6 +431,7 @@ def labour_supply(static_total, years=YEARS):
         "extensive": extensive,
         "intensive": intensive,
         "intensive_over_limit": intensive_over_limit,
+        "intensive_displacement": intensive_displacement,
         "total_offset_bn": total,
         "dynamic_cost_bn": dynamic,
         "population": checks,

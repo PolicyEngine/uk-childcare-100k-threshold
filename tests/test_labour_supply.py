@@ -51,7 +51,7 @@ def test_price_change_splits_the_parent_over_the_limit_from_everyone_else():
     assert respond.tolist() == [False, True, False, False]
 
 
-def _prep(pct, elasticity, emp, eligible=None):
+def _prep(pct, elasticity, emp, eligible=None, over_limit=None):
     n = len(pct)
     return {
         "pct": np.asarray(pct, float),
@@ -59,6 +59,7 @@ def _prep(pct, elasticity, emp, eligible=None):
         "reform_gain": np.full(n, 15_000.0),
         "entrant_subsidy": np.full(n, 200.0),
         "eligible": np.ones(n, bool) if eligible is None else np.asarray(eligible, bool),
+        "over_limit": np.zeros(n, bool) if over_limit is None else np.asarray(over_limit, bool),
         "weights": np.full(n, 10.0),
         "employment_income": np.asarray(emp, float),
         "weekly_hours": np.full(n, 30.0),
@@ -66,8 +67,23 @@ def _prep(pct, elasticity, emp, eligible=None):
     }
 
 
+def test_participation_applies_the_elasticity_to_the_employed_share():
+    """C4: 80 workers and 20 non-workers, e x dG/G = 0.02 each: P x e x dG/G = 1.6 entrants per 100."""
+    n_work, n_not = 80, 20
+    prep = _prep(pct=[0.2] * 100, elasticity=[0.1] * 100, emp=[30_000] * n_work + [0] * n_not)
+    prep["weights"] = np.ones(100)
+    r = ls.participation_response(prep, 1.0)
+    assert r["entrants"] == pytest.approx(1.6)
+    assert r["implied_entrants"] == pytest.approx(1.6)
+    assert r["non_worker_rule_entrants"] == pytest.approx(0.4)  # the old rule: (1 - P) x e x dG/G
+    assert r["leavers"] == 0
+
+
 def test_participation_response_is_the_expected_value():
-    prep = _prep(pct=[0.2, 0.2, -0.1], elasticity=[0.1, 0.1, 0.1], emp=[0, 0, 50_000], eligible=[True, False, True])
+    # Worker 0's gain rises (it implies entrants), worker 3's falls (it leaves); the non-worker
+    # (1) is who enters; record 2 is outside the population.
+    prep = _prep(pct=[0.2, 0.2, 0.2, -0.1], elasticity=[0.1] * 4, emp=[40_000, 0, 0, 50_000],
+                 eligible=[True, True, False, True])
     r = ls.participation_response(prep, 1.0)
     assert r["entrants"] == pytest.approx(10 * 0.02)
     assert r["leavers"] == pytest.approx(10 * 0.01)
@@ -75,9 +91,41 @@ def test_participation_response_is_the_expected_value():
     assert ls.participation_response(prep, 2.0)["entrants"] == pytest.approx(2 * r["entrants"])
 
 
+def test_entrants_are_shared_among_non_workers_by_their_own_response():
+    prep = _prep(pct=[0.3, 0.1, 0.3], elasticity=[0.1] * 3, emp=[40_000, 0, 0])
+    prep["entrant_earnings"] = np.array([0.0, 10_000.0, 20_000.0])
+    r = ls.participation_response(prep, 1.0)
+    # 0.3 (scaled by weight 10) of new employment, split 1:3 between the two non-workers.
+    assert r["entrants"] == pytest.approx(10 * 0.03)
+    assert r["earnings"] == pytest.approx(10 * 0.03 * (0.25 * 10_000 + 0.75 * 20_000))
+
+
 def test_participation_change_is_bounded():
-    prep = _prep(pct=[10.0], elasticity=[1.0], emp=[0])
-    assert ls.participation_response(prep, 1.0)["entrants"] == pytest.approx(10 * config.PARTICIPATION_CHANGE_BOUND)
+    prep = _prep(pct=[10.0, 10.0], elasticity=[1.0, 1.0], emp=[40_000, 0])
+    r = ls.participation_response(prep, 1.0)
+    assert r["entrants"] == pytest.approx(10 * config.PARTICIPATION_CHANGE_BOUND)
+    # No non-worker's probability of entering exceeds 1, however many workers imply entrants.
+    many = _prep(pct=[1.0] * 5, elasticity=[0.4] * 5, emp=[40_000] * 4 + [0])
+    assert ls.participation_response(many, 1.0)["entrants"] == pytest.approx(10 * 1.0)
+
+
+def test_gain_to_work_elasticity_uses_the_gain_actually_used():
+    """A3: e_G = e_I x G / I, with G the childcare-adjusted gain the response uses."""
+    n = 1
+    base = {
+        "gtw_gain_to_work": np.array([10_000.0]),
+        "gtw_in_work_income": np.array([150_000.0]),
+        "gtw_out_of_work_income": np.array([130_000.0]),
+        "elasticity_wrt_income": np.array([0.5]),
+        "not_excluded": np.ones(n, bool), "eligible": np.ones(n, bool), "over_limit": np.zeros(n, bool),
+        "weights": np.ones(n), "employment_income": np.array([40_000.0]), "weekly_hours": np.array([30.0]),
+        "entrant_earnings": np.zeros(n),
+    }
+    ref = {"gtw_gain_to_work": np.array([11_000.0]), "gtw_in_work_income": np.array([151_000.0]),
+           "gtw_out_of_work_income": np.array([130_000.0]), "gtw_entrant_subsidy": np.zeros(n)}
+    prep = ls.prepare(base, ref)
+    assert prep["elasticity"][0] == pytest.approx(0.5 * 10_000 / 150_000)  # not 0.5 x (150k - 130k) / 150k
+    assert prep["pct"][0] == pytest.approx(0.1)
 
 
 def test_bounds_scale_with_the_price_elasticities():
@@ -124,3 +172,25 @@ def test_removing_the_limit_raises_the_partners_gain_to_work_when_the_other_pare
 def test_removing_the_limit_leaves_a_family_under_it_unchanged():
     before, after = _gtw(60_000, False), _gtw(60_000, True)
     assert after["gain_to_work"][1] == pytest.approx(before["gain_to_work"][1], abs=1)
+
+
+def _disabled_child_family(child_age, year=2027):
+    from policyengine_uk import Simulation
+    from policyengine_uk.utils.scenario import Scenario
+
+    situation = _couple(120_000, year)
+    situation["people"]["b"]["employment_income"] = {year: 18_000}
+    situation["people"]["child"] = {"age": {year: child_age}, "is_disabled_for_benefits": {year: True},
+                                    "childcare_expenses": {year: 15_000}}
+    scenario = Scenario(parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS))
+    return Simulation(situation=situation, scenario=scenario)
+
+
+@pytest.mark.parametrize("child_age", [8, 14])
+def test_entrant_subsidy_uses_the_models_disabled_child_cap_and_age(child_age):
+    """A8: 20% of £15,000 is £3,000, under the £4,000 disabled-child cap; a disabled child qualifies to 16."""
+    sim = _disabled_child_family(child_age)
+    subsidy = ls._entrant_subsidy(sim, 2027, np.array([15_000.0, 15_000.0, 15_000.0]))
+    model = float(sim.calculate("tax_free_childcare", 2027).sum())
+    assert subsidy[1] == pytest.approx(3_000)
+    assert model == pytest.approx(3_000)

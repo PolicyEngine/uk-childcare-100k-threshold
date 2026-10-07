@@ -39,8 +39,8 @@ year (:func:`excluded`).
 The responding population
 =========================
 
-Adults (the first two in each benefit unit, not self-employed, students or aged 60
-and over: the OBR's exclusions) in a benefit unit whose youngest child is under 12,
+Adults (the first two in each benefit unit, not self-employed, students, disabled
+(receiving DLA or PIP) or aged 60 and over: the OBR's exclusions, Table A4) in a benefit unit whose youngest child is under 12,
 and in which at least one adult's income, as the limits test it (adjusted net income
 less salary sacrifice returned to pay, ``corrections.py``), is over £100,000 in the
 baseline. Under 12 because Tax-Free Childcare runs to 11 and contains the 30 hours'
@@ -90,6 +90,7 @@ from policyengine_uk.dynamics.participation import (
 from .config import (
     BASELINE_LIMIT,
     ELASTICITY_SCALES,
+    FREE_HOURS_DISPLACEMENT_RANGE,
     FULL_TIME_HOURS,
     HOURS_FOR_NEW_ENTRANTS,
     LSR_WEEKS_PER_YEAR,
@@ -135,8 +136,12 @@ def excluded(sim, year):
     status = values(sim, "employment_status", year).astype(str)
     age = values(sim, "age", year).astype(float)
     adult_index = values(sim, "adult_index", year).astype(float)
+    # OBR Table A4 also holds disabled people outside the participation response; the
+    # model's disability flag is receipt of DLA or PIP (``is_disabled_for_benefits``).
+    disabled = values(sim, "is_disabled_for_benefits", year).astype(bool)
     return (
         np.isin(status, ["FT_SELF_EMPLOYED", "PT_SELF_EMPLOYED", "STUDENT"])
+        | disabled
         | (age >= 60)
         | (adult_index == 0)
         | (adult_index > COUNT_ADULTS)
@@ -206,16 +211,20 @@ def _entrant_subsidy(sim, year, imputed_cost):
 
     The model's own eligibility (``tax_free_childcare_eligible``, which carries the
     take-up draw and every condition including the income limit), the dataset's routed
-    share, the 20% rate and the £2,000-a-child cap, applied to the imputed spend.
+    share, the 20% rate and the family's cap, applied to the imputed spend. The cap is
+    the model's: for each qualifying child (``tax_free_childcare_qualifying_child``,
+    which runs to 16 for a disabled child), the disabled-child amount (£4,000) for a
+    disabled or blind child and the standard amount (£2,000) otherwise, both read from
+    the model's parameters.
     """
     p = sim.tax_benefit_system.parameters(f"{year}-06-01").gov.hmrc.tax_free_childcare
     eligible = per_person(sim, year, values(sim, "tax_free_childcare_eligible", year).astype(float))
     routed = np.clip(benunit_max(sim, year, values(sim, "tax_free_childcare_spend_routed_share", year)), 0, 1)
-    is_child = values(sim, "is_child", year).astype(bool)
-    age = values(sim, "age", year).astype(float)
-    child_under_12 = pd.Series((is_child & (age < 12)).astype(float))
-    n_qualifying = child_under_12.groupby(values(sim, "benunit_id", year, "person")).transform("sum").to_numpy()
-    top_up = np.minimum(imputed_cost * routed * p.contribution.rate, p.contribution.standard_child * n_qualifying)
+    qualifying = values(sim, "tax_free_childcare_qualifying_child", year).astype(bool)
+    higher = values(sim, "is_disabled_for_benefits", year).astype(bool) | values(sim, "is_blind", year).astype(bool)
+    child_cap = pd.Series(qualifying * np.where(higher, p.contribution.disabled_child, p.contribution.standard_child))
+    family_cap = child_cap.groupby(values(sim, "benunit_id", year, "person")).transform("sum").to_numpy()
+    top_up = np.minimum(imputed_cost * routed * p.contribution.rate, family_cap)
     return eligible * top_up
 
 
@@ -321,12 +330,16 @@ def prepare(base, ref):
     pct = np.zeros_like(gtw_b)
     positive = gtw_b > 0
     pct[positive] = (gtw_r[positive] - gtw_b[positive]) / gtw_b[positive]
-    # OBR Appendix E: elasticity with respect to the gain to work = elasticity with
-    # respect to in-work income x (1 - replacement rate).
-    in_work, out_work = base["gtw_in_work_income"], base["gtw_out_of_work_income"]
-    rr = np.zeros_like(in_work)
-    rr[in_work > 0] = out_work[in_work > 0] / in_work[in_work > 0]
-    elasticity = base["elasticity_wrt_income"] * (1 - np.clip(rr, 0, 1))
+    # Adam and Phillips, Appendix E: an elasticity with respect to in-work income I
+    # converts to one with respect to the gain to work G as e_G = e_I x G / I (their
+    # G = I - O gives the familiar (I - O) / I = 1 - replacement rate). Our gain to work
+    # nets off childcare, G = I - C - (O - S_out), and with C and S_out held fixed a
+    # change in I moves G one for one, so the consistent factor is G / I for the gain
+    # actually used (the baseline's).
+    in_work = base["gtw_in_work_income"]
+    factor = np.zeros_like(in_work)
+    factor[in_work > 0] = gtw_b[in_work > 0] / in_work[in_work > 0]
+    elasticity = base["elasticity_wrt_income"] * np.clip(factor, 0, 1)
     reform_gain = ref["gtw_in_work_income"] - ref["gtw_out_of_work_income"]
     # Outside the responding population the reform must leave the gain to work alone.
     outside = base["not_excluded"] & ~base["eligible"]
@@ -337,6 +350,7 @@ def prepare(base, ref):
         "reform_gain": reform_gain,
         "entrant_subsidy": ref["gtw_entrant_subsidy"],
         "eligible": base["eligible"],
+        "over_limit": base["over_limit"],
         "weights": base["weights"],
         "employment_income": base["employment_income"],
         "weekly_hours": base["weekly_hours"],
@@ -347,17 +361,37 @@ def prepare(base, ref):
 
 
 def participation_response(prep, scale):
-    """Expected entrants, leavers, full-time equivalents, earnings and exchequer offset at one scale."""
+    """Expected entrants, leavers, full-time equivalents, earnings and exchequer offset at one scale.
+
+    The OBR elasticity (Adam and Phillips, Appendix E) is the percentage change in the
+    probability of working for a percentage change in the gain to work, so for a group
+    with employment rate P the employed share rises by P x e x dG/G. Adam and Phillips
+    apply it by reweighting the *working* records: new employment is the weighted sum,
+    over workers, of their own e x dG/G. Applying e x dG/G to each non-worker instead
+    gives (1 - P) x e x dG/G, too few for any group with more workers than non-workers.
+
+    So the number of entrants is the sum over eligible workers of their positive
+    e x dG/G (a worker whose gain falls leaves with probability e x |dG/G|, as before).
+    Who enters is a non-worker, so those entrants are given the earnings, gain and
+    subsidy of the eligible non-workers, shared in proportion to each non-worker's own
+    weighted e x dG/G; no non-worker's probability may exceed 1.
+    """
     w = prep["weights"]
     emp = prep["employment_income"]
     change = np.where(prep["eligible"], prep["elasticity"] * scale * prep["pct"], 0.0)
     change = np.clip(change, -PARTICIPATION_CHANGE_BOUND, PARTICIPATION_CHANGE_BOUND)
     working = emp > 0
-    enter = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
-    leave = np.where(prep["eligible"] & working, np.maximum(-change, 0), 0.0)
 
     def total(x):
         return float(MicroSeries(x, weights=w).sum())
+
+    implied = total(np.where(prep["eligible"] & working, np.maximum(change, 0), 0.0))
+    pull = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
+    pull_total = total(pull)
+    enter = pull * (implied / pull_total) if pull_total > 0 else np.zeros_like(pull)
+    capped = enter > 1
+    enter = np.minimum(enter, 1.0)
+    leave = np.where(prep["eligible"] & working, np.maximum(-change, 0), 0.0)
 
     earnings = prep["entrant_earnings"]
     gain = prep["reform_gain"]
@@ -371,6 +405,12 @@ def participation_response(prep, scale):
         "offset": total(enter * (earnings - gain - prep["entrant_subsidy"])) - total(leave * (emp - gain)),
         "tax_and_ni": total(enter * (earnings - gain)) - total(leave * (emp - gain)),
         "bound_binding": total((np.abs(change) >= PARTICIPATION_CHANGE_BOUND) & prep["eligible"]),
+        # Diagnostics: the new employment implied by the workers' records, the part implied by
+        # workers over £100,000, and what the old non-worker-only rule would have given.
+        "implied_entrants": implied,
+        "implied_by_over_limit": total(np.where(prep["eligible"] & working & prep["over_limit"], np.maximum(change, 0), 0.0)),
+        "non_worker_rule_entrants": pull_total,
+        "entry_capped": total(capped.astype(float)),
     }
 
 
@@ -407,6 +447,10 @@ def run(build_simulation, log=print):
                 arrays[f"{y}/intensive/{bound}/{k}"] = v
             for k, v in hours_response(sim, y, base[y], ref, scale, "over_limit").items():
                 arrays[f"{y}/intensive_over_limit/{bound}/{k}"] = v
+        # The displacement assumption varied on its own, at central elasticities (hours_response.py).
+        for side, displacement in FREE_HOURS_DISPLACEMENT_RANGE.items():
+            for k, v in hours_response(sim, y, base[y], ref, 1.0, "at_or_below_limit", displacement).items():
+                arrays[f"{y}/intensive_displacement/{side}/{k}"] = v
     del sim
     gc.collect()
     return arrays

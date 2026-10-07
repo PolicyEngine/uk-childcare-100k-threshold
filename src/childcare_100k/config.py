@@ -50,9 +50,9 @@ def parameter_changes(parameters):
 # (overrides apply identically to a sensitivity's baseline and reform runs).
 HOURS_USAGE_VARIABLE = "maximum_extended_childcare_hours_usage"
 ROUTED_SHARE_VARIABLE = "tax_free_childcare_spend_routed_share"
-# Share of childcare spend routed through a TFC account in later
-# policyengine-uk-data builds (>= 1.57.0); the bundled datasets predate it, so
-# the model's default of 1 applies in the central run.
+# Share of childcare spend routed through a TFC account. The certified Microcosm
+# release sets tax_free_childcare_spend_routed_share = 0.593 for every record, and the
+# central run uses it; the low end sets 0.58 in baseline and reform.
 ROUTED_SHARE_LOW = 0.58
 SCENARIOS = {
     "baseline": {"params": [], "inputs": {}},
@@ -72,9 +72,11 @@ UNDER_ONE_SHARE_ELIGIBLE = 0.25
 UNDER_ONE_WEEKLY_HOURS = 30
 WEEKS_PER_YEAR = 38
 
-# Free-hours spending: the 30-hours leg is the change in all three entitlements,
-# because the model switches the universal 15 hours off for a family once it is
-# eligible for the extended entitlement (the extended 30 hours replace them).
+# Free-hours spending: the 30-hours leg is the change in all three entitlements.
+# policyengine-uk switches the universal and targeted 15 hours off once a family is
+# eligible for the extended entitlement; corrections.py keeps them and counts as
+# extended only each child's hours above them, so the universal and targeted lines
+# should not move, but all three are summed so that nothing is missed if they do.
 FREE_HOURS_VARIABLES = [
     "extended_childcare_entitlement",
     "universal_childcare_entitlement",
@@ -187,9 +189,12 @@ CENTAX_REPORT_URL = (
 HOURS_FOR_NEW_ENTRANTS = 18.8
 FULL_TIME_HOURS = 37.5
 LSR_WEEKS_PER_YEAR = 52
-# Low and high bounds scale both margins' elasticities by the ratio of the low and high
-# childcare-price elasticities of maternal employment to the central one (Akgündüz and
-# Plantenga's meta-analysis, read for the UK): -0.05 / -0.15 = 1/3 and -0.30 / -0.15 = 2.
+# Low and high bounds scale both margins' elasticities by 1/3 and 2. The factors are
+# illustrative, not a sourced uncertainty interval: they are the ratios of low and high
+# childcare-price elasticities of maternal employment to a central one (-0.05 / -0.15 and
+# -0.30 / -0.15, a reading of Akgündüz and Plantenga's meta-analysis for the UK), a
+# different outcome from the OBR participation elasticities and Brewer's hours effect
+# they scale.
 PRICE_ELASTICITY_CENTRAL = -0.15
 PRICE_ELASTICITY_LOW = -0.05
 PRICE_ELASTICITY_HIGH = -0.30
@@ -201,10 +206,14 @@ ELASTICITY_SCALES = {
 # Cap on the modelled proportional change in any one person's probability of working
 # (a numerical guard, not a published figure).
 PARTICIPATION_CHANGE_BOUND = 0.5
-# Childcare price elasticity of hours worked: Brewer, Cattan, Crawford and Rabe (IFS
-# WP20/09), +0.600 weekly hours on a mean of 14.319 (+4.19%) for full-time eligibility,
-# taken against a 100% price fall. A total-hours effect that contains the participation
-# channel, so adding it to the extensive margin overstates the whole slightly.
+# Childcare price elasticity of hours worked: an extrapolated scenario assumption, not an
+# estimated price elasticity. Brewer, Cattan, Crawford and Rabe (IFS WP20/09, Table A.3
+# panel B) estimate +0.600 weekly hours on a mean of 14.319 (+4.19%) for mothers whose
+# youngest child becomes eligible for full-time instead of part-time free care. Treating
+# that eligibility as a 100% price fall, and applying the result to every working adult
+# with a child under 12, extends it to an intervention, parents and child ages it was not
+# estimated on. A total-hours effect that contains the participation channel, so adding
+# it to the extensive margin overstates the whole slightly.
 HOURS_PRICE_ELASTICITY = -0.042
 BREWER_HOURS_URL = (
     "https://ifs.org.uk/sites/default/files/output_url_files/"
@@ -212,10 +221,16 @@ BREWER_HOURS_URL = (
 )
 OBR_PARTICIPATION_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf"
 AKGUNDUZ_PLANTENGA_URL = "https://www.uu.nl/sites/default/files/rebo_use_dp_2015_15-14.pdf"
-# Of the free hours a family is newly offered, the share that displaces care it was
-# already paying for: 1 - 54/570 (IFS BN189), so newly free hours cut out-of-pocket
-# spending by 90.5% of their value, capped at what the family spends.
+# An assumption, not a measured figure: of the free hours a family is newly offered,
+# the share assumed to displace care it was already paying for, so newly free hours cut
+# out-of-pocket spending by this share of their value, capped at what the family spends.
+# IFS BN189 (pp. 11-12): 570 more funded hours raised subsidisable care by 163 hours and
+# all care outside the immediate family by 54. 1 - 54/570 (90.5%, central) treats every
+# displaced hour of non-family care, paid or unpaid, as paid; 1 - 163/570 (71.4%, low)
+# displaces only subsidisable care already being bought; 100% (high) displaces every
+# newly funded hour. Varied on its own at central elasticities (``intensive_displacement``).
 FREE_HOURS_DISPLACEMENT = 1 - 54 / 570
+FREE_HOURS_DISPLACEMENT_RANGE = {"low": 1 - 163 / 570, "high": 1.0}
 # The responding population: adults in a benefit unit whose youngest child is under 12
 # (the Tax-Free Childcare band, which contains the 30 hours' 9 months-4 years) and in
 # which at least one adult's income, as the limits test it, is over £100,000.
