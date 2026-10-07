@@ -52,10 +52,10 @@ describe("the page", () => {
     }
   });
 
-  it("pins the policyengine.py, policyengine-uk and dataset release in the footer, from the file", () => {
+  it("names the policyengine.py version and the dataset in the footer, from the file", () => {
     render(<Dashboard data={data} />);
     const text = screen.getByTestId("replication").textContent;
-    for (const k of ["policyengine", "policyengine_uk", "dataset_release"]) expect(text, k).toContain(data.meta[k]);
+    expect(text).toContain(`policyengine.py ${data.meta.policyengine} on Microcosm UK 2024-25. Replication code`);
   });
 
   it("states the modelled period in the intro, from the file", () => {

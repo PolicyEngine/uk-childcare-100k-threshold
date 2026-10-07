@@ -56,8 +56,7 @@ export function ReplicationLine({ meta }) {
       <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noreferrer">
         policyengine.py {meta.policyengine}
       </a>{" "}
-      (policyengine-uk {meta.policyengine_uk}) on {meta.dataset_label ?? meta.dataset}
-      {meta.dataset_release ? `, release ${meta.dataset_release}` : ""}. Replication code:{" "}
+      on {(meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "")}. Replication code:{" "}
       <a href={REPO_URL} target="_blank" rel="noreferrer">
         PolicyEngine/uk-childcare-100k-threshold
       </a>
