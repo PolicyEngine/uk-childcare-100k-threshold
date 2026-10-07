@@ -31,6 +31,13 @@ const nb = (year) => fyLabel(year).replace("-", "‑");
  * reports as the party's is based on this report.
  */
 export const CENTAX = { year: 2030, staticBn: 0.98, netBn: 0.64 };
+// CenTax, Removing the childcare cliff-edge (September 2026), Table 4.2, 2030 (= tax year 2029-30), free hours only.
+// Negative net = the reform raises money once behaviour is allowed for.
+export const CENTAX_SCENARIOS = [
+  { id: "central", label: "CenTax, central scenario", staticBn: 0.98, netBn: 0.64 },
+  { id: "high", label: "CenTax, high-cost scenario", staticBn: 1.01, netBn: 0.77 },
+  { id: "low", label: "CenTax, low-cost scenario", staticBn: 0.7, netBn: -0.16 },
+];
 
 /** £bn as a signed £m figure: -0.006 -> "-£6m", 0.362 -> "+£362m". */
 export function formatSignedM(v) {
@@ -232,29 +239,57 @@ function BenchmarkComparison({ data }) {
         , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
         &ldquo;pushed up the costs slightly&rdquo;.
       </p>
-      <p data-testid="benchmark-centax">
-        CenTax estimate a static cost of {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year} for the free hours, and a
-        net cost of {formatBn(CENTAX.netBn, 2)}{" "}
-        after £0.34bn of extra revenue: £0.21bn of tax from parents who no
-        longer keep their income below £100,000, and £0.13bn of tax and National Insurance from partners who enter
-        work. CenTax&apos;s {CENTAX.year} is the 2029-30 tax year. The £0.7bn is close to this net figure plus a small
-        addition for Tax-Free Childcare.
-      </p>
-      <div className="max-w-sm">
-        <MiniBars
-          items={[
-            { label: `Ours ${fyLabel(last.year)}`, value: last.thirty_hours, color: schemeColors.thirty_hours },
-            { label: `CenTax ${CENTAX.year}`, value: CENTAX.staticBn, color: colors.gray[400] },
-          ]}
-          label="Our 30 hours cost against CenTax's static cost of the free hours"
-          format={(v) => formatBn(v, 2)}
-        />
+      <div className="overflow-x-auto">
+        <table className="data-table" data-testid="comparison-table">
+          <thead>
+            <tr>
+              <th>Estimate</th>
+              <th>Covers</th>
+              <th>Year</th>
+              <th>Static cost</th>
+              <th>After parents change how much they work</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr className="font-medium">
+              <td>PolicyEngine, this dashboard</td>
+              <td>30 hours and Tax-Free Childcare</td>
+              <td className="whitespace-nowrap">{nb(last.year)}</td>
+              <td className="tabular-nums">{formatBn(last.total, 2)}</td>
+              <td>Not modelled</td>
+            </tr>
+            <tr className="font-medium">
+              <td>PolicyEngine, 30 hours only</td>
+              <td>Free hours only</td>
+              <td className="whitespace-nowrap">{nb(last.year)}</td>
+              <td className="tabular-nums">{formatBn(last.thirty_hours, 2)}</td>
+              <td>Not modelled</td>
+            </tr>
+            <tr>
+              <td>Conservatives (PA, BBC)</td>
+              <td>Both schemes</td>
+              <td>Not stated</td>
+              <td colSpan={2} className="tabular-nums">About £0.7bn a year; basis not stated</td>
+            </tr>
+            {CENTAX_SCENARIOS.map((c) => (
+              <tr key={c.id}>
+                <td>{c.label}</td>
+                <td>Free hours only</td>
+                <td className="whitespace-nowrap">{nb(last.year)}</td>
+                <td className="tabular-nums">{formatBn(c.staticBn, 2)}</td>
+                <td className="tabular-nums">{c.netBn < 0 ? `Raises ${formatBn(-c.netBn, 2)}` : formatBn(c.netBn, 2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
       <p data-testid="benchmark-like-for-like">
-        Like for like, the comparison is our 30 hours cost with CenTax&apos;s static cost, both before any change
-        in how much parents work: {formatBn(last.thirty_hours, 2)} in {nb(last.year)} against{" "}
-        {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year}. Our total for both schemes is {formatBn(last.total, 2)}
-        in {nb(last.year)}, on the same static basis.
+        Compare figures on the same basis. Our 30 hours cost and CenTax&apos;s static cost both cover the free hours
+        before any change in how much parents work, so they are the like-for-like pair. CenTax&apos;s net figures
+        allow for parents earning more once the limit goes (fewer keep their income just below £100,000) and partners
+        moving into work, which brings in extra tax. The party&apos;s £0.7bn is close to CenTax&apos;s central net
+        figure plus a small addition for Tax-Free Childcare. CenTax label tax years by their later year, so their
+        2030 is 2029-30.
       </p>
     </div>
   );
@@ -263,12 +298,12 @@ function BenchmarkComparison({ data }) {
 /** Waterfall: the extended hours gained, less the hours the model stops paying, gives the 30 hours cost. */
 function ThirtyHoursWaterfall({ ext, univ, targ, net }) {
   const steps = [
-    { name: "Extended hours gained", base: 0, value: ext, signed: ext, fill: colors.primary[400] },
-    { name: "Universal 15 hours stopped", base: ext + univ, value: -univ, signed: univ, fill: colors.gray[400] },
+    { name: "Working-parent hours paid", base: 0, value: ext, signed: ext, fill: colors.primary[400] },
+    { name: "Universal 15 hours no longer paid", base: ext + univ, value: -univ, signed: univ, fill: colors.gray[400] },
     ...(Math.abs(targ) >= 0.0005
-      ? [{ name: "Targeted 2-year-old hours stopped", base: ext + univ + targ, value: -targ, signed: targ, fill: colors.gray[400] }]
+      ? [{ name: "Low-income 2-year-old hours no longer paid", base: ext + univ + targ, value: -targ, signed: targ, fill: colors.gray[400] }]
       : []),
-    { name: "30 hours cost", base: 0, value: net, signed: net, fill: schemeColors.thirty_hours },
+    { name: "Net 30 hours cost", base: 0, value: net, signed: net, fill: schemeColors.thirty_hours },
   ];
   const values = steps.map((d) => d.base + d.value);
   return (
@@ -277,7 +312,7 @@ function ThirtyHoursWaterfall({ ext, univ, targ, net }) {
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={steps} margin={{ top: 24, right: 20, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
-            <XAxis dataKey="name" tick={AXIS_STYLE} interval={0} />
+            <XAxis dataKey="name" tick={{ ...AXIS_STYLE, width: 130 }} interval={0} height={48} />
             <YAxis tick={AXIS_STYLE} tickFormatter={(v) => `£${Math.round(v * 1000)}m`} {...niceAxis([0, ...values])} />
             <Tooltip
               cursor={{ fill: colors.gray[100] }}
@@ -328,9 +363,9 @@ function ThirtyHoursTable({ data }) {
       testId="components-table"
       format={formatSignedM}
       rows={[
-        { label: "Extended hours gained", values: comps.extended },
-        { label: "Universal 15 hours stopped", values: comps.universal },
-        ...(comps.targeted.some((v) => Math.abs(v) >= 0.0005) ? [{ label: "Targeted 2-year-old hours stopped", values: comps.targeted }] : []),
+        { label: "Working-parent hours paid", values: comps.extended },
+        { label: "Universal 15 hours no longer paid", values: comps.universal },
+        ...(comps.targeted.some((v) => Math.abs(v) >= 0.0005) ? [{ label: "Low-income 2-year-old hours no longer paid", values: comps.targeted }] : []),
       ]}
     />
   );
@@ -424,8 +459,8 @@ export default function LandingTab({ data }) {
 
       <Section
         id="comparisons"
-        title="How our cost compares with the £0.7bn"
-        lead="The Conservative plan has been reported as costing about £0.7bn a year. This traces that figure to its source and sets it against our estimate on the same basis."
+        title="How does our cost compare with other estimates?"
+        lead="The Conservatives put the cost at about £0.7bn a year. The table sets that figure, and CenTax's estimates it draws on, against ours, by what each covers and whether it allows for parents changing how much they work."
       >
         <BenchmarkComparison data={data} />
       </Section>
@@ -433,7 +468,7 @@ export default function LandingTab({ data }) {
       <Section
         id="thirty-hours"
         title="How is the 30 hours cost built up?"
-        lead={`When a family becomes eligible, the model pays it the working-parent (extended) hours: the first bar. For a 3- or 4-year-old it treats those hours as replacing the universal 15 hours, and for a 2-year-old as replacing the 15 low-income hours, so it stops paying those: the grey bars. What is left is the 30 hours cost: the last bar, the same as in the chart above. Shown for ${fyLabel(budget.years[li])}, the year chosen in the cards.`}
+        lead={`Read the bars from left to right, for ${fyLabel(budget.years[li])} (the year chosen in the cards). First, the model pays newly eligible families the working-parent hours. Second, for a 3- or 4-year-old it treats those hours as replacing the universal 15 hours, so it stops paying them; for a 2-year-old it does the same with the 15 low-income hours. Third, what is left is the net 30 hours cost, the same figure as in the chart above.`}
         details={
           <>
             <p>

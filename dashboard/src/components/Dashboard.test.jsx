@@ -117,10 +117,11 @@ describe("budget impact", () => {
     expect(within(topic).getByRole("link", { name: "City AM" }).getAttribute("href")).toBe(b.url);
     expect(topic.textContent).toMatch(/covers both the free hours and Tax-Free Childcare/);
     expect(within(topic).getByRole("link", { name: /CenTax's report/ }).getAttribute("href")).toBe(b.underlying_source_url);
-    expect(screen.getByTestId("benchmark-centax").textContent).toContain(bn(CENTAX.staticBn));
-    const lfl = screen.getByTestId("benchmark-like-for-like").textContent;
-    expect(lfl).toContain(bn(data.budget.gross_bn.thirty_hours[final]));
-    expect(lfl).toContain(`${bn(CENTAX.staticBn)} in ${CENTAX.year}`);
+    const table = screen.getByTestId("comparison-table").textContent;
+    expect(table).toContain(bn(data.budget.gross_bn.thirty_hours[final]));
+    expect(table).toContain(bn(data.budget.gross_bn.total[final]));
+    expect(table).toContain(bn(CENTAX.staticBn));
+    expect(screen.getByTestId("benchmark-like-for-like").textContent).toMatch(/like-for-like pair/);
   });
 
   it("shows the 30 hours components", () => {
