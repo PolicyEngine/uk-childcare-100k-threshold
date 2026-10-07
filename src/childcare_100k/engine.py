@@ -46,10 +46,19 @@ from .config import (
     YEARS,
     parameter_changes,
 )
+from . import labour_supply
 from .corrections import apply_corrections, is_applied
 from .datasets import MICROCOSM, dataset_path
 
 SOURCE_DIR = Path(__file__).resolve().parent
+# The labour supply job (labour_supply.py): builds the central baseline and reform
+# simulations itself and stores aggregates, not record-level arrays.
+LABOUR_SUPPLY_JOB = "labour_supply"
+JOBS = list(SCENARIOS) + [LABOUR_SUPPLY_JOB]
+LSR_SETTINGS = (
+    "HOURS_FOR_NEW_ENTRANTS", "FULL_TIME_HOURS", "LSR_WEEKS_PER_YEAR", "ELASTICITY_SCALES",
+    "PARTICIPATION_CHANGE_BOUND", "HOURS_PRICE_ELASTICITY", "FREE_HOURS_DISPLACEMENT", "YOUNGEST_CHILD_MAX_AGE",
+)
 
 
 def run_path(scenario):
@@ -71,9 +80,10 @@ def run_definition_hash():
         "tfc_variable": TFC_VARIABLE,
         "hours_usage_variable": HOURS_USAGE_VARIABLE,
         "removed": repr(config.REMOVED),
+        "labour_supply": {k: getattr(config, k) for k in LSR_SETTINGS},
     }
     digest = hashlib.sha256()
-    for name in ("engine.py", "datasets.py", "corrections.py"):
+    for name in ("engine.py", "datasets.py", "corrections.py", "labour_supply.py", "hours_response.py"):
         digest.update((SOURCE_DIR / name).read_bytes())
     digest.update(json.dumps(settings, sort_keys=True).encode())
     return digest.hexdigest()
@@ -270,7 +280,37 @@ def extract(sim, year, baseline_extras=False):
     return out
 
 
+def run_labour_supply_job():
+    """The labour supply response (labour_supply.py), stored as aggregates in the run cache."""
+    t0 = time.time()
+    bundle = {}
+
+    def build(scenario):
+        sim = _simulation(scenario)
+        if sim.policyengine_bundle.get("managed_by") != "policyengine.py":
+            raise RuntimeError(f"{scenario}: the simulation was not built by policyengine.py")
+        bundle.update({k: v for k, v in sim.policyengine_bundle.items() if isinstance(v, (str, int, float))})
+        return sim
+
+    arrays = labour_supply.run(build, log=lambda m: print(m, flush=True))
+    RUNS.mkdir(parents=True, exist_ok=True)
+    np.savez_compressed(run_path(LABOUR_SUPPLY_JOB), **{k: np.asarray(v) for k, v in arrays.items()})
+    meta = {
+        "dataset": MICROCOSM.key,
+        "scenario": LABOUR_SUPPLY_JOB,
+        "provenance": provenance(LABOUR_SUPPLY_JOB),
+        "seconds": round(time.time() - t0, 1),
+        "load_seconds": None,
+        "peak_rss_gb": round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1e9, 1),
+        "bundle": bundle,
+    }
+    meta_path(LABOUR_SUPPLY_JOB).write_text(json.dumps(meta, indent=1))
+    return meta
+
+
 def run_job(scenario):
+    if scenario == LABOUR_SUPPLY_JOB:
+        return run_labour_supply_job()
     t0 = time.time()
     sim = _simulation(scenario)
     load = time.time() - t0
@@ -345,7 +385,7 @@ def run_isolated(scenario, repo, log=print):
 
 def main(argv=None):
     ap = argparse.ArgumentParser()
-    ap.add_argument("scenario", choices=list(SCENARIOS))
+    ap.add_argument("scenario", choices=JOBS)
     a = ap.parse_args(argv)
     run_job(a.scenario)
 

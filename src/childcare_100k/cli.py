@@ -18,6 +18,15 @@ from .config import (
     CENTAX_REPORT_URL,
     CONSERVATIVE_ANNOUNCEMENT_URL,
     CONSERVATIVE_SOURCE_URL,
+    BREWER_HOURS_URL,
+    ELASTICITY_SCALES,
+    FREE_HOURS_DISPLACEMENT,
+    HOURS_FOR_NEW_ENTRANTS,
+    HOURS_PRICE_ELASTICITY,
+    OBR_PARTICIPATION_URL,
+    PRICE_ELASTICITY_CENTRAL,
+    PRICE_ELASTICITY_HIGH,
+    PRICE_ELASTICITY_LOW,
     LEAD_YEAR,
     MIN_CELL_RECORDS,
     OUTPUT,
@@ -30,7 +39,7 @@ from .config import (
     YEARS,
 )
 from .datasets import MICROCOSM
-from .engine import is_current, load_meta, run_isolated
+from .engine import JOBS, is_current, load_meta, run_isolated
 from .validation import DFE_FUNDING_URL
 from .household import cliff_example, household_grid
 from .validation import baseline_validation
@@ -48,7 +57,7 @@ def _git_revision():
 def run_all(rerun=False, log=print):
     """Run every scenario whose cached run is missing or stale (one process at a time)."""
     metas = {}
-    for scenario in SCENARIOS:
+    for scenario in JOBS:
         if rerun or not is_current(scenario):
             run_isolated(scenario, REPO, log=log)
         metas[f"{PRIMARY_DATASET}/{scenario}"] = load_meta(scenario)
@@ -154,7 +163,10 @@ def _src(label, url):
     return {"label": label, "url": url}
 
 
-def modelling_assumptions(a, effects):
+LSR_ALTERNATIVE = "Parents respond: OBR participation elasticities and a childcare-price elasticity of hours"
+
+
+def modelling_assumptions(a, effects, labour_supply_offset):
     """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
     e30, etfc = a["would_claim_30_hours_pct"], a["would_claim_tfc_pct"]
     return [
@@ -167,7 +179,16 @@ def modelling_assumptions(a, effects):
             "modelled": "Both runs use the same households with the same earnings, hours of work and childcare "
                         "spending. Nobody works more or less, or changes their pension contributions, because the "
                         "limit goes.",
-            "sources": [_src("Our runs (engine.py)", f"{THIS_REPO}/engine.py")],
+            "sources": [
+                _src("Our runs (engine.py)", f"{THIS_REPO}/engine.py"),
+                _src("Moving into work (labour_supply.py)", f"{THIS_REPO}/labour_supply.py"),
+                _src("Hours (hours_response.py)", f"{THIS_REPO}/hours_response.py"),
+                _src("OBR participation elasticities", OBR_PARTICIPATION_URL),
+                _src("Brewer et al., hours", BREWER_HOURS_URL),
+            ],
+            "alternative": LSR_ALTERNATIVE,
+            # Money back to the Exchequer lowers the cost.
+            "effect_bn": {y: round(-v, 3) for y, v in labour_supply_offset.items()},
         },
         {
             "id": "take_up",
@@ -272,6 +293,7 @@ def build(metas):
     limitations = list(LIMITATIONS)
     limitations[-1:] = data_limitations(validation) + limitations[-1:]
 
+    lsr = agg.labour_supply(budget["total"])
     grid = household_grid()
     y = str(BENCHMARK_YEAR)
     thirty = budget["thirty_hours"][y]
@@ -328,7 +350,54 @@ def build(metas):
         "assumptions": {"microcosm": assumptions},
         "cliff_example": cliff_example(grid),
         "household_grid": grid,
-        "modelling_assumptions": modelling_assumptions(assumptions, sens["effects_bn"]),
+        "modelling_assumptions": modelling_assumptions(assumptions, sens["effects_bn"],
+                                                       lsr["total_offset_bn"]["central"]),
+        "labour_supply": {
+            **lsr,
+            "assumptions": {
+                "participation_elasticities": "OBR Table A1, by sex, partner's work, age of youngest child and "
+                                              "earnings quintile, converted to the gain to work (Appendix E)",
+                "price_elasticity_central": PRICE_ELASTICITY_CENTRAL,
+                "price_elasticity_low": PRICE_ELASTICITY_LOW,
+                "price_elasticity_high": PRICE_ELASTICITY_HIGH,
+                "elasticity_scales": {k: round(v, 4) for k, v in ELASTICITY_SCALES.items()},
+                "hours_price_elasticity": HOURS_PRICE_ELASTICITY,
+                "hours_for_new_entrants": HOURS_FOR_NEW_ENTRANTS,
+                "free_hours_displacement": round(FREE_HOURS_DISPLACEMENT, 4),
+            },
+            "responding_population": (
+                "Adults (the first two in each family; not self-employed, students or aged 60 and over) in a "
+                "family whose youngest child is under 12 and in which at least one adult's income, as the limits "
+                "test it, is over £100,000. Mechanically, the partner of a parent over the limit, who under the "
+                "reform brings the family the 30 hours and Tax-Free Childcare by working."
+            ),
+            "not_modelled": (
+                "The response of parents over £100,000 is not in the dynamic cost: neither those who today keep "
+                "their income below the limit and would earn more without it (bunching; CenTax's +£210m intensive "
+                "margin in 2029-30), nor their hours response to cheaper childcare (published separately as "
+                "intensive_over_limit)."
+            ),
+            "notes": [
+                "Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static "
+                "total less both offsets, at the same bound. Both apply to the total: they are not split by scheme.",
+                "Moving into work (extensive margin): the expected change in each adult's probability of working, "
+                "from the OBR elasticities and the change in their gain to work, net of the childcare they would buy. "
+                "The offset is entrants' earnings less the rise in their household's net income (tax and National "
+                "Insurance paid, less the childcare support the family now receives) and less the Tax-Free "
+                "Childcare top-up on the care they start buying.",
+                f"Hours (intensive margin): a childcare-price elasticity of hours of {HOURS_PRICE_ELASTICITY} "
+                "(Brewer et al., measured on mothers) for responding adults in work, at or below £100,000, whose "
+                "out-of-pocket childcare cost falls; the model recomputes tax and benefits on the extra earnings. It "
+                "is a total-hours estimate, so it overlaps slightly with the extensive margin.",
+                "Sensitivity, not in the dynamic cost (intensive_over_limit): the parent over £100,000 responding to "
+                "the cheaper childcare with the same elasticity. Their earnings are large and taxed at up to 62%, so "
+                f"it would add £{lsr['intensive_over_limit']['offset_bn']['central'][str(BENCHMARK_YEAR)]:.2f}bn in "
+                f"{_fy(BENCHMARK_YEAR)}; the elasticity is not measured on this group.",
+                "Low and high scale every elasticity by 1/3 and 2 (childcare-price elasticities of maternal "
+                "employment of -0.05 and -0.30 against -0.15).",
+                "The income and family-type breakdowns, who gains and the household calculator are static.",
+            ],
+        },
         "benchmarks": [
             {
                 "source": "Conservative Party",
@@ -373,7 +442,7 @@ def main(argv=None):
     a = ap.parse_args(argv)
     t0 = time.time()
     if a.aggregate_only:
-        metas = {f"{PRIMARY_DATASET}/{s}": load_meta(s) for s in SCENARIOS}
+        metas = {f"{PRIMARY_DATASET}/{s}": load_meta(s) for s in JOBS}
     else:
         metas = run_all(rerun=a.rerun)
     results = build(metas)

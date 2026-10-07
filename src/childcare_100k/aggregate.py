@@ -353,3 +353,72 @@ def assumptions(runs, year=VALIDATION_YEAR + 1):
             float(MicroSeries(b(year, "bu_hours_usage").astype(float), weights=w)[young].mean()), 1
         ),
     }
+
+
+# ── Labour supply (labour_supply.py, hours_response.py) ──────────────────
+
+BOUNDS = ("central", "low", "high")
+
+
+def _round_to(x, step):
+    return int(round(float(x) / step) * step)
+
+
+def labour_supply(static_total, years=YEARS):
+    """The labour supply job's aggregates, and the dynamic cost (static total less both margins' offsets).
+
+    ``static_total`` is the published static gross total by year (``budget["total"]``),
+    so the dynamic cost is the published static figure less the published offsets.
+    Offsets are £bn a year, positive = money back to the Exchequer.
+    """
+    from .engine import LABOUR_SUPPLY_JOB
+
+    load_meta(LABOUR_SUPPLY_JOB)  # raises on a provenance mismatch
+    z = np.load(run_path(LABOUR_SUPPLY_JOB))
+
+    def get(year, margin, bound, metric):
+        return float(z[f"{year}/{margin}/{bound}/{metric}"])
+
+    def by_year(margin, metric, fn):
+        return {b: {str(y): fn(get(y, margin, b, metric)) for y in years} for b in BOUNDS}
+
+    extensive = {
+        "offset_bn": by_year("extensive", "offset", _bn),
+        "tax_and_ni_bn": by_year("extensive", "tax_and_ni", _bn),
+        "entrants": by_year("extensive", "entrants", lambda x: _round_to(x, 100)),
+        "leavers": by_year("extensive", "leavers", lambda x: _round_to(x, 100)),
+        "ftes": by_year("extensive", "ftes", lambda x: _round_to(x, 100)),
+        "earnings_bn": by_year("extensive", "earnings", _bn),
+    }
+    intensive = {
+        "offset_bn": by_year("intensive", "offset", _bn),
+        "ftes": by_year("intensive", "ftes", lambda x: _round_to(x, 100)),
+        "earnings_bn": by_year("intensive", "earnings", _bn),
+        "workers_price_falls": by_year("intensive", "workers_price_falls", _k),
+        "mean_price_change_pct": by_year("intensive", "mean_price_change", lambda x: round(100 * x, 1)),
+    }
+    # Sensitivity, not in the dynamic cost: the parent over £100,000 responding with the same elasticity.
+    intensive_over_limit = {
+        "offset_bn": by_year("intensive_over_limit", "offset", _bn),
+        "ftes": by_year("intensive_over_limit", "ftes", lambda x: _round_to(x, 100)),
+        "earnings_bn": by_year("intensive_over_limit", "earnings", _bn),
+    }
+    total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
+                 for y in years} for b in BOUNDS}
+    dynamic = {b: {str(y): round(static_total[str(y)] - total[b][str(y)], 3) for y in years} for b in BOUNDS}
+    checks = {}
+    for y in years:
+        moved = float(z[f"{y}/moved_outside_weighted"])
+        if moved > 0.001 * float(z[f"{y}/responding_adults"]):
+            raise RuntimeError(f"{y}: the reform moves the gain to work of {moved:,.0f} adults outside the "
+                               "responding population; the population filter misses someone")
+        checks[str(y)] = {"responding_adults": _k(z[f"{y}/responding_adults"]),
+                          "adults_moved_outside_population": _round_to(moved, 100)}
+    return {
+        "extensive": extensive,
+        "intensive": intensive,
+        "intensive_over_limit": intensive_over_limit,
+        "total_offset_bn": total,
+        "dynamic_cost_bn": dynamic,
+        "population": checks,
+    }
