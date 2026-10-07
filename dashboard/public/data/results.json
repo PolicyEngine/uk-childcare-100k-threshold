@@ -26,8 +26,8 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-07T10:58:22+00:00",
-  "git_revision": "3413b885e5acbf73f036d04424d3ab5c99b3b65c",
+  "generated_at": "2026-10-07T11:39:37+00:00",
+  "git_revision": "7c952d4665b913dc9f24c8ab1ec57bf7a30e1ee2",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 13.4,
@@ -24659,7 +24659,7 @@
   "Four-year-olds in reception still receive funded hours in the model (compulsory school age starts at 5), so the baseline counts more funded 3- and 4-year-olds than DfE.",
   "Childcare spending is held fixed: a family that gains funded hours would in practice pay for fewer hours, which would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly.",
   "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), 1-6% below DfE's 2026-27 national average rates (see baseline_validation), so the 30-hours leg is slightly understated.",
-  "Funded hours, baseline context: the central baseline spends £5.8bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives £9.7bn. DfE's total is illustrative (based partly on forecasts) and is context only: bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ.",
+  "Funded hours, baseline context: the central baseline spends £5.8bn on free hours in 2026-27 against DfE's £9.9bn, while full 30-hour use gives £9.7bn. DfE's total is illustrative (based partly on forecasts) and is context only: bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ. Most of the gap is the dataset's draw of weekly extended hours used; it is filed upstream as PolicyEngine/microcosm#1126.",
   "Microcosm holds 1.89 million people with income of £100,000 or more in 2025-26 against HMRC's projected 1.95 million (see baseline_validation).",
   "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), so no suppressed cell can be recovered from the published UK totals."
  ]

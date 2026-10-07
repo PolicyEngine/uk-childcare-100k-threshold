@@ -133,7 +133,8 @@ def data_limitations(rows):
         f"free hours in 2026-27 against DfE's £{free['official']:.1f}bn, while full 30-hour use gives "
         f"£{free30['model']:.1f}bn. DfE's total is illustrative (based partly on forecasts) and is context only: "
         "bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above "
-        "£100,000, whose take-up and hours may differ.",
+        "£100,000, whose take-up and hours may differ. Most of the gap is the dataset's draw of weekly "
+        "extended hours used; it is filed upstream as PolicyEngine/microcosm#1126.",
         f"Microcosm holds {high['model'] / 1e6:.2f} million people with income of £100,000 or more in 2025-26 "
         f"against HMRC's projected {high['official'] / 1e6:.2f} million (see baseline_validation).",
     ]
