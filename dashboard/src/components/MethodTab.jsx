@@ -3,7 +3,7 @@
 import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, UnifiedComparison } from "./Comparison";
-import { Section } from "./ui";
+import { Expandable, Section } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
 export function formatUnit(value, unit) {
@@ -324,7 +324,9 @@ export default function MethodTab({ data }) {
         }
         detailsTitle="Each choice in full, the effect in every year, and sources"
       >
-        <UnifiedComparison data={data} />
+        <Expandable title="Show the comparison table" testId="comparison-expandable">
+          <UnifiedComparison data={data} />
+        </Expandable>
       </Section>
 
       <Section
@@ -339,7 +341,9 @@ export default function MethodTab({ data }) {
           </p>
         }
       >
-        <ValidationTable rows={validation} />
+        <Expandable title="Show the validation table" testId="validation-expandable">
+          <ValidationTable rows={validation} />
+        </Expandable>
       </Section>
 
       <Section id="limitations" title="Limitations" lead="What the costing does not capture.">

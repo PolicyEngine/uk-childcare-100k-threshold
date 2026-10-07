@@ -88,7 +88,7 @@ export function Dashboard({ data }) {
     <div className="app-shell min-h-screen">
       <header className="title-row">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4 md:px-10 lg:pl-24">
-          <h1>Removing the £100,000 childcare limit</h1>
+          <h1>Scrapping the £100,000 childcare cliff edge</h1>
         </div>
       </header>
 
@@ -101,24 +101,14 @@ export function Dashboard({ data }) {
             <a href={ANNOUNCEMENT_URL} target="_blank" rel="noreferrer" className="underline">
               pledged
             </a>{" "}
-            to remove this limit for both schemes, paid for by cutting staff at arm&apos;s-length public bodies; the pledge
-            sets no start date. This dashboard costs removing it from
-            both schemes with{" "}
+            to remove the limit, paid for by cutting staff at arm&apos;s-length public bodies, with no start date. We cost the
+            change with{" "}
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
             </a>
-            {` from ${period}`}.
-          </p>
-          <p className="mb-3 text-base leading-7 text-slate-700" data-testid="tab-guide">
-            The <strong>Budget impact</strong> tab shows what removing the limit adds to government spending each year,
-            split between the two schemes, and how our figure compares with the £0.7bn the party gave.{" "}
-            <strong>Who gains</strong>{" "}
-            starts with your own household: choose the parents, the children and the
-            childcare spending to see how the family&apos;s income changes as earnings pass £100,000, with and without
-            the limit. It then shows where the gains go by household income, family type and region, and how many
-            families and children gain. <strong>Methodology</strong> explains how we cost it, the assumptions behind
-            every figure and what each one changes, how the model compares with official statistics, and what the
-            costing leaves out.
+            {` from ${period}`}: <strong>Budget impact</strong> shows the cost each year,{" "}
+            <strong>Who gains</strong> lets you try your own household and shows where the gains go, and{" "}
+            <strong>Methodology</strong> sets out our assumptions and how we compare with other estimates.
           </p>
         </div>
 
