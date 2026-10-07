@@ -216,30 +216,11 @@ function SeriesTable({ years, rows, testId, format = (v) => formatBn(v, 2) }) {
   );
 }
 
-function BenchmarkComparison({ data }) {
-  const benchmark = getBenchmarks(data)[0];
-  // CenTax's estimate is for 2030: compare with our last year, 2029-30.
+function BenchmarkTable({ data }) {
+  // CenTax's estimates are for 2030: compare with our last year, 2029-30.
   const last = getBudget(data).rows.at(-1);
   return (
-    <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid="benchmark">
-      <p>
-        The Conservatives put the cost at about £700m a year when they announced the pledge, to be paid for by
-        cutting staff at arm&apos;s-length public bodies. Their{" "}
-        <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
-          announcement
-        </a>{" "}
-        covers both the free hours and Tax-Free Childcare, but publishes no method.{" "}
-        <a href={benchmark.url} target="_blank" rel="noreferrer">
-          City AM
-        </a>{" "}
-        says the figure is based on{" "}
-        <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
-          CenTax&apos;s report
-        </a>
-        , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
-        &ldquo;pushed up the costs slightly&rdquo;.
-      </p>
-      <div className="overflow-x-auto">
+    <div className="overflow-x-auto">
         <table className="data-table" data-testid="comparison-table">
           <thead>
             <tr>
@@ -282,7 +263,31 @@ function BenchmarkComparison({ data }) {
             ))}
           </tbody>
         </table>
-      </div>
+    </div>
+  );
+}
+
+function BenchmarkNotes({ data }) {
+  const benchmark = getBenchmarks(data)[0];
+  return (
+    <div className="space-y-3" data-testid="benchmark">
+      <p>
+        The Conservatives put the cost at about £700m a year when they announced the pledge, to be paid for by
+        cutting staff at arm&apos;s-length public bodies. Their{" "}
+        <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
+          announcement
+        </a>{" "}
+        covers both the free hours and Tax-Free Childcare, but publishes no method.{" "}
+        <a href={benchmark.url} target="_blank" rel="noreferrer">
+          City AM
+        </a>{" "}
+        says the figure is based on{" "}
+        <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
+          CenTax&apos;s report
+        </a>
+        , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
+        &ldquo;pushed up the costs slightly&rdquo;.
+      </p>
       <p data-testid="benchmark-like-for-like">
         Compare figures on the same basis. Our 30 hours cost and CenTax&apos;s static cost both cover the free hours
         before any change in how much parents work, so they are the like-for-like pair. CenTax&apos;s net figures
@@ -460,9 +465,11 @@ export default function LandingTab({ data }) {
       <Section
         id="comparisons"
         title="How does our cost compare with other estimates?"
-        lead="The Conservatives put the cost at about £0.7bn a year. The table sets that figure, and CenTax's estimates it draws on, against ours, by what each covers and whether it allows for parents changing how much they work."
+        lead="Published costings of removing the £100,000 limit, by what each covers and whether it allows for parents changing how much they work. Our 30 hours cost and CenTax's static cost are the like-for-like pair."
+        details={<BenchmarkNotes data={data} />}
+        detailsTitle="Where the figures come from"
       >
-        <BenchmarkComparison data={data} />
+        <BenchmarkTable data={data} />
       </Section>
 
       <Section
