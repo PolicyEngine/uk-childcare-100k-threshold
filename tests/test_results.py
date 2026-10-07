@@ -60,8 +60,7 @@ def test_budget_shape():
     for k in ("thirty_hours", "tax_free_childcare", "total"):
         _by_year(b["gross_bn"][k])
     _by_year(b["net_bn"]["total"])
-    _by_year(b["variants"]["thirty_hours_only"])
-    _by_year(b["variants"]["tfc_only"])
+    assert "variants" not in b  # the one-limit-only runs were dropped: nothing published used them
     assert not any("cross_check" in k for k in b)
     for k in ("low", "central", "high"):
         _by_year(b["range_bn"][k])
@@ -114,13 +113,6 @@ def test_net_close_to_gross():
     """Static reform: nothing else in the tax-benefit system responds to these two limits."""
     for y in YEAR_KEYS:
         assert abs(RESULTS["budget"]["net_bn"]["total"][y] - RESULTS["budget"]["gross_bn"]["total"][y]) <= 0.01
-
-
-def test_variants_add_to_total():
-    b = RESULTS["budget"]
-    for y in YEAR_KEYS:
-        both = b["variants"]["thirty_hours_only"][y] + b["variants"]["tfc_only"][y]
-        assert abs(both - b["gross_bn"]["total"][y]) <= 0.005
 
 
 def test_range_brackets_central():
@@ -261,3 +253,20 @@ def test_benchmark_and_take_up_wording():
     text = " ".join(RESULTS["limitations"])
     assert "same for families above and below" not in text
     assert "expects" in text  # the realised-for-expected income proxy is disclosed
+
+
+def test_modelling_assumptions_carry_the_tested_effects():
+    rows = {r["id"]: r for r in RESULTS["modelling_assumptions"]}
+    eff = RESULTS["budget"]["sensitivities"]["effects_bn"]
+    assert rows["hours"]["effect_bn"] == eff["full_30_hour_usage"]
+    assert rows["under_ones"]["effect_bn"] == eff["under_ones"]
+    for r in rows.values():
+        assert r["title"] and r["modelled"]
+        assert ("alternative" in r) == ("effect_bn" in r)
+
+
+def test_cliff_example_is_the_grid_default():
+    g, c = RESULTS["household_grid"], RESULTS["cliff_example"]
+    d = g["default"]
+    s = g["series"][f"{d['parent']}|{d['children']}|{d['spend_per_child']}"]
+    assert c["earnings"] == g["earnings"] and c["net_income_baseline"] == s["baseline"]

@@ -20,7 +20,6 @@ const SECTIONS = {
   budget: [
     { id: "at-a-glance", title: "At a glance" },
     { id: "each-year", title: "Each year" },
-    { id: "sensitivities", title: "What moves the cost" },
     { id: "comparisons", title: "Against the £0.7bn" },
     { id: "thirty-hours", title: "Inside the 30 hours" },
   ],
@@ -32,7 +31,7 @@ const SECTIONS = {
   method: [
     { id: "model", title: "How we cost it" },
     { id: "limits", title: "How the limits work" },
-    { id: "take-up", title: "Take-up" },
+    { id: "assumptions", title: "Assumptions" },
     { id: "validation", title: "Validation" },
     { id: "limitations", title: "Limitations" },
   ],
@@ -106,27 +105,19 @@ export function Dashboard({ data }) {
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
             </a>
-            {` from ${period}`}. The three tabs cover:
+            {` from ${period}`}.
           </p>
-          <ul className="mb-3 list-disc space-y-2 pl-6 text-base leading-7 text-slate-700" data-testid="tab-guide">
-            <li>
-              <strong>Budget impact</strong>: what removing the limit adds to government spending each year, split
-              between the 30 hours and Tax-Free Childcare, with a low and a high estimate around it. It also shows which
-              uncertain assumptions move the cost most, and how our figure compares with the £0.7bn reported for the
-              pledge.
-            </li>
-            <li>
-              <strong>Who gains</strong>: starts with your household. Choose the parents, children and childcare
-              spending to see the family&apos;s net income as earnings rise through £100,000, with and without the
-              limit. Below that, it shows where the gains go across household incomes, family types and regions, and
-              how many families and children gain from each scheme.
-            </li>
-            <li>
-              <strong>Methodology</strong>: the data and model behind every figure, how the two income limits work,
-              the take-up assumptions for newly eligible families, how the baseline compares with official statistics,
-              and what the costing does not capture.
-            </li>
-          </ul>
+          <p className="mb-3 text-base leading-7 text-slate-700" data-testid="tab-guide">
+            The <strong>Budget impact</strong> tab shows what removing the limit adds to government spending each year,
+            split between the two schemes, and how our figure compares with the £0.7bn the party gave.{" "}
+            <strong>Who gains</strong>{" "}
+            starts with your own household: choose the parents, the children and the
+            childcare spending to see how the family&apos;s income changes as earnings pass £100,000, with and without
+            the limit. It then shows where the gains go by household income, family type and region, and how many
+            families and children gain. <strong>Methodology</strong> explains how we cost it, the assumptions behind
+            every figure and what each one changes, how the model compares with official statistics, and what the
+            costing leaves out.
+          </p>
         </div>
 
         <div

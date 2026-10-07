@@ -74,39 +74,23 @@ def _run(earnings, year, reform, family=None):
     }
 
 
-def cliff_example():
+def cliff_example(grid):
+    """The published cliff family, read from the household grid's default series: no extra simulation."""
     c = CLIFF
-    year = c["year"]
-    earnings = list(range(c["earnings_min"], c["earnings_max"] + 1, c["earnings_step"]))
-    if 100_000 in earnings:  # show both sides of the limit
-        i = earnings.index(100_000)
-        earnings = earnings[: i + 1] + [100_001] + earnings[i + 1:]
-    base = [_run(e, year, False) for e in earnings]
-    ref = [_run(e, year, True) for e in earnings]
-
-    def after_childcare(r):
-        return round(r["net_income"] - r["childcare_spend"])
-
+    year = grid["year"]
+    d = grid["default"]
+    series = grid["series"][f"{d['parent']}|{d['children']}|{d['spend_per_child']}"]
     spend = c["childcare_spend_per_child"] * len(c["child_ages"])
     return {
         "description": (
             f"A couple in England ({c['region'].replace('_', ' ').title()}) with children aged "
             f"{' and '.join(map(str, c['child_ages']))}; one parent earns £{c['partner_earnings']:,}, the other's "
-            f"employment income varies from £{c['earnings_min']:,} to £{c['earnings_max']:,} "
-            f"({year}-{(year + 1) % 100:02d} tax year)."
+            f"employment income varies ({year}-{(year + 1) % 100:02d} tax year)."
         ),
         "year": year,
-        "earnings": earnings,
-        "net_income_baseline": [after_childcare(r) for r in base],
-        "net_income_reform": [after_childcare(r) for r in ref],
-        "components": {
-            "free_hours_value_baseline": [round(r["free_hours_value"]) for r in base],
-            "free_hours_value_reform": [round(r["free_hours_value"]) for r in ref],
-            "tax_free_childcare_baseline": [round(r["tfc"]) for r in base],
-            "tax_free_childcare_reform": [round(r["tfc"]) for r in ref],
-            "income_tax_baseline": [round(r["income_tax"]) for r in base],
-            "income_tax_reform": [round(r["income_tax"]) for r in ref],
-        },
+        "earnings": grid["earnings"],
+        "net_income_baseline": series["baseline"],
+        "net_income_reform": series["reform"],
         "notes": (
             "Computed with policyengine.py's household calculator (calculate_household), the same model "
             "release as the population runs. Net income is household net income (after tax and benefits, "
@@ -179,22 +163,29 @@ def _compute_household_grid(workers=8):
     """One axes call per family and scenario: earnings sweep the grid in a single simulation."""
     g = HOUSEHOLD_GRID
     year = CLIFF["year"]
-    lo, step, count = g["earnings_min"], g["earnings_step"], g["earnings_count"]
-    earnings = [lo + step * i for i in range(count)]
-    if 100_001 not in earnings or 99_001 not in earnings:
-        raise ValueError("the grid must put £99,001 and £100,001 on its earnings points")
+    sweeps = [(g["earnings_min"], g["earnings_step"], g["earnings_count"]), (g["fine_min"], g["fine_step"], g["fine_count"])]
+    points = [[lo + step * i for i in range(count)] for lo, step, count in sweeps]
+    earnings = sorted(set(points[0]) | set(points[1]))
+    if 100_001 not in earnings or 99_901 not in earnings:
+        raise ValueError("the grid must put £99,901 and £100,001 on its earnings points")
     combos = list(product(g["parents"], g["children"], g["spend_per_child"]))
     jobs = []
     for parent, children, spend in combos:
         family = {"partner_earnings": parent["partner_earnings"], "child_ages": children["ages"],
                   "spend_per_child": spend["amount"]}
-        jobs += [(family, year, reform, lo, step, count) for reform in (False, True)]
+        jobs += [(family, year, reform, lo, step, count) for reform in (False, True) for lo, step, count in sweeps]
     with ProcessPoolExecutor(workers) as pool:
         values = list(pool.map(_sweep, jobs))
-    series = {
-        f"{parent['id']}|{children['id']}|{spend['id']}": {"baseline": values[2 * k], "reform": values[2 * k + 1]}
-        for k, (parent, children, spend) in enumerate(combos)
-    }
+
+    def merged(coarse, fine):
+        by_earnings = dict(zip(points[0], coarse)) | dict(zip(points[1], fine))
+        return [by_earnings[e] for e in earnings]
+
+    series = {}
+    for k, (parent, children, spend) in enumerate(combos):
+        v = values[4 * k: 4 * k + 4]  # baseline coarse, baseline fine, reform coarse, reform fine
+        series[f"{parent['id']}|{children['id']}|{spend['id']}"] = {"baseline": merged(v[0], v[1]),
+                                                                     "reform": merged(v[2], v[3])}
     return {
         "year": year,
         "region": CLIFF["region"],

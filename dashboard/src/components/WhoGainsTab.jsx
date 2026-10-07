@@ -144,7 +144,8 @@ const k = (v) => `£${Math.round(v / 1000)}k`;
 
 function CliffChart({ rows }) {
   const values = rows.flatMap((r) => [r.baseline, r.reform]);
-  const xTicks = niceAxis([0, ...rows.map((r) => r.earnings)]).ticks?.filter((t) => t <= rows.at(-1).earnings);
+  // A tick every £10,000, so the earnings around the limit can be read off the axis.
+  const xTicks = Array.from({ length: Math.floor(rows.at(-1).earnings / 10000) + 1 }, (_, i) => i * 10000);
   return (
     <>
       <div style={{ height: 380 }} data-testid="cliff-chart">
@@ -192,10 +193,19 @@ function HouseholdSection({ data }) {
   return (
     <Section
       id="household"
-      title="Your household"
-      lead={`Choose a family to see its net income as the higher earner's pay rises through £100,000, with and without the limit, in ${fyLabel(grid.year)}. It opens on a couple with two young children, who hit the cliff.`}
+      title="How does the limit affect your family?"
+      lead={`Choose the parents, the children and how much the family spends on childcare. The chart shows the family's net income after paying for childcare in ${fyLabel(grid.year)}, as the higher earner's pay rises from £0 to £140,000. The solid line is today's rules: once pay passes £100,000 the family loses the 30 funded hours and Tax-Free Childcare at once, so its income falls. The dashed line removes the limit, so the support continues and income keeps rising. Where the two lines meet, the limit makes no difference to this family. It opens on a couple with two young children, who hit the cliff.`}
       details={
         <>
+        <p data-testid="cliff-drop">
+          {s.drop > 0
+            ? `Going from ${formatCurrency(s.before.earnings)} to ${formatCurrency(s.after.earnings)} of earnings cuts this family's net income, after childcare costs, by ${formatCurrency(s.drop)}. ${
+                s.recoverAt
+                  ? `They need earnings of about ${formatCurrency(s.recoverAt)} to get back to where they were.`
+                  : `Even at ${formatCurrency(family.rows.at(-1).earnings)} they have not got back to where they were.`
+              } Without the limit there is no drop.`
+            : "This family does not lose income at £100,000: it gets no support that the limit withdraws."}
+        </p>
           <p>
             Today a family loses the working-parent funded hours and Tax-Free Childcare in full as soon as either
             parent&apos;s adjusted net income goes above £100,000, even by £1: nothing tapers. A child under 3 loses up
@@ -217,17 +227,18 @@ function HouseholdSection({ data }) {
         <Select label="Childcare spending" options={grid.options.spend_per_child} value={choice.spend_per_child} onChange={set("spend_per_child")} />
       </div>
       <CliffChart rows={family.rows} />
-      <p className="mt-4 text-sm leading-6 text-slate-700" data-testid="cliff-drop">
-        {s.drop > 0
-          ? `Going from ${formatCurrency(s.before.earnings)} to ${formatCurrency(s.after.earnings)} of earnings cuts this family's net income, after childcare costs, by ${formatCurrency(s.drop)}. ${
-              s.recoverAt
-                ? `They need earnings of about ${formatCurrency(s.recoverAt)} to get back to where they were.`
-                : `Even at ${formatCurrency(family.rows.at(-1).earnings)} they have not got back to where they were.`
-            } Without the limit there is no drop.`
-          : "This family does not lose income at £100,000: it gets no support that the limit withdraws."}
-      </p>
     </Section>
   );
+}
+
+/** A breakdown's lead: what the chart shows, the largest group's share of the published total, and why. */
+function groupLead(rows, fy, noun, why) {
+  if (!rows) return "";
+  const shown = rows.filter((r) => !r.suppressed);
+  const total = shown.reduce((t, r) => t + r.total_change_bn, 0);
+  const top = sortGroups(shown, "total_change_bn")[0];
+  const share = total > 0 ? Math.round((100 * top.total_change_bn) / total) : 0;
+  return `Extra spending on the two schemes in ${fy}, and the families gaining, by ${noun}, largest first. ${why(top)} ${top.name}: ${formatM(top.total_change_bn)}, ${share}% of the spending shown. Switch between spending and families gaining with Show.`;
 }
 
 const BREAKDOWNS = [
@@ -241,9 +252,14 @@ const GROUP_MEASURES = [
   { id: "families_gaining", label: "Families gaining", format: (v) => formatCount(v), axis: (v) => `${Math.round(v / 1000)}k` },
 ];
 
+/** Largest first; suppressed cells last, in their original order. */
+export function sortGroups(rows, measure) {
+  return [...rows].sort((a, b) => (a.suppressed - b.suppressed) || ((b[measure] ?? 0) - (a[measure] ?? 0)));
+}
+
 function GroupChart({ rows: raw, measure }) {
   const m = GROUP_MEASURES.find((x) => x.id === measure);
-  const rows = raw.map((r) => ({ ...r, [measure]: r.suppressed ? null : r[measure] }));
+  const rows = sortGroups(raw, measure).map((r) => ({ ...r, [measure]: r.suppressed ? null : r[measure] }));
   const hidden = raw.filter((r) => r.suppressed).map((r) => r.name);
   const values = rows.map((r) => r[measure]).filter((v) => v !== null);
   return (
@@ -281,7 +297,7 @@ function GroupTable({ rows, header }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map((r) => (
+          {sortGroups(rows, "total_change_bn").map((r) => (
             <tr key={r.name}>
               <td>{r.name}</td>
               <td className="tabular-nums">{r.suppressed ? SUPPRESSED : formatM(r.total_change_bn)}</td>
@@ -298,12 +314,15 @@ function BreakdownSection({ data, year, yearSelect }) {
   const [by, setBy] = useState("income");
   const [decileMeasure, setDecileMeasure] = useState(DECILE_MEASURES[0].id);
   const [groupMeasure, setGroupMeasure] = useState(GROUP_MEASURES[0].id);
+  const groupRows = by === "income" ? null : getGroups(data, year, by);
+  const fy = fyLabel(year);
   const leads = {
     income:
-      "Only families with a parent above £100,000 gain, so the gains sit almost entirely in the top income deciles.",
-    family_type: "Nearly all the gains go to couples with children; few lone parents gain.",
-    region:
-      "Most of the gains go to London and the rest of the South and East of England. The 30 hours are an English scheme, so families in Scotland, Wales and Northern Ireland gain only from Tax-Free Childcare.",
+      `The average gain per household in ${fy} in each tenth of households, ranked from the lowest to the highest income. Only families where a parent earns over £100,000 gain, so the gains sit almost entirely in the highest-income tenth, with a little in the two below it. The averages include every household in the group, most of which have no young children, so they are far smaller than the gain to a family that benefits. Switch to see the gain as a share of net income, or the share of households that gain.`,
+    family_type: groupLead(groupRows, fy, "family type",
+      (top) => `${top.name} receive the largest share. To gain, a family must have a parent over £100,000 and pass the minimum earnings test, so almost all the gains go to couples; lone parents earning over £100,000 are few.`),
+    region: groupLead(groupRows, fy, "region",
+      (top) => `${top.name} receives the largest share, because more parents there earn over £100,000. The 30 hours are an English scheme, so families in Scotland, Wales and Northern Ireland gain only from Tax-Free Childcare.`),
   };
   const details = {
     income: (
@@ -327,11 +346,10 @@ function BreakdownSection({ data, year, yearSelect }) {
       </p>
     ),
   };
-  const groupRows = by === "income" ? null : getGroups(data, year, by);
   return (
     <Section
       id="breakdown"
-      title="Where the gains go"
+      title="Where do the gains go?"
       lead={leads[by]}
       details={
         <>
@@ -467,8 +485,8 @@ export default function WhoGainsTab({ data }) {
 
       <Section
         id="recipients"
-        title="Families and children gaining"
-        lead={`How many families and children gain from each scheme in ${fy} (the year chosen above). Many gain from both, so the schemes add up to more than "either or both".`}
+        title="How many families and children gain?"
+        lead={`Families and children who gain from each scheme in ${fy}, the year chosen above. A family gains if its support rises by more than £1 a year. Many gain from both schemes, so the two scheme bars add up to more than "either or both". Use Show to count children instead, or to see the children gaining by age: Tax-Free Childcare covers children up to 11, so many of them are of school age.`}
         details={
           <>
             <p>

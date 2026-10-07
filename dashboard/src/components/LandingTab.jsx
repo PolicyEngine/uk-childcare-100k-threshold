@@ -9,9 +9,7 @@ import {
   getBenchmarks,
   getBudget,
   getBudgetComparisons,
-  getRange,
   getRecipients,
-  getSensitivities,
   getThirtyHoursComponents,
   isNum,
   LEAD_YEAR,
@@ -123,7 +121,7 @@ function SplitBar({ thirty, tfc }) {
 }
 
 function CostChart({ rows }) {
-  const values = rows.flatMap((r) => [r.total, r.high]);
+  const values = rows.map((r) => r.total);
   const digits = axisDigits(values);
   const axis = niceAxis(values);
   return (
@@ -133,17 +131,14 @@ function CostChart({ rows }) {
           <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
             <XAxis dataKey="label" tick={AXIS_STYLE} />
-            {/* A second, hidden axis on the same years lets the range sit over the stacked bars rather than beside them. */}
-            <XAxis dataKey="label" xAxisId="range" hide />
             <YAxis tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, digits)} {...axis} />
             <Tooltip
               cursor={{ fill: colors.gray[100] }}
-              content={<CustomTooltip formatter={(v) => (Array.isArray(v) ? `${formatBn(v[0], 2)} to ${formatBn(v[1], 2)}` : formatBn(v, 2))} />}
+              content={<CustomTooltip formatter={(v) => formatBn(v, 2)} />}
             />
             {SCHEMES.map((s) => (
               <Bar key={s} dataKey={s} name={SCHEME_LABELS[s]} stackId="cost" fill={schemeColors[s]} isAnimationActive={false} maxBarSize={80} />
             ))}
-            <Bar dataKey="range" name="Range (low to high estimate)" xAxisId="range" fill={colors.gray[800]} barSize={3} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>
@@ -154,10 +149,6 @@ function CostChart({ rows }) {
             {SCHEME_LABELS[s]}
           </span>
         ))}
-        <span className="flex items-center gap-2">
-          <span className="inline-block h-3 w-[3px]" style={{ backgroundColor: colors.gray[800] }} />
-          Range: low to high estimate
-        </span>
       </div>
       <ChartLogo />
     </>
@@ -184,53 +175,6 @@ function SeriesTable({ years, rows, testId, format = (v) => formatBn(v, 2) }) {
               {r.values.map((v, i) => (
                 <td key={years[i]} className="whitespace-nowrap tabular-nums">
                   {(r.format ?? format)(v)}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-const SENSITIVITY_LABELS = {
-  full_30_hour_usage: "Full use of the 30 hours",
-  under_ones: "Children aged 9 to 11 months",
-  ani_net_of_pension_contributions: "Income net of pension contributions",
-  tfc_routed_share: "Less spending through Tax-Free Childcare",
-};
-
-/** A sensitivity's name: a known label, or its id written out. */
-function sensitivityLabel(id) {
-  return id in SENSITIVITY_LABELS ? SENSITIVITY_LABELS[id] : id.replace(/_/g, " ");
-}
-
-function SensitivityTable({ sens }) {
-  return (
-    <div className="overflow-x-auto">
-      <table className="data-table" data-testid="sensitivity-table">
-        <thead>
-          <tr>
-            <th>Adjustment</th>
-            <th className="whitespace-nowrap">Range end</th>
-            {sens.years.map((y) => (
-              <th key={y} className="whitespace-nowrap">{yearHeading(y)}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sens.rows.map((r) => (
-            <tr key={r.id}>
-              <td className="min-w-[260px]">
-                <span className="font-medium text-slate-800">{sensitivityLabel(r.id)}</span>
-                <br />
-                <span className="text-xs leading-5 text-slate-500">{r.description}</span>
-              </td>
-              <td className="whitespace-nowrap">{r.side === "low" ? "Low" : "High"}</td>
-              {r.values.map((v, i) => (
-                <td key={sens.years[i]} className="whitespace-nowrap tabular-nums">
-                  {formatSignedM(v)}
                 </td>
               ))}
             </tr>
@@ -320,16 +264,12 @@ const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
 
 export default function LandingTab({ data }) {
   const budget = getBudget(data);
-  const range = getRange(data);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const lead = budget.rows[li];
   const recipients = getRecipients(data, lead.year);
-  const sens = getSensitivities(data);
   const cmp = getBudgetComparisons(data);
-  const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), low: range.low[i], high: range.high[i], range: [range.low[i], range.high[i]] }));
+  const rows = budget.rows.map((r) => ({ ...r, label: yearHeading(r.year) }));
   const fy = nb(lead.year);
-  const thirty = budget.rows.map((r) => r.thirty_hours);
-  const tfc = budget.rows.map((r) => r.tax_free_childcare);
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="landing-tab">
@@ -343,7 +283,7 @@ export default function LandingTab({ data }) {
           <Card
             label={`Cost in ${fy}`}
             value={formatBn(lead.total, 2)}
-            detail={`Range ${formatBn(range.low[li], 2)} to ${formatBn(range.high[li], 2)}`}
+            detail="Extra government spending on both schemes"
             testId="card-cost"
           >
             <MiniBars
@@ -378,38 +318,23 @@ export default function LandingTab({ data }) {
 
       <Section
         id="each-year"
-        title="The cost each year"
-        lead="Each bar is our central estimate, split by scheme. The thin black line through it shows how far the cost could move if our main uncertain assumptions are wrong: its bottom is the low estimate and its top the high estimate. The next section shows what sets each end."
+        title="How much does it cost each year?"
+        lead="Extra government spending in each fiscal year from removing the limit, split between the 30 funded hours and Tax-Free Childcare. The £100,000 limit is not uprated, so as pay rises more parents pass it each year and the cost of removing it grows. Hover over a bar for its figures. The assumptions behind these figures, and what each one changes, are on the Methodology tab."
         detailsTitle="How to read this chart"
         details={
           <>
             <p>
               Each bar is the extra government spending in that fiscal year when neither the 30 hours nor Tax-Free
               Childcare is withdrawn above £100,000 of adjusted net income, with the policy in force for the whole
-              year. {fyLabel(budget.years[0])} is more than half over, so its full-year cost is illustrative. The thin
-              line through each bar runs from the low estimate to the high estimate.
+              year. {fyLabel(budget.years[0])} is more than half over, so its full-year cost is illustrative.
             </p>
             {same(cmp.net, budget.rows.map((r) => r.total)) ? (
               <p data-testid="net-note">The cost is the same net of other taxes and benefits: nothing else changes for these families.</p>
-            ) : null}
-            {same(cmp.thirtyOnly, thirty) && same(cmp.tfcOnly, tfc) ? (
-              <p data-testid="variants-note">
-                Removing either limit on its own costs the same as that scheme&apos;s part of the bar: the two do not
-                interact.
-              </p>
             ) : null}
           </>
         }
       >
         <CostChart rows={rows} />
-      </Section>
-
-      <Section
-        id="sensitivities"
-        title="What moves the cost"
-        lead="Each row is one assumption we are unsure of, and how much changing it moves the central cost. Adding the rows that lower the cost gives the low estimate; adding the rows that raise it gives the high estimate."
-      >
-        <SensitivityTable sens={sens} />
       </Section>
 
       <Section

@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: ()
 
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
 import LandingTab, { CENTAX } from "./LandingTab";
-import WhoGainsTab, { DECILE_MEASURES, listOf, SUPPRESSED } from "./WhoGainsTab";
+import WhoGainsTab, { DECILE_MEASURES, listOf, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
 import { formatThousands } from "../lib/formatters";
@@ -68,14 +68,13 @@ describe("the page", () => {
 });
 
 describe("budget impact", () => {
-  it("leads with 2027-28: its cost, range, split and the families gaining, from the file", () => {
+  it("leads with 2027-28: its cost, split and the families gaining, from the file", () => {
     render(<LandingTab data={data} />);
     const g = data.budget.gross_bn;
-    const r = data.budget.range_bn;
     const card = screen.getByTestId("card-cost").textContent;
     expect(card).toContain(fy(LEAD_YEAR).replace("-", "‑"));
     expect(card).toContain(bn(total(LEAD_YEAR)));
-    expect(card).toContain(`Range ${bn(r.low[LEAD_YEAR])} to ${bn(r.high[LEAD_YEAR])}`);
+    expect(card).not.toMatch(/Range/);
     expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[LEAD_YEAR])} and ${bn(g.tax_free_childcare[LEAD_YEAR])}`);
     const rec = data.recipients[LEAD_YEAR];
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
@@ -91,7 +90,7 @@ describe("budget impact", () => {
 
   it("labels 2026-27 illustrative in the tables", () => {
     render(<LandingTab data={data} />);
-    expect(within(screen.getByTestId("sensitivity-table")).getAllByRole("columnheader").map((h) => h.textContent)).toContain("2026-27 (illustrative)");
+    expect(within(screen.getByTestId("components-table")).getAllByRole("columnheader").map((h) => h.textContent)).toContain("2026-27 (illustrative)");
   });
 
   it("compares like for like: our 30 hours cost against CenTax's static cost of the free hours", () => {
@@ -105,18 +104,6 @@ describe("budget impact", () => {
     const lfl = screen.getByTestId("benchmark-like-for-like").textContent;
     expect(lfl).toContain(bn(data.budget.gross_bn.thirty_hours[final]));
     expect(lfl).toContain(`${bn(CENTAX.staticBn)} in ${CENTAX.year}`);
-  });
-
-  it("shows every sensitivity, signed in £m, from the file", () => {
-    render(<LandingTab data={data} />);
-    const effects = Object.entries(data.budget.sensitivities.effects_bn);
-    const rows = within(screen.getByTestId("sensitivity-table")).getAllByRole("row").slice(1);
-    expect(rows).toHaveLength(effects.length);
-    effects.forEach(([id, v], i) => {
-      const m = Math.round(v[years[0]] * 1000);
-      expect(rows[i].textContent, id).toContain(`${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`);
-      expect(rows[i].textContent, id).toContain(data.budget.sensitivities.descriptions[id]);
-    });
   });
 
   it("shows the 30 hours components", () => {
@@ -143,7 +130,7 @@ describe("who gains", () => {
     render(<WhoGainsTab data={data} />);
     for (const [id, key, name] of [["region", "by_region", "region"], ["family_type", "by_family_type", "family_type"]]) {
       fireEvent.change(screen.getByLabelText("Break down by"), { target: { value: id } });
-      const cells = data.distribution[LEAD_YEAR][key];
+      const cells = sortGroups(data.distribution[LEAD_YEAR][key], "total_change_bn");
       const rows = within(screen.getByTestId("group-table")).getAllByRole("row").slice(1);
       expect(rows).toHaveLength(cells.length);
       cells.forEach((c, i) => {
@@ -214,6 +201,18 @@ describe("methodology", () => {
     expect(rows).toHaveLength(data.baseline_validation.length);
     expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(6);
     expect(within(screen.getByTestId("limitations")).getAllByRole("listitem")).toHaveLength(data.limitations.length);
+  });
+
+  it("states every modelling assumption, with each tested alternative's effect in £m from the file", () => {
+    render(<MethodTab data={data} />);
+    for (const a of data.modelling_assumptions) {
+      const box = screen.getByTestId(`assumption-${a.id}`);
+      expect(box.textContent).toContain(a.title);
+      if (a.effect_bn) {
+        const m = Math.round(a.effect_bn[years[0]] * 1000);
+        expect(within(box).getByTestId(`assumption-effect-${a.id}`).textContent).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
+      }
+    }
   });
 
   it("does not call the take-up rates equal above and below £100,000", () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { fyLabel, getAssumptions, getLimitations, getMeta, getReform, getValidation } from "../lib/dataHelpers";
+import { fyLabel, getAssumptions, getLimitations, getMeta, getModellingAssumptions, getReform, getValidation, yearHeading } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { Section } from "./ui";
 
@@ -149,12 +149,64 @@ function AssumptionsTable({ rows }) {
   );
 }
 
+/** £bn as a signed £m figure: -0.015 -> "-£15m", 0.616 -> "+£616m". */
+const signedM = (v) => {
+  const m = Math.round(v * 1000);
+  return `${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`;
+};
+
+function AssumptionList({ rows, years, takeUp }) {
+  return (
+    <div className="space-y-4" data-testid="assumption-list">
+      {rows.map((r) => (
+        <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4" data-testid={`assumption-${r.id}`}>
+          <h3 className="text-base font-semibold text-slate-900">{r.title}</h3>
+          <p className="mt-1 text-sm leading-6 text-slate-600">
+            <span className="font-medium text-slate-700">What we model: </span>
+            {r.modelled}
+          </p>
+          {r.id === "take_up" ? <div className="mt-3">{takeUp}</div> : null}
+          {r.alternative ? (
+            <>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                <span className="font-medium text-slate-700">What we test instead: </span>
+                {r.alternative}
+              </p>
+              <div className="mt-2 overflow-x-auto">
+                <table className="data-table" data-testid={`assumption-effect-${r.id}`}>
+                  <thead>
+                    <tr>
+                      <th>Change in the cost</th>
+                      {years.map((y) => (
+                        <th key={y} className="whitespace-nowrap">{yearHeading(y)}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td>Against our estimate</td>
+                      {r.effects.map((v, i) => (
+                        <td key={years[i]} className="tabular-nums">{signedM(v)}</td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function MethodTab({ data }) {
   const meta = getMeta(data);
   const reform = getReform(data);
   const validation = getValidation(data);
   const limitations = getLimitations(data);
   const assumptions = getAssumptions(data);
+  const modelling = getModellingAssumptions(data);
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="method-tab">
@@ -180,7 +232,7 @@ export default function MethodTab({ data }) {
           </li>
           <li>
             Further runs change one uncertain assumption at a time (how many hours families use, babies under one, and
-            income net of pension contributions) to give the low and high estimates on the Budget impact tab.
+            the income the limit tests), and the Assumptions section below shows what each changes.
           </li>
           <li>
             Every version is pinned, so the results can be rebuilt exactly: the model package and the dataset release
@@ -244,11 +296,12 @@ export default function MethodTab({ data }) {
       </Section>
 
       <Section
-        id="take-up"
-        title="Take-up"
-        lead="The dataset's existing take-up draws are held fixed for newly eligible families. The rates differ above and below £100,000, as the table shows."
+        id="assumptions"
+        title="What do the figures assume?"
+        lead="Every figure rests on the choices below, each as the analysis code makes it. Where an assumption is uncertain we run the costing again with an alternative, and show how much that alternative changes the cost in each year; the effects are separate and do not add up."
+        boxed={false}
       >
-        <AssumptionsTable rows={assumptions} />
+        <AssumptionList rows={modelling} years={meta.years} takeUp={<AssumptionsTable rows={assumptions} />} />
       </Section>
 
       <Section

@@ -127,11 +127,6 @@ def thirty_hours_components(runs, years=YEARS):
     return out
 
 
-def variant_totals(runs, variant, years=YEARS):
-    b, r = runs["baseline"], runs[variant]
-    return {str(y): _bn(sum(gross(b, r, y)[:2])) for y in years}
-
-
 def sensitivities(runs, years=YEARS):
     """Each adjustment's effect on the gross total (£bn, + raises the cost), and the low/high range.
 

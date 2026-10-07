@@ -24,6 +24,7 @@ from .config import (
     PRIMARY_DATASET,
     REFORM_PARAMETERS,
     REPO,
+    HOURS_USAGE_VARIABLE,
     ROUTED_SHARE_LOW,
     SCENARIOS,
     YEARS,
@@ -91,46 +92,22 @@ def _provenance_meta(metas):
 
 
 LIMITATIONS = [
-    "Static costing: no labour-supply or earnings response. Parents just above £100,000 who would work more, and "
-    "parents now holding income below £100,000 through pension contributions or reduced hours, are not modelled; the "
-    "Conservatives' claimed growth effects are not scored.",
     "Eligibility uses each parent's realised annual adjusted net income, while the law tests the income a parent "
     "expects when applying or reconfirming (SI 2022/1134 reg 14(3)(c)(i) and 15(3)(b)(i); SI 2015/448 reg 15(1)). "
     "A parent who expected to stay under £100,000 but ended the year above it can already receive support, and the "
     "model counts it as a reform cost; a parent who expected to exceed £100,000 but ended below it is modelled as "
     "eligible today. CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 claimed "
     "and received some free childcare (Removing the childcare cliff-edge, September 2026, pp. 5-6 and 59-60). The "
-    "net direction for the cost is not known, and the range does not include it.",
-    "Funded hours use the dataset's draw of weekly extended hours used (mean about 15 of 30). The model also switches "
-    "off the universal 15 hours when a family becomes eligible for the extended hours, so a newly eligible 3- or "
-    "4-year-old with a low draw gains little or loses hours in the model (families_losing). The high end of the range "
-    "sets usage to the full 30 hours.",
-    "Children aged 9-11 months never qualify in the model (whole-year ages, age 0 gets no hours); the high end adds "
-    "them outside the model, allowing for funding starting in the term after a child turns 9 months.",
+    "net direction for the cost is not known, and it is not tested.",
     "Four-year-olds in reception still receive funded hours in the model (compulsory school age starts at 5), so the "
     "baseline counts more funded 3- and 4-year-olds than DfE.",
-    "Adjusted net income in policyengine-uk does not deduct pension contributions or Gift Aid (Income Tax Act 2007 "
-    "s58), so too many parents sit above £100,000 in the baseline and the reform cost is overstated; the low end "
-    "removes families who would already qualify on a net-of-pension-contributions measure.",
-    "From 2029-30, policyengine-uk adds pension salary sacrifice above the new £2,000 National Insurance cap back "
-    "into pay, which raises adjusted net income. HMRC says the cap changes National Insurance only and leaves "
-    "adjusted net income, and so the childcare limits, unchanged. Both childcare income tests here therefore use "
-    "adjusted net income less the returned salary sacrifice in every run, baseline and reform. Income tax and "
-    "National Insurance are left as the model computes them. This correction is pending an upstream fix in "
-    "policyengine-uk.",
-    "Tax-Free Childcare uses the Microcosm release's share of each person's childcare spending paid through an "
-    f"account (0.593 for every record); the low end sets it to {ROUTED_SHARE_LOW}, counted jointly with the pension "
-    "adjustment so the two are not double-counted.",
     "Childcare spending is held fixed: a family that gains funded hours would in practice pay for fewer hours, which "
     "would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly.",
     "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), 1-6% below DfE's "
     "2026-27 national average rates (see baseline_validation), so the 30-hours leg is slightly understated.",
-    "The high end adds the full-usage and under-1s adjustments; their interaction is ignored.",
     "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell "
     "would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), "
     "so no suppressed cell can be recovered from the published UK totals.",
-    "Policy assumed in force for the whole of each fiscal year from 2026-27; the proposal's start date is not given, "
-    "and 2026-27 is already half over, so its figures are illustrative.",
 ]
 
 
@@ -162,17 +139,68 @@ def data_limitations(rows):
     ]
 
 
-def take_up_limitation(a):
-    """The take-up caveat, stated with the draw rates the results report."""
+def modelling_assumptions(a, effects):
+    """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
     e30, etfc = a["would_claim_30_hours_pct"], a["would_claim_tfc_pct"]
-    return (
-        "Take-up holds the dataset's existing take-up draws fixed; it is not modelled afresh for newly eligible "
-        "families. The draw rates differ by income: families with a child under 5 would claim the 30 hours at "
-        f"{e30['families_with_child_under_5']}% ({e30['of_which_parent_over_100k']}% where a parent is over "
-        f"£100,000); families with a child under 12 would claim Tax-Free Childcare at "
-        f"{etfc['families_with_child_under_12']}% ({etfc['of_which_parent_over_100k']}%) "
-        f"({a['year']}-{(a['year'] + 1) % 100:02d}, see assumptions)."
-    )
+    return [
+        {
+            "id": "static",
+            "title": "No change in work, pay or childcare",
+            "modelled": "Both runs use the same households with the same earnings, hours of work and childcare "
+                        "spending. Nobody works more or less, or changes their pension contributions, because the "
+                        "limit goes.",
+        },
+        {
+            "id": "take_up",
+            "title": "Who claims",
+            "modelled": "Each family's decision to claim comes from the dataset's existing take-up draws "
+                        "(would_claim_extended_childcare, would_claim_tfc), held fixed for newly eligible families. "
+                        f"In {a['year']}-{(a['year'] + 1) % 100:02d}, {e30['families_with_child_under_5']}% of families "
+                        f"with a child under 5 would claim the 30 hours ({e30['of_which_parent_over_100k']}% where a "
+                        f"parent is over £100,000), and {etfc['families_with_child_under_12']}% of families with a "
+                        f"child under 12 would claim Tax-Free Childcare ({etfc['of_which_parent_over_100k']}%).",
+        },
+        {
+            "id": "hours",
+            "title": "Hours of childcare used",
+            "modelled": "Each family's weekly extended hours come from the dataset's draw of "
+                        f"{HOURS_USAGE_VARIABLE}, which averages about {a['mean_extended_hours_usage']:.0f} of the "
+                        "30 hours. DfE's January 2025 census implies about 28.5; the draw is under review upstream "
+                        "(PolicyEngine/microcosm#1126). The model also switches off a 3- or 4-year-old's universal 15 "
+                        "hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930).",
+            "alternative": "Every family uses all 30 extended hours, today and under the reform.",
+            "effect_bn": effects["full_30_hour_usage"],
+        },
+        {
+            "id": "under_ones",
+            "title": "Babies under one",
+            "modelled": "The model holds ages in whole years and gives age 0 no funded hours, so 9- to 11-month-olds "
+                        "never qualify.",
+            "alternative": "Add newly eligible 9- to 11-month-olds outside the model, from the term after they turn "
+                           "9 months, at 30 hours x 38 weeks x the under-2 funding rate and the model's take-up.",
+            "effect_bn": effects["under_ones"],
+        },
+        {
+            "id": "income_test",
+            "title": "The income each limit tests",
+            "modelled": "Adjusted net income as policyengine-uk computes it: each parent's realised income for the "
+                        "year, before pension contributions and Gift Aid are deducted. From 2029-30 we remove pension "
+                        "salary sacrifice that the model adds back to pay under the new National Insurance cap, "
+                        "because HMRC says the cap leaves adjusted net income unchanged (corrections.py). Tax-Free "
+                        "Childcare is paid on the dataset's share of childcare spending that goes through an account "
+                        "(59%).",
+            "alternative": "Deduct pension contributions before testing the £100,000 limit, and put "
+                           f"{ROUTED_SHARE_LOW:.0%} of childcare spending through Tax-Free Childcare accounts, counted "
+                           "together so no family's gain is cut twice.",
+            "effect_bn": effects[agg.JOINT_LOW],
+        },
+        {
+            "id": "timing",
+            "title": "In force for the whole year",
+            "modelled": "The limit is removed for the whole of each fiscal year from 2026-27 to 2029-30. The pledge "
+                        "gives no start date and 2026-27 is already half over, so 2026-27 is illustrative.",
+        },
+    ]
 
 
 def _fy(year):
@@ -188,9 +216,9 @@ def build(metas):
     validation = baseline_validation(runs)
     assumptions = agg.assumptions(runs)
     limitations = list(LIMITATIONS)
-    limitations.insert(1, take_up_limitation(assumptions))
-    limitations[-1:-1] = data_limitations(validation)
+    limitations[-1:] = data_limitations(validation) + limitations[-1:]
 
+    grid = household_grid()
     y = str(BENCHMARK_YEAR)
     thirty = budget["thirty_hours"][y]
     results = {
@@ -219,10 +247,6 @@ def build(metas):
             "gross_bn": {k: budget[k] for k in ("thirty_hours", "tax_free_childcare", "total")},
             "net_bn": {"total": budget["net_total"]},
             "thirty_hours_components_bn": agg.thirty_hours_components(runs),
-            "variants": {
-                "thirty_hours_only": agg.variant_totals(runs, "thirty_hours_only"),
-                "tfc_only": agg.variant_totals(runs, "tfc_only"),
-            },
             "range_bn": sens["range_bn"],
             "sensitivities": {
                 "effects_bn": sens["effects_bn"],
@@ -248,8 +272,9 @@ def build(metas):
         # model/data issue filed upstream, stated once there rather than as a validation row.
         "baseline_validation": [r for r in validation if not r["label"].startswith(FUNDED_HOURS_SPENDING)],
         "assumptions": {"microcosm": assumptions},
-        "cliff_example": cliff_example(),
-        "household_grid": household_grid(),
+        "cliff_example": cliff_example(grid),
+        "household_grid": grid,
+        "modelling_assumptions": modelling_assumptions(assumptions, sens["effects_bn"]),
         "benchmarks": [
             {
                 "source": "Conservative Party",

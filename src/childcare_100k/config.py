@@ -57,8 +57,6 @@ ROUTED_SHARE_LOW = 0.58
 SCENARIOS = {
     "baseline": {"params": [], "inputs": {}},
     "reform": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {}},
-    "thirty_hours_only": {"params": [THIRTY_HOURS_LIMIT], "inputs": {}},
-    "tfc_only": {"params": [TFC_LIMIT], "inputs": {}},
     # High: every family uses the full 30 extended hours (the data draw a mean of ~15).
     "baseline_hours30": {"params": [], "inputs": {HOURS_USAGE_VARIABLE: 30.0}},
     "reform_hours30": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {HOURS_USAGE_VARIABLE: 30.0}},
@@ -136,6 +134,10 @@ HOUSEHOLD_GRID = {
     "earnings_min": 1,
     "earnings_step": 1_000,
     "earnings_count": 141,
+    # A second, finer sweep across the limit, so the drop at £100,000 is drawn sharply.
+    "fine_min": 95_001,
+    "fine_step": 100,
+    "fine_count": 101,
     "parents": [
         {"id": "couple20", "label": "Couple, partner earns £20,000", "partner_earnings": 20_000},
         {"id": "couple40", "label": "Couple, partner earns £40,000", "partner_earnings": 40_000},

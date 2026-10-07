@@ -161,8 +161,6 @@ export function getBudgetComparisons(data) {
   const b = data?.budget;
   return {
     net: byYear(b?.net_bn?.total, years, "budget.net_bn.total"),
-    thirtyOnly: byYear(b?.variants?.thirty_hours_only, years, "budget.variants.thirty_hours_only"),
-    tfcOnly: byYear(b?.variants?.tfc_only, years, "budget.variants.tfc_only"),
   };
 }
 
@@ -310,6 +308,21 @@ export function getAssumptions(data) {
   return rows;
 }
 
+/** The modelling assumptions, each with what the code models and, where tested, the alternative's effect by year. */
+export function getModellingAssumptions(data) {
+  const rows = data?.modelling_assumptions;
+  const years = getYears(data);
+  if (!Array.isArray(rows) || rows.length === 0) fail("modelling_assumptions", "missing");
+  rows.forEach((r, i) => {
+    if (!isText(r?.id) || !isText(r.title) || !isText(r.modelled)) fail(`modelling_assumptions.${i}`, "incomplete");
+    if ("alternative" in r || "effect_bn" in r) {
+      if (!isText(r.alternative)) fail(`modelling_assumptions.${i}.alternative`, "missing");
+      byYear(r.effect_bn, years, `modelling_assumptions.${i}.effect_bn`);
+    }
+  });
+  return rows.map((r) => ("effect_bn" in r ? { ...r, effects: byYear(r.effect_bn, years, "") } : r));
+}
+
 /** The example household's net income against earnings, with and without the limit. */
 export function getCliff(data) {
   const c = data?.cliff_example;
@@ -402,6 +415,7 @@ export function validateResults(data) {
   for (const y of years) getChildrenByAge(data, y);
   getValidation(data);
   getAssumptions(data);
+  getModellingAssumptions(data);
   cliffSummary(getCliff(data));
   const grid = getHouseholdGrid(data);
   cliffSummary(householdRows(grid, grid.default));
