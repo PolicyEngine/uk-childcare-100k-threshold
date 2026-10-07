@@ -316,14 +316,6 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="landing-tab">
       <Section
-        id="schemes"
-        title="What changes for each scheme?"
-        lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
-      >
-        <SchemesTable />
-      </Section>
-
-      <Section
         id="at-a-glance"
         title="The cost at a glance"
         lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
@@ -376,6 +368,14 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
             />
           </Card>
         </div>
+      </Section>
+
+      <Section
+        id="schemes"
+        title="What changes for each scheme?"
+        lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
+      >
+        <SchemesTable />
       </Section>
 
       <Section

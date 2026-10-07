@@ -28,8 +28,8 @@ export const DEFAULT_TAB = "budget";
 // Each tab's sections, for the "On this tab" links (the ids are set in the sections themselves).
 const SECTIONS = {
   budget: [
-    { id: "schemes", title: "Each scheme" },
     { id: "at-a-glance", title: "At a glance" },
+    { id: "schemes", title: "Each scheme" },
     { id: "each-year", title: "Each year" },
   ],
   "who-gains": [
