@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { colors, schemeColors } from "../lib/colors";
 import {
@@ -64,7 +66,7 @@ function StripLegend({ items }) {
 }
 
 /** Small vertical bars, one per item, the first (or `highlight`) darkest. */
-function MiniBars({ items, label, highlight = 0 }) {
+function MiniBars({ items, label, highlight = 0, onSelect, format }) {
   const W = 240;
   const H = 46;
   const max = Math.max(...items.map((d) => d.value), 0) || 1;
@@ -76,9 +78,19 @@ function MiniBars({ items, label, highlight = 0 }) {
         {items.map((d, i) => {
           const h = (Math.max(0, d.value) / max) * H;
           return (
-            <g key={d.label}>
-              <rect x={i * (bw + gap)} y={H - h} width={bw} height={h} rx={2} fill={d.color ?? (i === highlight ? colors.primary[600] : colors.primary[200])} />
-              <text x={i * (bw + gap) + bw / 2} y={H + 12} textAnchor="middle" fontSize={10} fill={colors.gray[500]}>
+            <g
+              key={d.label}
+              className={onSelect ? "cursor-pointer [&:hover>rect.bar]:opacity-80" : undefined}
+              onClick={onSelect ? () => onSelect(i) : undefined}
+              role={onSelect ? "button" : undefined}
+              aria-label={onSelect ? `${d.label}${format ? `: ${format(d.value)}` : ""}` : undefined}
+              aria-pressed={onSelect ? i === highlight : undefined}
+            >
+              <title>{format ? `${d.label}: ${format(d.value)}` : d.label}</title>
+              {/* A full-height hit area, so a short bar is as easy to click as a tall one. */}
+              {onSelect ? <rect x={i * (bw + gap)} y={0} width={bw} height={H + 14} fill="transparent" /> : null}
+              <rect className="bar" x={i * (bw + gap)} y={H - h} width={bw} height={h} rx={2} fill={d.color ?? (i === highlight ? colors.primary[600] : colors.primary[200])} />
+              <text x={i * (bw + gap) + bw / 2} y={H + 12} textAnchor="middle" fontSize={10} fill={i === highlight && onSelect ? colors.gray[800] : colors.gray[500]} fontWeight={i === highlight && onSelect ? 600 : 400}>
                 {d.label}
               </text>
             </g>
@@ -260,6 +272,16 @@ function BenchmarkComparison({ data }) {
         work. CenTax&apos;s {CENTAX.year} is the 2029-30 tax year. The £0.7bn is close to this net figure plus a small
         addition for Tax-Free Childcare.
       </p>
+      <div className="max-w-sm">
+        <MiniBars
+          items={[
+            { label: `Ours ${fyLabel(last.year)}`, value: last.thirty_hours, color: schemeColors.thirty_hours },
+            { label: `CenTax ${CENTAX.year}`, value: CENTAX.staticBn, color: colors.gray[400] },
+          ]}
+          label="Our 30 hours cost against CenTax's static cost of the free hours"
+          format={(v) => formatBn(v, 2)}
+        />
+      </div>
       <p data-testid="benchmark-like-for-like">
         Like for like, the comparison is our 30 hours cost with CenTax&apos;s static cost, both before any change
         in how much parents work: {formatBn(last.thirty_hours, 2)} in {nb(last.year)} against{" "}
@@ -299,11 +321,9 @@ const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
 export default function LandingTab({ data }) {
   const budget = getBudget(data);
   const range = getRange(data);
-  const li = budget.years.indexOf(LEAD_YEAR);
+  const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const lead = budget.rows[li];
-  const last = budget.rows.at(-1);
-  const recipients = getRecipients(data, LEAD_YEAR);
-  const benchmark = getBenchmarks(data)[0];
+  const recipients = getRecipients(data, lead.year);
   const sens = getSensitivities(data);
   const cmp = getBudgetComparisons(data);
   const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), low: range.low[i], high: range.high[i], range: [range.low[i], range.high[i]] }));
@@ -316,17 +336,23 @@ export default function LandingTab({ data }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`What removing the £100,000 limit on both schemes adds to government spending in ${fyLabel(lead.year)}, the first full year, and who gains.`}
+        lead={`What removing the £100,000 limit on both schemes adds to government spending, and who gains. It opens on ${fyLabel(LEAD_YEAR)}, the first full year; click a year's bar to change it.`}
         boxed={false}
       >
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <Card
             label={`Cost in ${fy}`}
             value={formatBn(lead.total, 2)}
             detail={`Range ${formatBn(range.low[li], 2)} to ${formatBn(range.high[li], 2)}`}
             testId="card-cost"
           >
-            <MiniBars items={budget.rows.map((r) => ({ label: fyLabel(r.year), value: r.total }))} label="Central cost each year" highlight={li} />
+            <MiniBars
+              items={budget.rows.map((r) => ({ label: fyLabel(r.year), value: r.total }))}
+              label="Central cost each year: click a year to show it"
+              highlight={li}
+              onSelect={setLi}
+              format={(v) => formatBn(v, 2)}
+            />
           </Card>
           <Card
             label="By scheme"
@@ -345,29 +371,6 @@ export default function LandingTab({ data }) {
             <MiniBars
               items={SCHEMES.map((sc) => ({ label: sc === "thirty_hours" ? "30 hours" : "Tax-Free Childcare", value: recipients.by_scheme[sc], color: schemeColors[sc] }))}
               label="Families gaining by scheme"
-            />
-          </Card>
-          <Card
-            label="The £0.7bn figure"
-            value={benchmark.figure}
-            detail={
-              <>
-                The party&apos;s figure, which{" "}
-                <a href={benchmark.url} target="_blank" rel="noreferrer">
-                  City AM
-                </a>{" "}
-                says traces to CenTax&apos;s cost of the free hours only. Like for like: our 30 hours cost against
-                CenTax&apos;s static cost
-              </>
-            }
-            testId="card-benchmark"
-          >
-            <MiniBars
-              items={[
-                { label: `Ours ${fyLabel(last.year)}`, value: last.thirty_hours, color: schemeColors.thirty_hours },
-                { label: `CenTax ${CENTAX.year}`, value: CENTAX.staticBn, color: colors.gray[400] },
-              ]}
-              label="Our 30 hours cost against CenTax's static cost of the free hours"
             />
           </Card>
         </div>

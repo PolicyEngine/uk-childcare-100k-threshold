@@ -82,6 +82,13 @@ describe("budget impact", () => {
     if (rec.mean_gain_gbp !== null) expect(screen.getByTestId("card-families").textContent).toContain(gbp(rec.mean_gain_gbp));
   });
 
+  it("switches the cards to the year whose bar is clicked", () => {
+    render(<LandingTab data={data} />);
+    fireEvent.click(within(screen.getByTestId("card-cost")).getByRole("button", { name: new RegExp(fy(final)) }));
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(final)));
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(data.recipients[final].families_gaining));
+  });
+
   it("labels 2026-27 illustrative in the tables", () => {
     render(<LandingTab data={data} />);
     expect(within(screen.getByTestId("sensitivity-table")).getAllByRole("columnheader").map((h) => h.textContent)).toContain("2026-27 (illustrative)");
@@ -90,11 +97,8 @@ describe("budget impact", () => {
   it("compares like for like: our 30 hours cost against CenTax's static cost of the free hours", () => {
     render(<LandingTab data={data} />);
     const b = data.benchmarks[0];
-    const card = screen.getByTestId("card-benchmark");
-    expect(card.textContent).toContain(b.figure);
-    expect(card.textContent).toMatch(/traces to CenTax's cost of the free hours only/);
-    expect(within(card).getByRole("link").getAttribute("href")).toBe(b.url);
     const topic = screen.getByTestId("benchmark");
+    expect(within(topic).getByRole("link", { name: "City AM" }).getAttribute("href")).toBe(b.url);
     expect(topic.textContent).toMatch(/covers both the free hours and Tax-Free Childcare/);
     expect(within(topic).getByRole("link", { name: /CenTax's report/ }).getAttribute("href")).toBe(b.underlying_source_url);
     expect(screen.getByTestId("benchmark-centax").textContent).toContain(bn(CENTAX.staticBn));
@@ -126,8 +130,9 @@ describe("who gains", () => {
     render(<WhoGainsTab data={data} />);
     expect(screen.getByLabelText("Year").value).toBe(String(LEAD_YEAR));
     expect(screen.getByTestId("decile-chart")).toBeTruthy();
-    fireEvent.change(screen.getByLabelText("Show"), { target: { value: DECILE_MEASURES[2].id } });
-    expect(screen.getByLabelText("Show").value).toBe(DECILE_MEASURES[2].id);
+    const show = within(screen.getByTestId("section-breakdown")).getByLabelText("Show");
+    fireEvent.change(show, { target: { value: DECILE_MEASURES[2].id } });
+    expect(show.value).toBe(DECILE_MEASURES[2].id);
     fireEvent.change(screen.getByLabelText("Year"), { target: { value: String(years[0]) } });
     const r = data.recipients[years[0]];
     const rows = within(screen.getByTestId("scheme-table")).getAllByRole("row");
@@ -136,8 +141,8 @@ describe("who gains", () => {
 
   it("breaks the gains down by region and family type from the file, with suppressed cells as too few records", () => {
     render(<WhoGainsTab data={data} />);
-    for (const [label, key, name] of [["Region", "by_region", "region"], ["Family type", "by_family_type", "family_type"]]) {
-      fireEvent.click(screen.getByRole("button", { name: label }));
+    for (const [id, key, name] of [["region", "by_region", "region"], ["family_type", "by_family_type", "family_type"]]) {
+      fireEvent.change(screen.getByLabelText("Break down by"), { target: { value: id } });
       const cells = data.distribution[LEAD_YEAR][key];
       const rows = within(screen.getByTestId("group-table")).getAllByRole("row").slice(1);
       expect(rows).toHaveLength(cells.length);

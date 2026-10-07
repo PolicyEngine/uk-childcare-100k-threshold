@@ -106,7 +106,7 @@ export function Dashboard({ data }) {
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
             </a>
-            {` from ${period}`}. The four tabs cover:
+            {` from ${period}`}. The three tabs cover:
           </p>
           <ul className="mb-3 list-disc space-y-2 pl-6 text-base leading-7 text-slate-700" data-testid="tab-guide">
             <li>
@@ -116,14 +116,10 @@ export function Dashboard({ data }) {
               pledge.
             </li>
             <li>
-              <strong>Who gains</strong>: only families with a parent above £100,000 gain, so this tab shows where they
-              sit in the income distribution, how many families and children gain from each scheme, and how the gains
-              split across England, Scotland, Wales and Northern Ireland.
-            </li>
-            <li>
-              <strong>The cliff</strong>: one example family&apos;s net income as a parent&apos;s earnings rise past
-              £100,000, with and without the limit. It explains why earning one pound more can leave the family worse
-              off today, and how removing the limit smooths that drop.
+              <strong>Who gains</strong>: starts with your household. Choose the parents, children and childcare
+              spending to see the family&apos;s net income as earnings rise through £100,000, with and without the
+              limit. Below that, it shows where the gains go across household incomes, family types and regions, and
+              how many families and children gain from each scheme.
             </li>
             <li>
               <strong>Methodology</strong>: the data and model behind every figure, how the two income limits work,

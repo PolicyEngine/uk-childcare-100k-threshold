@@ -5,6 +5,7 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
   ReferenceLine,
@@ -33,7 +34,7 @@ import {
 import { formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, Expandable, LegendSwatches, Section, Select, ToggleGroup } from "./ui";
+import { AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Select } from "./ui";
 
 export const SUPPRESSED = "too few records";
 
@@ -143,9 +144,7 @@ const k = (v) => `£${Math.round(v / 1000)}k`;
 
 function CliffChart({ rows }) {
   const values = rows.flatMap((r) => [r.baseline, r.reform]);
-  const xTicks = niceAxis(rows.map((r) => r.earnings), { includeZero: false }).ticks?.filter(
-    (t) => t >= rows[0].earnings && t <= rows.at(-1).earnings,
-  );
+  const xTicks = niceAxis([0, ...rows.map((r) => r.earnings)]).ticks?.filter((t) => t <= rows.at(-1).earnings);
   return (
     <>
       <div style={{ height: 380 }} data-testid="cliff-chart">
@@ -155,14 +154,14 @@ function CliffChart({ rows }) {
             <XAxis
               dataKey="earnings"
               type="number"
-              domain={["dataMin", "dataMax"]}
+              domain={[0, "dataMax"]}
               ticks={xTicks}
               interval={0}
               tick={AXIS_STYLE}
               tickFormatter={k}
               label={{ value: "Earnings of the higher earner", position: "insideBottom", offset: -12, style: AXIS_STYLE }}
             />
-            <YAxis tick={AXIS_STYLE} tickFormatter={k} width={56} {...niceAxis(values, { includeZero: false })} />
+            <YAxis tick={AXIS_STYLE} tickFormatter={k} width={56} {...niceAxis([0, ...values])} />
             <ReferenceLine x={LIMIT} stroke={colors.gray[400]} strokeDasharray="4 4" label={{ value: "£100,000", position: "top", style: AXIS_STYLE }} />
             <Tooltip
               content={<CustomTooltip formatter={(v) => formatCurrency(v)} labelFormatter={(e) => `Earnings ${formatCurrency(e)}`} />}
@@ -295,7 +294,7 @@ function GroupTable({ rows, header }) {
   );
 }
 
-function BreakdownSection({ data, year }) {
+function BreakdownSection({ data, year, yearSelect }) {
   const [by, setBy] = useState("income");
   const [decileMeasure, setDecileMeasure] = useState(DECILE_MEASURES[0].id);
   const [groupMeasure, setGroupMeasure] = useState(GROUP_MEASURES[0].id);
@@ -338,11 +337,13 @@ function BreakdownSection({ data, year }) {
         <>
           {details[by]}
           <p>Cells resting on fewer than ten gaining survey records are not shown, and a second cell is hidden with a lone one so it cannot be worked out from the total.</p>
+          {groupRows ? <GroupTable rows={groupRows} header={by === "region" ? "Region" : "Family type"} /> : null}
         </>
       }
     >
       <div className="mb-4 flex flex-wrap items-center gap-x-6 gap-y-3">
-        <ToggleGroup label="Break down by" options={BREAKDOWNS} value={by} onChange={setBy} />
+        <Select label="Break down by" options={BREAKDOWNS} value={by} onChange={setBy} />
+        {yearSelect}
         {by === "income" ? (
           <Select label="Show" options={DECILE_MEASURES} value={decileMeasure} onChange={setDecileMeasure} />
         ) : (
@@ -352,54 +353,50 @@ function BreakdownSection({ data, year }) {
       {by === "income" ? (
         <DecileChart rows={getDeciles(data, year)} measure={decileMeasure} />
       ) : (
-        <>
-          <GroupChart rows={groupRows} measure={groupMeasure} />
-          <div className="mt-4">
-            <Expandable title="Show the numbers" testId="group-numbers">
-              <GroupTable rows={groupRows} header={by === "region" ? "Region" : "Family type"} />
-            </Expandable>
-          </div>
-        </>
+        <GroupChart rows={groupRows} measure={groupMeasure} />
       )}
     </Section>
   );
 }
 
-const RECIPIENT_SERIES = [
-  { key: "families", label: "Families", color: colors.primary[700] },
-  { key: "children", label: "Children", color: colors.primary[300] },
+const RECIPIENT_VIEWS = [
+  { id: "families", label: "Families, by scheme" },
+  { id: "children", label: "Children, by scheme" },
+  { id: "ages", label: "Children, by age" },
 ];
 
-function RecipientsChart({ recipients }) {
+function RecipientsChart({ recipients, view }) {
   const kids = recipients.children_by_scheme;
+  const key = view === "families" ? "families" : "children";
   const rows = [
-    ...SCHEMES.map((sc) => ({ name: SCHEME_LABELS[sc], families: recipients.by_scheme[sc], children: kids?.[sc] })),
-    { name: "Either or both", families: recipients.families_gaining, children: recipients.children_gaining },
+    ...SCHEMES.map((sc) => ({
+      name: SCHEME_LABELS[sc],
+      value: key === "families" ? recipients.by_scheme[sc] : kids[sc],
+      color: schemeColors[sc],
+    })),
+    {
+      name: "Either or both",
+      value: key === "families" ? recipients.families_gaining : recipients.children_gaining,
+      color: colors.gray[500],
+    },
   ];
-  const series = RECIPIENT_SERIES.filter((sr) => sr.key === "families" || kids !== undefined);
-  const values = rows.flatMap((r) => series.map((sr) => r[sr.key]));
+  const label = key === "families" ? "Families gaining" : "Children gaining";
   return (
     <>
-      <div style={{ height: 300 }} data-testid="recipients-chart">
+      <div style={{ height: 220 }} data-testid="recipients-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 4 }} barGap={2}>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
-            <XAxis dataKey="name" tick={AXIS_STYLE} interval={0} />
-            <YAxis tick={AXIS_STYLE} tickFormatter={(v) => `${Math.round(v / 1000)}k`} {...niceAxis(values)} />
+          <BarChart data={rows} layout="vertical" margin={{ top: 4, right: 24, left: 10, bottom: 4 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} horizontal={false} />
+            <XAxis type="number" tick={AXIS_STYLE} tickFormatter={(v) => `${Math.round(v / 1000)}k`} {...niceAxis(rows.map((r) => r.value))} />
+            <YAxis type="category" dataKey="name" tick={AXIS_STYLE} width={150} interval={0} />
             <Tooltip cursor={{ fill: colors.gray[100] }} content={<CustomTooltip formatter={(v) => formatCount(v)} />} />
-            {series.map((sr) => (
-              <Bar key={sr.key} dataKey={sr.key} name={sr.label} fill={sr.color} radius={[4, 4, 0, 0]} isAnimationActive={false} maxBarSize={48} />
-            ))}
+            <Bar dataKey="value" name={label} radius={[0, 4, 4, 0]} isAnimationActive={false} maxBarSize={28}>
+              {rows.map((r) => (
+                <Cell key={r.name} fill={r.color} />
+              ))}
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
-      </div>
-      <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-600">
-        {series.map((sr) => (
-          <span key={sr.key} className="flex items-center gap-2">
-            <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: sr.color }} />
-            {sr.label}
-          </span>
-        ))}
       </div>
       <ChartLogo />
     </>
@@ -454,21 +451,24 @@ export default function WhoGainsTab({ data }) {
   const recipients = getRecipients(data, y);
   const ages = getChildrenByAge(data, y);
   const fy = fyLabel(y);
+  const [view, setView] = useState("families");
+  // The children views need children_by_scheme, which the schema leaves optional.
+  const views = RECIPIENT_VIEWS.filter((v) => v.id === "families" || recipients.children_by_scheme !== undefined);
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="who-gains-tab">
       <HouseholdSection data={data} />
 
-      <div className="mb-2 mt-10" data-testid="year-select">
-        <Select label="Year" options={years.map((v) => ({ id: v, label: yearHeading(v) }))} value={y} onChange={setYear} />
-      </div>
-
-      <BreakdownSection data={data} year={y} />
+      <BreakdownSection data={data} year={y} yearSelect={
+        <div data-testid="year-select">
+          <Select label="Year" options={years.map((v) => ({ id: v, label: yearHeading(v) }))} value={y} onChange={setYear} />
+        </div>
+      } />
 
       <Section
         id="recipients"
         title="Families and children gaining"
-        lead={`How many families and children gain from each scheme in ${fy}. Many gain from both, so the schemes add up to more than "either or both".`}
+        lead={`How many families and children gain from each scheme in ${fy} (the year chosen above). Many gain from both, so the schemes add up to more than "either or both".`}
         details={
           <>
             <p>
@@ -482,22 +482,15 @@ export default function WhoGainsTab({ data }) {
                 In law the universal hours would stay.
               </p>
             ) : null}
+            <SchemeTable recipients={recipients} />
+            {ages ? <div className="mt-4"><AgeTable rows={ages} /></div> : null}
           </>
         }
       >
-        <RecipientsChart recipients={recipients} />
-        {ages ? (
-          <>
-            <h3 className="mb-2 mt-8 text-base font-semibold text-slate-800">Children gaining, by age</h3>
-            <AgeChart rows={ages} />
-          </>
-        ) : null}
-        <div className="mt-4">
-          <Expandable title="Show the numbers" testId="recipient-numbers">
-            <SchemeTable recipients={recipients} />
-            {ages ? <div className="mt-4"><AgeTable rows={ages} /></div> : null}
-          </Expandable>
+        <div className="mb-4">
+          <Select label="Show" options={views} value={view} onChange={setView} />
         </div>
+        {view === "ages" ? <AgeChart rows={ages} /> : <RecipientsChart recipients={recipients} view={view} />}
       </Section>
     </div>
   );
