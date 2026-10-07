@@ -170,8 +170,8 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           bound={boundOf(setting, "intensive")}
           onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, intensive: x } })}
           tag="Intensive margin"
-          title="Parents work more hours"
-          description="Parents in work, at any income, may work more as their childcare gets cheaper."
+          title="Parents change their hours"
+          description="Parents in work, at any income, may work more as an extra hour of childcare gets cheaper, and a little less as their family is better off."
           source={<>{link(BREWER_URL, "Brewer et al.")}, assumed elasticity {a.hours_price_elasticity}</>}
           testId="toggle-intensive"
         />

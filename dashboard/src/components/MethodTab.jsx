@@ -237,12 +237,16 @@ function LabourSupplySection({ data }) {
   const oldRule = raw.extensive.non_worker_rule_entrants?.central?.[String(ls.years[li])];
   const extOffset = ls.extensive.offset.central[li];
   const disp = raw.intensive_displacement;
+  const groupSum = (k) =>
+    ["at_or_below_limit", "over_limit"].reduce((t, g) => t + (raw.intensive[g]?.[k]?.central?.[String(ls.years[li])] ?? 0), 0);
+  const covered = groupSum("workers_fully_covered");
+  const paying = groupSum("workers_paying_for_childcare");
   const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
   return (
     <Section
       id="labour-supply"
       title="Labour supply"
-      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the tax and National Insurance paid on extra work, net of the childcare support it brings."
+      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the change in tax, National Insurance and childcare support that follows the change in work."
     >
       <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
         <li>
@@ -265,8 +269,10 @@ function LabourSupplySection({ data }) {
           Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random draws.
         </li>
         <li>
-          <strong>Hours (intensive margin).</strong> An assumed childcare-price elasticity of hours of{" "}
-          {a.hours_price_elasticity}: an extrapolated scenario assumption, not an estimated price elasticity (
+          <strong>Hours (intensive margin).</strong> Every responding adult in work, at or below £100,000 and over it,
+          in two parts; the model recomputes tax and benefits on each.{" "}
+          <em>Price effect:</em> an assumed childcare-price elasticity of hours of {a.hours_price_elasticity}, an
+          extrapolated scenario assumption, not an estimated price elasticity (
           <a
             href="https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17"
             target="_blank"
@@ -275,19 +281,35 @@ function LabourSupplySection({ data }) {
             Brewer, Cattan, Crawford and Rabe, IFS WP20/09
           </a>{" "}
           estimate +0.6 weekly hours for mothers whose youngest child becomes eligible for full-time rather than
-          part-time free care; we treat that as a 100% price fall and apply it to every responding adult in work whose
-          out-of-pocket childcare cost falls, whatever their income, including the parent over £100,000, though it is
-          not measured on that group). Newly funded hours are assumed to replace{" "}
-          {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care, capped at what the family spends:
-          an assumption (IFS BN189 supports {formatPct(a.free_hours_displacement_range.low * 100, 1)} to{" "}
-          {formatPct(a.free_hours_displacement * 100, 1)}), not a measured figure.
+          part-time free care, which we treat as a 100% price fall; it is not measured on parents over £100,000).
+          It applies to the change in the price of the family&apos;s next hour of paid childcare, for adults whose
+          family pays for childcare. Tax-Free Childcare lowers that price where the reform newly pays it and the cap
+          does not bind. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
+          test, so for a family that still buys paid care on top of them an extra hour costs what it did; they make it
+          free only where they cover all the paid care the family buys, judged on value with funded hours assumed to
+          replace {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care (an assumption; IFS BN189
+          supports {formatPct(a.free_hours_displacement_range.low * 100, 1)} to{" "}
+          {formatPct(a.free_hours_displacement * 100, 1)}).{" "}
+          <em>Income effect:</em> the{" "}
+          <a href="https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf" target="_blank" rel="noreferrer">
+            OBR&apos;s income elasticities
+          </a>{" "}
+          ({a.income_elasticities}) times the percentage rise in household net income from the reform, before any
+          response: a family made better off works slightly less. In {year}, at central elasticities, the price effect
+          brings back {formatMoneyBn(ls.intensive.price.central[li])} (
+          {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} from adults at or below £100,000,{" "}
+          {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it) and the income effect costs{" "}
+          {formatMoneyBn(-ls.intensive.income.central[li])} ({formatMoneyBn(-ls.intensive.at_or_below_limit.income.central[li])}{" "}
+          and {formatMoneyBn(-ls.intensive.over_limit.income.central[li])}), a net{" "}
+          {formatMoneyBn(ls.intensive.offset.central[li])} back. The funded hours fully cover the paid care of the
+          families of about {formatCount(covered)} of the {formatCount(paying)} adults in work who pay for childcare
           {disp
-            ? ` At ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the hours offset in ${year} is ${formatMoneyBn(disp.offset_bn.low[String(ls.years[li])])} or ${formatMoneyBn(disp.offset_bn.high[String(ls.years[li])])}, against ${formatMoneyBn(ls.intensive.offset.central[li])}.`
-            : ""}{" "}
-          The model recomputes tax and benefits on the extra earnings.
+            ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatMoneyBn(disp.offset_bn.low[String(ls.years[li])])} or ${formatMoneyBn(disp.offset_bn.high[String(ls.years[li])])}`
+            : ""}
+          .
         </li>
         <li>
-          <strong>Low and high elasticities.</strong> Every elasticity is multiplied by {scale(a.elasticity_scales.low)} for the
+          <strong>Low and high elasticities.</strong> Every elasticity (participation, price and income) is multiplied by {scale(a.elasticity_scales.low)} for the
           low end and by {scale(a.elasticity_scales.high)} for the high end. The range is illustrative, not a sourced
           uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment,{" "}
           {a.price_elasticity_low} and {a.price_elasticity_high} against {a.price_elasticity_central}, a different outcome
@@ -308,7 +330,8 @@ function LabourSupplySection({ data }) {
           <strong>Against CenTax.</strong> CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
           {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
           {formatBn(CENTAX.partnersBn, 2)} from partners entering work. The first is not modelled here; for the second we
-          find {formatMoneyBn(extOffset)}, for the reasons above. Our hours response has no CenTax counterpart.
+          find {formatMoneyBn(extOffset)}, for the reasons above. Our hours response, of parents at any income working
+          more or less as childcare prices and family income change, has no CenTax counterpart.
         </li>
       </ul>
     </Section>
@@ -348,7 +371,8 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
           </li>
           <li>
             Further runs change one uncertain assumption at a time (how many hours families use, babies under one, and
-            the income the limit tests), and the Assumptions section below shows what each changes.
+            the income the limit tests), and &quot;How do we compare with other estimates?&quot; below shows what each
+            changes.
           </li>
           <li>
             Every version is pinned, so the results can be rebuilt exactly: the model package and the dataset release
@@ -426,7 +450,8 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
           <p>
             The two largest gaps against official statistics are spending through Tax-Free Childcare accounts, which
             the model takes to cover all of a family&apos;s childcare spending, and use of the funded hours, where
-            families in the data use about half of the 30 hours. The Assumptions section shows what changing each does to the cost.
+            families in the data use about half of the 30 hours. &quot;How do we compare with other estimates?&quot; above shows
+            what changing each does to the cost.
           </p>
         }
       >

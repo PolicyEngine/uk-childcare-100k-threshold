@@ -451,7 +451,19 @@ export function getLabourSupply(data) {
   const out = {
     years,
     extensive: { offset: read(["extensive", "offset_bn"]), entrants: read(["extensive", "entrants"]), ftes: read(["extensive", "ftes"]) },
-    intensive: { offset: read(["intensive", "offset_bn"]), ftes: read(["intensive", "ftes"]) },
+    intensive: {
+      offset: read(["intensive", "offset_bn"]),
+      ftes: read(["intensive", "ftes"]),
+      // Its price effect (money back) and income effect (money out), for each group and both together.
+      ...Object.fromEntries(
+        ["at_or_below_limit", "over_limit"].map((g) => [
+          g,
+          { price: read(["intensive", g, "price_offset_bn"]), income: read(["intensive", g, "income_offset_bn"]) },
+        ]),
+      ),
+      price: read(["intensive", "price_offset_bn"]),
+      income: read(["intensive", "income_offset_bn"]),
+    },
     dynamic: read(["dynamic_cost_bn"]),
     assumptions: ls.assumptions,
     notModelled: ls.not_modelled,
@@ -459,6 +471,7 @@ export function getLabourSupply(data) {
   if (!isText(ls.not_modelled)) fail("labour_supply.not_modelled", "missing");
   if (!isText(ls.responding_population)) fail("labour_supply.responding_population", "missing");
   if (!isText(ls.assumptions?.participation_elasticities)) fail("labour_supply.assumptions.participation_elasticities", "missing");
+  if (!isText(ls.assumptions?.income_elasticities)) fail("labour_supply.assumptions.income_elasticities", "missing");
   for (const k of ["hours_for_new_entrants", "free_hours_displacement"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
@@ -474,6 +487,8 @@ export function getLabourSupply(data) {
   for (const b of LS_BOUNDS) {
     years.forEach((y, i) => {
       if (out.extensive.entrants[b][i] < 0) fail("labour_supply.extensive.entrants", `${b} ${y}: negative`);
+      const hours = out.intensive.price[b][i] + out.intensive.income[b][i];
+      if (Math.abs(out.intensive.offset[b][i] - hours) > 0.002) fail("labour_supply.intensive.offset_bn", `${b} ${y}: not price plus income`);
       const expected = total[i] - out.extensive.offset[b][i] - out.intensive.offset[b][i];
       if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less the offsets`);
     });

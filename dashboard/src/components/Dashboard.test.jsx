@@ -16,7 +16,7 @@ import { CENTAX } from "./Comparison";
 import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
-import { formatThousands } from "../lib/formatters";
+import { formatMoneyBn, formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
 const years = data.meta.years;
@@ -308,11 +308,24 @@ describe("the labour supply control", () => {
     expect(text).toContain(bn(CENTAX.partnersBn));
   });
 
+  it("states the hours response's price effect (money back) and income effect (money out) by group", () => {
+    const text = textOf(<MethodTab data={data} />);
+    const f = String(final);
+    const i = ls.intensive;
+    expect(i.price_offset_bn.central[f]).toBeGreaterThanOrEqual(0);
+    expect(i.income_offset_bn.central[f]).toBeLessThanOrEqual(0);
+    expect(text).toContain(ls.assumptions.income_elasticities);
+    expect(text).toContain(`price effect brings back ${formatMoneyBn(i.price_offset_bn.central[f])}`);
+    expect(text).toContain(`${formatMoneyBn(i.over_limit.price_offset_bn.central[f])} from those over it`);
+    expect(text).toContain(`income effect costs ${formatMoneyBn(-i.income_offset_bn.central[f])}`);
+    expect(text).toContain(`a net ${formatMoneyBn(i.offset_bn.central[f])} back`);
+  });
+
   it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);
     expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])} (${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("moving into work and hours; bunching not modelled");
+    expect(off).toContain("moving into work, and hours net of the income effect; bunching not modelled");
     const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
     const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
     expect(on).toContain(`${bn(cost)} (moving into work at the low setting)`);
