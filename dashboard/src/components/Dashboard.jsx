@@ -10,6 +10,7 @@ import {
   getLabourSupply,
   getMeta,
   getYears,
+  boundOf,
   labourSupplyParams,
   LS_BOUND_LABELS,
   LS_BOUNDS,
@@ -84,7 +85,7 @@ const CENTAX_BUNCHING_URL =
   "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42";
 
 /** One response as a card: the whole header is the switch; the source link sits outside it. */
-function ResponseCard({ on, onChange, title, tag, description, source, testId }) {
+function ResponseCard({ on, onChange, bound, onBound, title, tag, description, source, testId }) {
   return (
     <div
       className={`flex flex-col rounded-xl border p-4 transition-colors ${
@@ -114,7 +115,27 @@ function ResponseCard({ on, onChange, title, tag, description, source, testId })
         </span>
       </button>
       <p className="mt-2 text-sm leading-5 text-slate-600">{description}</p>
-      <p className="mt-auto pt-3 text-xs text-slate-500">Source: {source}</p>
+      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3 text-xs text-slate-500">
+        <span>Source: {source}</span>
+        {on ? (
+          <label className="flex items-center gap-1.5">
+            Setting
+            <select
+              value={bound}
+              onChange={(e) => onBound(e.target.value)}
+              className="h-7 rounded-full border border-slate-200 bg-white px-2.5 text-xs font-medium text-slate-800"
+              aria-label={`${title}: setting`}
+              data-testid={`${testId}-bound`}
+            >
+              {LS_BOUNDS.map((x) => (
+                <option key={x} value={x}>
+                  {LS_BOUND_LABELS[x]}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -127,7 +148,6 @@ function ResponseCard({ on, onChange, title, tag, description, source, testId })
 export function LabourSupplyControl({ data, setting, onChange }) {
   const ls = getLabourSupply(data);
   const a = ls.assumptions;
-  const b = setting.bound;
   const any = setting.extensive || setting.intensive || setting.bunching;
   const note = any ? null : "All off: the static costing, with nobody changing how much they work. Switch a response on to see the cost after it.";
   const link = (href, text) => (
@@ -139,30 +159,13 @@ export function LabourSupplyControl({ data, setting, onChange }) {
     <div className="mb-8" data-testid="labour-supply-control">
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-slate-800">If parents change how much they work</span>
-        {any ? (
-          <label className="flex items-center gap-2 text-xs text-slate-600">
-            Setting
-            <select
-              value={b}
-              onChange={(e) => onChange({ ...setting, bound: e.target.value })}
-              className="h-7 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800"
-              aria-label="Elasticities"
-              data-testid="bound-select"
-            >
-              {LS_BOUNDS.map((x) => (
-                <option key={x} value={x}>
-                  {LS_BOUND_LABELS[x]}
-                  {x === "central" ? "" : " (illustrative)"}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
       </div>
       <div className="grid gap-3 md:grid-cols-3">
         <ResponseCard
           on={setting.extensive}
           onChange={(v) => onChange({ ...setting, extensive: v })}
+          bound={boundOf(setting, "extensive")}
+          onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, extensive: x } })}
           tag="Extensive margin"
           title="Partners move into work"
           description="A partner who doesn't work may start, now that working brings the family childcare support."
@@ -172,6 +175,8 @@ export function LabourSupplyControl({ data, setting, onChange }) {
         <ResponseCard
           on={setting.intensive}
           onChange={(v) => onChange({ ...setting, intensive: v })}
+          bound={boundOf(setting, "intensive")}
+          onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, intensive: x } })}
           tag="Intensive margin"
           title="Parents work more hours"
           description="Parents in work, at any income, may work more as their childcare gets cheaper."
@@ -181,9 +186,11 @@ export function LabourSupplyControl({ data, setting, onChange }) {
         <ResponseCard
           on={setting.bunching}
           onChange={(v) => onChange({ ...setting, bunching: v })}
+          bound={boundOf(setting, "bunching")}
+          onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, bunching: x } })}
           tag="Bunching"
           title="No more holding income under £100,000"
-          description="Parents who keep their income just below the limit stop doing so. Not in our data, so taken from CenTax."
+          description="Parents who keep their income just under £100,000 to keep the support stop doing so. Not an elasticity: CenTax's estimate, from HMRC records, of the extra tax this brings."
           source={link(CENTAX_BUNCHING_URL, "CenTax estimate")}
           testId="toggle-bunching"
         />

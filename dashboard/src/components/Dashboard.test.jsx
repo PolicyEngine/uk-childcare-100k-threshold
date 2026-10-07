@@ -267,20 +267,21 @@ describe("the labour supply control", () => {
     render(<Dashboard data={data} />);
     expect(screen.getByTestId("toggle-extensive").getAttribute("aria-checked")).toBe("false");
     expect(screen.getByTestId("toggle-intensive").getAttribute("aria-checked")).toBe("false");
-    expect(screen.queryByTestId("bound-select")).toBeNull();
+    expect(screen.queryByTestId("toggle-extensive-bound")).toBeNull();
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(data.budget.gross_bn.total[lead]));
 
     fireEvent.click(screen.getByTestId("toggle-intensive"));
     const cost = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.central[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
-    expect(screen.getByTestId("card-cost").textContent).toContain("hours, central setting");
+    expect(screen.getByTestId("card-cost").textContent).toContain("(hours)");
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=int", { scroll: false });
 
     fireEvent.click(screen.getByTestId("toggle-extensive"));
-    fireEvent.change(screen.getByTestId("bound-select"), { target: { value: "high" } });
+    fireEvent.change(screen.getByTestId("toggle-extensive-bound"), { target: { value: "high" } });
+    fireEvent.change(screen.getByTestId("toggle-intensive-bound"), { target: { value: "high" } });
     const both = data.budget.gross_bn.total[lead] - ls.extensive.offset_bn.high[lead] - ls.intensive.offset_bn.high[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(both));
-    expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%2Cint&bound=high", { scroll: false });
+    expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%3Ahigh%2Cint%3Ahigh", { scroll: false });
   });
 
   it("sits under the tab bar on Budget impact only, the one tab it changes", () => {
@@ -316,7 +317,7 @@ describe("the labour supply control", () => {
     expect(off).toContain("moving into work, hours and bunching");
     const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
     const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)} (moving into work, low setting)`);
+    expect(on).toContain(`${bn(cost)} (moving into work at the low setting)`);
   });
 
   it("shows the money back in the yearly chart only when a margin is on", () => {

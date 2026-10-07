@@ -432,7 +432,13 @@ export function householdRows(grid, choice) {
 export const LS_BOUNDS = ["central", "low", "high"];
 export const LS_BOUND_LABELS = { central: "Central", low: "Low", high: "High" };
 /** The page opens static: no margin on, central elasticities. */
-export const STATIC_SETTING = { extensive: false, intensive: false, bunching: false, bound: "central" };
+export const STATIC_SETTING = {
+  extensive: false,
+  intensive: false,
+  bunching: false,
+  bound: "central",
+  bounds: { extensive: "central", intensive: "central", bunching: "central" },
+};
 
 /** The labour supply block: each margin's offset (£bn by year, positive = money back) and the dynamic cost. */
 export function getLabourSupply(data) {
@@ -477,42 +483,60 @@ export function getLabourSupply(data) {
   return out;
 }
 
-/** The labour supply setting from the URL (`?ls=ext,int,bunch&bound=low`). Anything unknown reads as static. */
+const LS_KEYS = { extensive: "ext", intensive: "int", bunching: "bunch" };
+const LS_WORDS = { extensive: "moving into work", intensive: "hours", bunching: "bunching" };
+
+/** A response's own setting (low, central or high); `bound` is the shared default. */
+export const boundOf = (setting, margin) => setting.bounds?.[margin] ?? setting.bound ?? "central";
+
+/**
+ * The labour supply setting from the URL: `?ls=ext,int:high,bunch:low` switches responses on, each with its own
+ * setting (central when none is given); `bound` is an older shared setting, kept as the default. Anything unknown
+ * reads as static.
+ */
 export function parseLabourSupply(ls, bound) {
-  const on = new Set((ls ?? "").split(","));
-  return {
-    extensive: on.has("ext"),
-    intensive: on.has("int"),
-    bunching: on.has("bunch"),
-    bound: LS_BOUNDS.includes(bound) ? bound : "central",
-  };
+  const fallback = LS_BOUNDS.includes(bound) ? bound : "central";
+  const on = new Map(
+    (ls ?? "")
+      .split(",")
+      .filter(Boolean)
+      .map((part) => {
+        const [key, b] = part.split(":");
+        return [key, LS_BOUNDS.includes(b) ? b : fallback];
+      }),
+  );
+  const out = { bound: "central", bounds: {} };
+  for (const [margin, key] of Object.entries(LS_KEYS)) {
+    out[margin] = on.has(key);
+    out.bounds[margin] = on.get(key) ?? fallback;
+  }
+  return out;
 }
 
 /** The URL parameters for a setting: none when static, so the default URL stays clean. */
 export function labourSupplyParams(setting) {
-  const on = [setting.extensive && "ext", setting.intensive && "int", setting.bunching && "bunch"].filter(Boolean);
-  if (on.length === 0) return [];
-  return [["ls", on.join(",")], ...(setting.bound === "central" ? [] : [["bound", setting.bound]])];
+  const on = Object.entries(LS_KEYS)
+    .filter(([margin]) => setting[margin])
+    .map(([margin, key]) => (boundOf(setting, margin) === "central" ? key : `${key}:${boundOf(setting, margin)}`));
+  return on.length ? [["ls", on.join(",")]] : [];
 }
 
 export const isStatic = (setting) => !setting.extensive && !setting.intensive && !setting.bunching;
 
-/** Which margins are on, in words: "moving into work and hours, central elasticities". */
+/** Which responses are on, in words: "moving into work, hours at the high setting and bunching". */
 export function labourSupplyLabel(setting) {
-  const on = [setting.extensive && "moving into work", setting.intensive && "hours", setting.bunching && "bunching"].filter(Boolean);
+  const on = Object.keys(LS_KEYS)
+    .filter((m) => setting[m])
+    .map((m) => (boundOf(setting, m) === "central" ? LS_WORDS[m] : `${LS_WORDS[m]} at the ${boundOf(setting, m)} setting`));
   if (on.length === 0) return "static: no change in work";
-  const list = on.length > 1 ? `${on.slice(0, -1).join(", ")} and ${on.at(-1)}` : on[0];
-  return `${list}, ${setting.bound} setting`;
+  return on.length > 1 ? `${on.slice(0, -1).join(", ")} and ${on.at(-1)}` : on[0];
 }
 
-/** The money back (£bn by year, positive = less cost) from the margins switched on. */
+/** The money back (£bn by year, positive = less cost) from the responses switched on, each at its own setting. */
 export function labourSupplyOffset(data, setting) {
   const ls = getLabourSupply(data);
-  return ls.years.map(
-    (_, i) =>
-      (setting.extensive ? ls.extensive.offset[setting.bound][i] : 0) +
-      (setting.intensive ? ls.intensive.offset[setting.bound][i] : 0) +
-      (setting.bunching ? ls.bunching.offset[setting.bound][i] : 0),
+  return ls.years.map((_, i) =>
+    Object.keys(LS_KEYS).reduce((t, m) => t + (setting[m] ? ls[m].offset[boundOf(setting, m)][i] : 0), 0),
   );
 }
 
