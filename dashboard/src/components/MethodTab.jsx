@@ -233,7 +233,7 @@ function LabourSupplySection({ data }) {
   const raw = data.labour_supply;
   const li = ls.years.length - 1;
   const year = fyLabel(ls.years[li]);
-  const over = ls.overLimit.offset;
+  const bunch = ls.bunching.offset;
   const entrants = Math.round(ls.extensive.entrants.central[li] / 100) * 100;
   const oldRule = raw.extensive.non_worker_rule_entrants?.central?.[String(ls.years[li])];
   const extOffset = ls.extensive.offset.central[li];
@@ -243,7 +243,7 @@ function LabourSupplySection({ data }) {
     <Section
       id="labour-supply"
       title="Labour supply"
-      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the tax and National Insurance paid on extra work, net of the childcare support it brings."
+      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the tax and National Insurance paid on extra work, net of the childcare support it brings, and, if switched on, CenTax's estimate of bunching."
     >
       <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
         <li>
@@ -276,8 +276,9 @@ function LabourSupplySection({ data }) {
             Brewer, Cattan, Crawford and Rabe, IFS WP20/09
           </a>{" "}
           estimate +0.6 weekly hours for mothers whose youngest child becomes eligible for full-time rather than
-          part-time free care; we treat that as a 100% price fall and apply it to every responding adult in work, at or
-          below £100,000, whose out-of-pocket childcare cost falls). Newly funded hours are assumed to replace{" "}
+          part-time free care; we treat that as a 100% price fall and apply it to every responding adult in work whose
+          out-of-pocket childcare cost falls, whatever their income, including the parent over £100,000, though it is
+          not measured on that group). Newly funded hours are assumed to replace{" "}
           {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care, capped at what the family spends:
           an assumption (IFS BN189 supports {formatPct(a.free_hours_displacement_range.low * 100, 1)} to{" "}
           {formatPct(a.free_hours_displacement * 100, 1)}), not a measured figure.
@@ -302,15 +303,24 @@ function LabourSupplySection({ data }) {
           {extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost rather than bringing money back.` : `bring back ${formatMoneyBn(extOffset)}.`}
         </li>
         <li>
-          <strong>Not included.</strong> {ls.notModelled} Their hours response alone would bring back{" "}
-          {formatBn(over.central[li], 2)} in {year} ({formatBn(over.low[li], 2)} to {formatBn(over.high[li], 2)}), shown
-          here as a sensitivity and not counted in the dynamic cost.
+          <strong>Bunching (outside the model).</strong> {ls.notModelled} It brings back {formatBn(bunch.central[li], 2)}{" "}
+          in {year} ({formatBn(bunch.low[li], 2)} to {formatBn(bunch.high[li], 2)}{" "}
+          across CenTax&apos;s scenarios), from{" "}
+          <a
+            href="https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42"
+            target="_blank"
+            rel="noreferrer"
+          >
+            CenTax, Table 4.2
+          </a>
+          ; 2028-29 is the midpoint of their two years and 2026-27 is held at 2027-28.
         </li>
         <li>
           <strong>Against CenTax.</strong> CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
           {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
-          {formatBn(CENTAX.partnersBn, 2)} from partners entering work. The first is the response not included here;
-          for the second we find {formatMoneyBn(extOffset)}, for the reasons above.
+          {formatBn(CENTAX.partnersBn, 2)} from partners entering work. We take the first from them as the bunching
+          adjustment; for the second we find {formatMoneyBn(extOffset)}, for the reasons above. Our hours response has
+          no CenTax counterpart.
         </li>
       </ul>
     </Section>
@@ -389,28 +399,10 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         }
         detailsTitle="The parameters changed"
       >
-        <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="limits-explainer">
-          <li>
-            The 30 hours for working parents (England) fund 30 hours a week of childcare, 38 weeks a year, for children
-            from 9 months until they start school. Tax-Free Childcare (UK-wide) adds £2 for every £8 a family pays a
-            childcare provider, up to £2,000 a year per child (£4,000 for a disabled child).
-          </li>
-          <li>
-            Each parent must expect to earn at least the equivalent of 16 hours a week at the National Minimum or Living
-            Wage, and neither may have adjusted net income above £100,000. The test is on each parent separately, so a
-            couple both earning £95,000 qualify while a couple earning £101,000 and £20,000 do not.
-          </li>
-          <li>
-            Adjusted net income is taxable income less pension contributions and Gift Aid, so parents just above the
-            limit can get back under it by paying more into a pension.
-          </li>
-          <li>The reform removes only the £100,000 test. The minimum earnings test and every other condition stay.</li>
-          <li>
-            The pledge names no nation. We read it as England&apos;s 30 hours plus Tax-Free Childcare, which is
-            UK-wide. The devolved governments&apos; own childcare offers, such as the Childcare Offer for Wales with its
-            own £100,000 test, are unchanged.
-          </li>
-        </ul>
+        <p className="text-sm leading-6 text-slate-600" data-testid="limits-explainer">
+          What each scheme gives, who qualifies today and what the reform changes are set out side by side at the top
+          of Budget impact. The model parameters the reform changes are below.
+        </p>
       </Section>
 
       <LabourSupplySection data={data} />
@@ -441,7 +433,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
           <p>
             The two largest gaps against official statistics are spending through Tax-Free Childcare accounts, which
             the model takes to cover all of a family&apos;s childcare spending, and use of the funded hours, where
-            families in the data use about half of the 30 hours. The low and high ends of the range adjust for each.
+            families in the data use about half of the 30 hours. The Assumptions section shows what changing each does to the cost.
           </p>
         }
       >

@@ -171,7 +171,8 @@ def _src(label, url):
     return {"label": label, "url": url}
 
 
-LSR_ALTERNATIVE = "Parents respond: OBR participation elasticities and a childcare-price elasticity of hours"
+LSR_ALTERNATIVE = ("Parents respond: OBR participation elasticities, a childcare-price elasticity of hours for "
+                   "everyone whose childcare gets cheaper, and CenTax's bunching estimate")
 
 
 def modelling_assumptions(a, effects, labour_supply_offset):
@@ -388,14 +389,14 @@ def build(metas):
                 "reform brings the family the 30 hours and Tax-Free Childcare by working."
             ),
             "not_modelled": (
-                "The response of parents over £100,000 is not in the dynamic cost: neither those who today keep "
-                "their income below the limit and would earn more without it (bunching; CenTax's +£210m intensive "
-                "margin in 2029-30), nor their hours response to cheaper childcare (published separately as "
-                "intensive_over_limit)."
+                "The model cannot capture bunching: the survey data do not show parents keeping their income at or just "
+                "below £100,000. It is added outside the model from CenTax's estimate (HMRC records, free hours "
+                "only), which is the only published figure."
             ),
             "notes": [
                 "Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static "
-                "total less both offsets, at the same bound. Both apply to the total: they are not split by scheme.",
+                "total less the three offsets (moving into work, hours, bunching), at the same bound. They apply to the "
+                "total: they are not split by scheme.",
                 "Moving into work (extensive margin): the OBR elasticities are the percentage change in the "
                 "probability of working for a percentage change in the gain to work (net of the childcare a parent "
                 "would buy), converted from in-work income by the gain over in-work income. As in Adam and "
@@ -407,18 +408,20 @@ def build(metas):
                 f"Hours (intensive margin): {HOURS_PRICE_ELASTICITY} is an extrapolated scenario assumption, not an "
                 "estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest "
                 "child becomes eligible for full-time rather than part-time free care, which we treat as a 100% "
-                "price fall and apply to responding adults in work, at or below £100,000, whose out-of-pocket "
-                "childcare cost falls; the model recomputes tax and benefits on the extra earnings. It is a "
-                "total-hours estimate, so it overlaps with the extensive margin.",
+                "price fall and apply to every responding adult in work whose out-of-pocket childcare cost falls, "
+                "whatever their income, including the parent over £100,000 (whose extra earnings are taxed at up to "
+                "62%); the model recomputes tax and benefits on the extra earnings. It is a total-hours estimate, so "
+                "it overlaps with the extensive margin, and it is not measured on parents over £100,000.",
                 "Newly funded hours are assumed to displace paid care at "
                 f"{FREE_HOURS_DISPLACEMENT:.1%} of their value (1 - 54/570, IFS BN189, which counts all displaced "
                 "non-family care as paid). It is an assumption, published at "
                 f"{FREE_HOURS_DISPLACEMENT_RANGE['low']:.1%} (only subsidisable care displaced, 1 - 163/570) and "
                 f"{FREE_HOURS_DISPLACEMENT_RANGE['high']:.0%} (intensive_displacement), at central elasticities.",
-                "Sensitivity, not in the dynamic cost (intensive_over_limit): the parent over £100,000 responding to "
-                "the cheaper childcare with the same elasticity. Their earnings are large and taxed at up to 62%, so "
-                f"it would add £{lsr['intensive_over_limit']['offset_bn']['central'][str(BENCHMARK_YEAR)]:.2f}bn in "
-                f"{_fy(BENCHMARK_YEAR)}; the elasticity is not measured on this group.",
+                "Bunching (outside the model): CenTax's intensive-margin gain from parents who stop keeping their "
+                "income at or below £100,000, Table 4.2: £0.15bn in 2027-28 and £0.21bn in 2029-30 central, from "
+                "£0.10bn-£0.12bn (their high-cost scenario) to £0.63bn-£0.77bn (low-cost). 2028-29 is the midpoint "
+                "and 2026-27 is held at 2027-28. It covers the free hours only, and may overlap a little with the "
+                "hours response of parents near the limit.",
                 "Low and high scale every elasticity by 1/3 and 2. The range is illustrative, not a sourced "
                 "uncertainty interval: the factors are ratios of childcare-price elasticities of maternal "
                 "employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",

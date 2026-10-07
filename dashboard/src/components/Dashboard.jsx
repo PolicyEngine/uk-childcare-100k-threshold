@@ -27,6 +27,7 @@ export const DEFAULT_TAB = "budget";
 // Each tab's sections, for the "On this tab" links (the ids are set in the sections themselves).
 const SECTIONS = {
   budget: [
+    { id: "schemes", title: "Each scheme" },
     { id: "at-a-glance", title: "At a glance" },
     { id: "each-year", title: "Each year" },
   ],
@@ -113,14 +114,14 @@ function Toggle({ on, onChange, label, hint, testId }) {
  */
 export function LabourSupplyControl({ data, setting, onChange, tab }) {
   const a = getLabourSupply(data).assumptions;
-  const any = setting.extensive || setting.intensive;
+  const any = setting.extensive || setting.intensive || setting.bunching;
   let note;
   if (tab === "who-gains") {
     note =
       "The figures on this tab are always static: who gains, the breakdowns and the household calculator do not change with this setting.";
   } else if (any) {
     note =
-      "Changes the cost on this tab and in the comparison on Methodology. The response of parents over £100,000 is not included; Methodology explains what is and is not covered.";
+      "Changes the cost on this tab and in the comparison on Methodology. Hours cover every parent whose childcare gets cheaper, whatever their income; bunching is CenTax's estimate, added outside the model. Methodology explains each part.";
   } else {
     note = "Off: the static costing, with nobody changing how much they work.";
   }
@@ -158,6 +159,26 @@ export function LabourSupplyControl({ data, setting, onChange, tab }) {
           }
           testId="toggle-intensive"
         />
+        <span className="h-5 w-px bg-slate-200" aria-hidden />
+        <Toggle
+          on={setting.bunching}
+          onChange={(v) => onChange({ ...setting, bunching: v })}
+          label="Bunching"
+          hint={
+            <>
+              Parents no longer keeping income below £100,000:{" "}
+              <a
+                href="https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42"
+                target="_blank"
+                rel="noreferrer"
+                className="underline"
+              >
+                CenTax estimate
+              </a>
+            </>
+          }
+          testId="toggle-bunching"
+        />
         {any ? (
           <select
             value={setting.bound}
@@ -168,7 +189,8 @@ export function LabourSupplyControl({ data, setting, onChange, tab }) {
           >
             {LS_BOUNDS.map((b) => (
               <option key={b} value={b}>
-                {LS_BOUND_LABELS[b]} elasticities{b === "central" ? "" : ` (x${b === "low" ? "1/3" : "2"}, illustrative)`}
+                {LS_BOUND_LABELS[b]}
+                {b === "central" ? "" : ` (elasticities x${b === "low" ? "1/3" : "2"}, CenTax ${b === "low" ? "high" : "low"}-cost bunching; illustrative)`}
               </option>
             ))}
           </select>

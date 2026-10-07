@@ -279,14 +279,19 @@ def test_labour_supply_block():
     ls = RESULTS["labour_supply"]
     static = RESULTS["budget"]["gross_bn"]["total"]
     for bound in ("central", "low", "high"):
-        for block in ("extensive", "intensive", "intensive_over_limit"):
+        for block in ("extensive", "intensive"):
             _by_year(ls[block]["offset_bn"][bound])
             _by_year(ls[block]["ftes"][bound])
+        _by_year(ls["bunching"]["offset_bn"][bound])
         _by_year(ls["extensive"]["entrants"][bound])
         for y in YEAR_KEYS:
-            total = ls["extensive"]["offset_bn"][bound][y] + ls["intensive"]["offset_bn"][bound][y]
+            total = (ls["extensive"]["offset_bn"][bound][y] + ls["intensive"]["offset_bn"][bound][y]
+                     + ls["bunching"]["offset_bn"][bound][y])
             assert ls["total_offset_bn"][bound][y] == pytest.approx(total, abs=0.0015)
-            # The dynamic cost is the published static total less both margins (not the over-limit sensitivity).
+            # Hours cover every parent whose childcare gets cheaper, whatever their income.
+            parts = ls["intensive"]["at_or_below_limit"]["offset_bn"][bound][y] + ls["intensive"]["over_limit"]["offset_bn"][bound][y]
+            assert ls["intensive"]["offset_bn"][bound][y] == pytest.approx(parts, abs=0.0015)
+            # The dynamic cost is the published static total less all three offsets.
             assert ls["dynamic_cost_bn"][bound][y] == pytest.approx(static[y] - ls["total_offset_bn"][bound][y], abs=0.0015)
             # The reform only adds work-conditional support, so (to rounding) nobody leaves work.
             assert ls["extensive"]["leavers"][bound][y] <= 100

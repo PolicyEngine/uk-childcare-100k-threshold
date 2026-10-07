@@ -258,6 +258,57 @@ export function netGrossGapM(net, gross) {
   return Math.max(...net.map((v, i) => Math.round(Math.abs(v - gross[i]) * 1000)));
 }
 
+/** Each scheme side by side: what it gives, who qualifies today, what the reform changes, and its extra cost. */
+function SchemesTable({ lead }) {
+  const rows = [
+    ["Where", "England", "UK-wide"],
+    [
+      "What it gives",
+      "30 funded hours a week, 38 weeks a year, from 9 months until the child starts school. For 3- and 4-year-olds it is 15 extra hours on top of the universal 15, which have no income test.",
+      "£2 for every £8 a family pays a registered childcare provider, up to £2,000 a year per child (£4,000 for a disabled child), for children up to 11 (16 if disabled).",
+    ],
+    [
+      "Who qualifies today",
+      "Each parent must expect to earn at least the equivalent of 16 hours a week at the National Minimum or Living Wage, and neither may expect adjusted net income over £100,000. The test is on each parent separately.",
+      "The same two tests as the 30 hours.",
+    ],
+    [
+      "What the reform changes",
+      "Removes the £100,000 test. The minimum earnings test and every other condition stay.",
+      "Removes the £100,000 test. The minimum earnings test and every other condition stay.",
+    ],
+    [`Extra cost, ${nb(lead.year)}`, formatBn(lead.thirty_hours, 2), formatBn(lead.tax_free_childcare, 2)],
+  ];
+  return (
+    <div className="overflow-x-auto">
+      <table className="data-table" data-testid="schemes-table">
+        <thead>
+          <tr>
+            <th />
+            <th>
+              <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: schemeColors.thirty_hours }} />
+              {SCHEME_LABELS.thirty_hours}
+            </th>
+            <th>
+              <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: schemeColors.tax_free_childcare }} />
+              {SCHEME_LABELS.tax_free_childcare}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, a, b]) => (
+            <tr key={label}>
+              <td className="min-w-[140px] font-medium text-slate-800">{label}</td>
+              <td className="min-w-[220px]">{a}</td>
+              <td className="min-w-[220px]">{b}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function LandingTab({ data, setting = STATIC_SETTING }) {
   const budget = getBudget(data);
   const dynamic = !isStatic(setting);
@@ -275,9 +326,31 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="landing-tab">
       <Section
+        id="schemes"
+        title="What changes for each scheme?"
+        lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
+        details={
+          <>
+            <p>
+              Adjusted net income is taxable income less pension contributions and Gift Aid, so a parent just over the
+              limit can get back under it by paying more into a pension. A couple both earning £95,000 qualify today;
+              a couple earning £101,000 and £20,000 do not.
+            </p>
+            <p>
+              The pledge names no nation. We read it as England&apos;s 30 hours plus Tax-Free Childcare, which is
+              UK-wide. The devolved governments&apos; own childcare offers, such as the Childcare Offer for Wales with its
+              own £100,000 test, are unchanged.
+            </p>
+          </>
+        }
+      >
+        <SchemesTable lead={lead} />
+      </Section>
+
+      <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`Today a family loses the 30 funded hours (England) and Tax-Free Childcare (UK-wide) as soon as either parent's adjusted net income goes over £100,000. The reform removes that limit from both schemes, so families keep the support however much a parent earns; every other condition, including the minimum earnings test, stays. These cards show what that adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
+        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

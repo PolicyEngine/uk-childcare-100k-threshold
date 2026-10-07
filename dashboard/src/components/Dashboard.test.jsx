@@ -273,12 +273,12 @@ describe("the labour supply control", () => {
     fireEvent.click(screen.getByTestId("toggle-intensive"));
     const cost = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.central[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
-    expect(screen.getByTestId("card-cost").textContent).toContain("hours, central elasticities");
+    expect(screen.getByTestId("card-cost").textContent).toContain("hours, central setting");
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=int", { scroll: false });
 
     fireEvent.click(screen.getByTestId("toggle-extensive"));
     fireEvent.change(screen.getByTestId("bound-select"), { target: { value: "high" } });
-    const both = data.budget.gross_bn.total[lead] - ls.total_offset_bn.high[lead];
+    const both = data.budget.gross_bn.total[lead] - ls.extensive.offset_bn.high[lead] - ls.intensive.offset_bn.high[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(both));
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%2Cint&bound=high", { scroll: false });
   });
@@ -304,7 +304,7 @@ describe("the labour supply control", () => {
     expect(text).toContain(ls.responding_population);
     expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
     expect(text).toContain(ls.not_modelled);
-    expect(text).toContain(bn(ls.intensive_over_limit.offset_bn.central[f]));
+    expect(text).toContain(bn(ls.bunching.offset_bn.central[f]));
     expect(text).toContain(bn(CENTAX.parentsBn));
     expect(text).toContain(bn(CENTAX.partnersBn));
   });
@@ -313,10 +313,10 @@ describe("the labour supply control", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);
     expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])} (${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("bunching not modelled");
+    expect(off).toContain("moving into work, hours and bunching");
     const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
     const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)} (moving into work, low elasticities; bunching not modelled)`);
+    expect(on).toContain(`${bn(cost)} (moving into work, low setting)`);
   });
 
   it("shows the money back in the yearly chart only when a margin is on", () => {

@@ -432,7 +432,7 @@ export function householdRows(grid, choice) {
 export const LS_BOUNDS = ["central", "low", "high"];
 export const LS_BOUND_LABELS = { central: "Central", low: "Low", high: "High" };
 /** The page opens static: no margin on, central elasticities. */
-export const STATIC_SETTING = { extensive: false, intensive: false, bound: "central" };
+export const STATIC_SETTING = { extensive: false, intensive: false, bunching: false, bound: "central" };
 
 /** The labour supply block: each margin's offset (£bn by year, positive = money back) and the dynamic cost. */
 export function getLabourSupply(data) {
@@ -447,7 +447,7 @@ export function getLabourSupply(data) {
     years,
     extensive: { offset: read(["extensive", "offset_bn"]), entrants: read(["extensive", "entrants"]), ftes: read(["extensive", "ftes"]) },
     intensive: { offset: read(["intensive", "offset_bn"]), ftes: read(["intensive", "ftes"]) },
-    overLimit: { offset: read(["intensive_over_limit", "offset_bn"]) },
+    bunching: { offset: read(["bunching", "offset_bn"]) },
     dynamic: read(["dynamic_cost_bn"]),
     assumptions: ls.assumptions,
     notModelled: ls.not_modelled,
@@ -465,38 +465,44 @@ export function getLabourSupply(data) {
   for (const k of ["hours_price_elasticity", "price_elasticity_central", "price_elasticity_low", "price_elasticity_high"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
-  // The dynamic cost must be the static total less both margins, or the page's adjusted figures would not match it.
+  // The dynamic cost must be the static total less all three offsets, or the page's adjusted figures would not match it.
   const total = byYear(data?.budget?.gross_bn?.total, years, "budget.gross_bn.total");
   for (const b of LS_BOUNDS) {
     years.forEach((y, i) => {
       if (out.extensive.entrants[b][i] < 0) fail("labour_supply.extensive.entrants", `${b} ${y}: negative`);
-      const expected = total[i] - out.extensive.offset[b][i] - out.intensive.offset[b][i];
-      if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less both offsets`);
+      const expected = total[i] - out.extensive.offset[b][i] - out.intensive.offset[b][i] - out.bunching.offset[b][i];
+      if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less the offsets`);
     });
   }
   return out;
 }
 
-/** The labour supply setting from the URL (`?ls=ext,int&bound=low`). Anything unknown reads as static. */
+/** The labour supply setting from the URL (`?ls=ext,int,bunch&bound=low`). Anything unknown reads as static. */
 export function parseLabourSupply(ls, bound) {
   const on = new Set((ls ?? "").split(","));
-  return { extensive: on.has("ext"), intensive: on.has("int"), bound: LS_BOUNDS.includes(bound) ? bound : "central" };
+  return {
+    extensive: on.has("ext"),
+    intensive: on.has("int"),
+    bunching: on.has("bunch"),
+    bound: LS_BOUNDS.includes(bound) ? bound : "central",
+  };
 }
 
 /** The URL parameters for a setting: none when static, so the default URL stays clean. */
 export function labourSupplyParams(setting) {
-  const on = [setting.extensive && "ext", setting.intensive && "int"].filter(Boolean);
+  const on = [setting.extensive && "ext", setting.intensive && "int", setting.bunching && "bunch"].filter(Boolean);
   if (on.length === 0) return [];
   return [["ls", on.join(",")], ...(setting.bound === "central" ? [] : [["bound", setting.bound]])];
 }
 
-export const isStatic = (setting) => !setting.extensive && !setting.intensive;
+export const isStatic = (setting) => !setting.extensive && !setting.intensive && !setting.bunching;
 
 /** Which margins are on, in words: "moving into work and hours, central elasticities". */
 export function labourSupplyLabel(setting) {
-  const on = [setting.extensive && "moving into work", setting.intensive && "hours"].filter(Boolean);
+  const on = [setting.extensive && "moving into work", setting.intensive && "hours", setting.bunching && "bunching"].filter(Boolean);
   if (on.length === 0) return "static: no change in work";
-  return `${on.join(" and ")}, ${setting.bound} elasticities`;
+  const list = on.length > 1 ? `${on.slice(0, -1).join(", ")} and ${on.at(-1)}` : on[0];
+  return `${list}, ${setting.bound} setting`;
 }
 
 /** The money back (£bn by year, positive = less cost) from the margins switched on. */
@@ -504,7 +510,9 @@ export function labourSupplyOffset(data, setting) {
   const ls = getLabourSupply(data);
   return ls.years.map(
     (_, i) =>
-      (setting.extensive ? ls.extensive.offset[setting.bound][i] : 0) + (setting.intensive ? ls.intensive.offset[setting.bound][i] : 0),
+      (setting.extensive ? ls.extensive.offset[setting.bound][i] : 0) +
+      (setting.intensive ? ls.intensive.offset[setting.bound][i] : 0) +
+      (setting.bunching ? ls.bunching.offset[setting.bound][i] : 0),
   );
 }
 

@@ -26,8 +26,8 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-07T14:22:04+00:00",
-  "git_revision": "faaa5d5e45f41a650e3ad621b0ee99afe22b7dfb",
+  "generated_at": "2026-10-07T15:58:48+00:00",
+  "git_revision": "2217b9362e3cc85c7c939112f717ebcbe18fc174",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 12.8,
@@ -24773,12 +24773,12 @@
      "url": "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41"
     }
    ],
-   "alternative": "Parents respond: OBR participation elasticities and a childcare-price elasticity of hours",
+   "alternative": "Parents respond: OBR participation elasticities, a childcare-price elasticity of hours for everyone whose childcare gets cheaper, and CenTax's bunching estimate",
    "effect_bn": {
-    "2026": -0.022,
-    "2027": -0.024,
-    "2028": -0.026,
-    "2029": -0.028
+    "2026": -0.346,
+    "2027": -0.357,
+    "2028": -0.409,
+    "2029": -0.445
    }
   },
   {
@@ -25114,166 +25114,251 @@
   "intensive": {
    "offset_bn": {
     "central": {
-     "2026": 0.027,
-     "2027": 0.029,
-     "2028": 0.031,
-     "2029": 0.033
+     "2026": 0.201,
+     "2027": 0.212,
+     "2028": 0.234,
+     "2029": 0.24
     },
     "low": {
-     "2026": 0.009,
-     "2027": 0.01,
-     "2028": 0.01,
-     "2029": 0.011
+     "2026": 0.067,
+     "2027": 0.071,
+     "2028": 0.078,
+     "2029": 0.08
     },
     "high": {
-     "2026": 0.055,
-     "2027": 0.059,
-     "2028": 0.063,
-     "2029": 0.066
+     "2026": 0.4,
+     "2027": 0.423,
+     "2028": 0.466,
+     "2029": 0.481
     }
    },
    "ftes": {
     "central": {
-     "2026": 1300,
-     "2027": 1400,
-     "2028": 1500,
-     "2029": 1500
+     "2026": 3300,
+     "2027": 3500,
+     "2028": 3700,
+     "2029": 3800
     },
     "low": {
-     "2026": 400,
-     "2027": 500,
-     "2028": 500,
-     "2029": 500
+     "2026": 1100,
+     "2027": 1200,
+     "2028": 1200,
+     "2029": 1300
     },
     "high": {
-     "2026": 2700,
-     "2027": 2800,
-     "2028": 3000,
-     "2029": 3100
+     "2026": 6600,
+     "2027": 7000,
+     "2028": 7400,
+     "2029": 7500
     }
    },
    "earnings_bn": {
     "central": {
-     "2026": 0.073,
-     "2027": 0.079,
-     "2028": 0.082,
-     "2029": 0.086
+     "2026": 0.408,
+     "2027": 0.432,
+     "2028": 0.478,
+     "2029": 0.5
     },
     "low": {
-     "2026": 0.024,
-     "2027": 0.026,
-     "2028": 0.027,
-     "2029": 0.029
+     "2026": 0.136,
+     "2027": 0.144,
+     "2028": 0.159,
+     "2029": 0.167
     },
     "high": {
-     "2026": 0.146,
-     "2027": 0.157,
-     "2028": 0.164,
-     "2029": 0.172
+     "2026": 0.817,
+     "2027": 0.864,
+     "2028": 0.956,
+     "2029": 1.0
     }
    },
-   "workers_price_falls": {
-    "central": {
-     "2026": 196000,
-     "2027": 203000,
-     "2028": 209000,
-     "2029": 214000
+   "at_or_below_limit": {
+    "offset_bn": {
+     "central": {
+      "2026": 0.027,
+      "2027": 0.029,
+      "2028": 0.031,
+      "2029": 0.033
+     },
+     "low": {
+      "2026": 0.009,
+      "2027": 0.01,
+      "2028": 0.01,
+      "2029": 0.011
+     },
+     "high": {
+      "2026": 0.055,
+      "2027": 0.059,
+      "2028": 0.063,
+      "2029": 0.066
+     }
     },
-    "low": {
-     "2026": 196000,
-     "2027": 203000,
-     "2028": 209000,
-     "2029": 214000
+    "ftes": {
+     "central": {
+      "2026": 1300,
+      "2027": 1400,
+      "2028": 1500,
+      "2029": 1500
+     },
+     "low": {
+      "2026": 400,
+      "2027": 500,
+      "2028": 500,
+      "2029": 500
+     },
+     "high": {
+      "2026": 2700,
+      "2027": 2800,
+      "2028": 3000,
+      "2029": 3100
+     }
     },
-    "high": {
-     "2026": 196000,
-     "2027": 203000,
-     "2028": 209000,
-     "2029": 214000
+    "earnings_bn": {
+     "central": {
+      "2026": 0.073,
+      "2027": 0.079,
+      "2028": 0.082,
+      "2029": 0.086
+     },
+     "low": {
+      "2026": 0.024,
+      "2027": 0.026,
+      "2028": 0.027,
+      "2029": 0.029
+     },
+     "high": {
+      "2026": 0.146,
+      "2027": 0.157,
+      "2028": 0.164,
+      "2029": 0.172
+     }
+    },
+    "workers_price_falls": {
+     "central": {
+      "2026": 196000,
+      "2027": 203000,
+      "2028": 209000,
+      "2029": 214000
+     },
+     "low": {
+      "2026": 196000,
+      "2027": 203000,
+      "2028": 209000,
+      "2029": 214000
+     },
+     "high": {
+      "2026": 196000,
+      "2027": 203000,
+      "2028": 209000,
+      "2029": 214000
+     }
+    },
+    "mean_price_change_pct": {
+     "central": {
+      "2026": -16.4,
+      "2027": -16.8,
+      "2028": -17.5,
+      "2029": -17.3
+     },
+     "low": {
+      "2026": -16.4,
+      "2027": -16.8,
+      "2028": -17.5,
+      "2029": -17.3
+     },
+     "high": {
+      "2026": -16.4,
+      "2027": -16.8,
+      "2028": -17.5,
+      "2029": -17.3
+     }
     }
    },
-   "mean_price_change_pct": {
-    "central": {
-     "2026": -16.4,
-     "2027": -16.8,
-     "2028": -17.5,
-     "2029": -17.3
+   "over_limit": {
+    "offset_bn": {
+     "central": {
+      "2026": 0.173,
+      "2027": 0.183,
+      "2028": 0.202,
+      "2029": 0.208
+     },
+     "low": {
+      "2026": 0.058,
+      "2027": 0.061,
+      "2028": 0.068,
+      "2029": 0.069
+     },
+     "high": {
+      "2026": 0.346,
+      "2027": 0.364,
+      "2028": 0.404,
+      "2029": 0.415
+     }
     },
-    "low": {
-     "2026": -16.4,
-     "2027": -16.8,
-     "2028": -17.5,
-     "2029": -17.3
+    "ftes": {
+     "central": {
+      "2026": 2000,
+      "2027": 2100,
+      "2028": 2200,
+      "2029": 2200
+     },
+     "low": {
+      "2026": 700,
+      "2027": 700,
+      "2028": 700,
+      "2029": 700
+     },
+     "high": {
+      "2026": 3900,
+      "2027": 4100,
+      "2028": 4400,
+      "2029": 4500
+     }
     },
-    "high": {
-     "2026": -16.4,
-     "2027": -16.8,
-     "2028": -17.5,
-     "2029": -17.3
+    "earnings_bn": {
+     "central": {
+      "2026": 0.335,
+      "2027": 0.353,
+      "2028": 0.396,
+      "2029": 0.414
+     },
+     "low": {
+      "2026": 0.112,
+      "2027": 0.118,
+      "2028": 0.132,
+      "2029": 0.138
+     },
+     "high": {
+      "2026": 0.671,
+      "2027": 0.707,
+      "2028": 0.791,
+      "2029": 0.828
+     }
     }
    }
   },
-  "intensive_over_limit": {
+  "bunching": {
    "offset_bn": {
     "central": {
-     "2026": 0.173,
-     "2027": 0.183,
-     "2028": 0.202,
-     "2029": 0.208
+     "2026": 0.15,
+     "2027": 0.15,
+     "2028": 0.18,
+     "2029": 0.21
     },
     "low": {
-     "2026": 0.058,
-     "2027": 0.061,
-     "2028": 0.068,
-     "2029": 0.069
+     "2026": 0.1,
+     "2027": 0.1,
+     "2028": 0.11,
+     "2029": 0.12
     },
     "high": {
-     "2026": 0.346,
-     "2027": 0.364,
-     "2028": 0.404,
-     "2029": 0.415
+     "2026": 0.63,
+     "2027": 0.63,
+     "2028": 0.7,
+     "2029": 0.77
     }
    },
-   "ftes": {
-    "central": {
-     "2026": 2000,
-     "2027": 2100,
-     "2028": 2200,
-     "2029": 2200
-    },
-    "low": {
-     "2026": 700,
-     "2027": 700,
-     "2028": 700,
-     "2029": 700
-    },
-    "high": {
-     "2026": 3900,
-     "2027": 4100,
-     "2028": 4400,
-     "2029": 4500
-    }
-   },
-   "earnings_bn": {
-    "central": {
-     "2026": 0.335,
-     "2027": 0.353,
-     "2028": 0.396,
-     "2029": 0.414
-    },
-    "low": {
-     "2026": 0.112,
-     "2027": 0.118,
-     "2028": 0.132,
-     "2029": 0.138
-    },
-    "high": {
-     "2026": 0.671,
-     "2027": 0.707,
-     "2028": 0.791,
-     "2029": 0.828
-    }
-   }
+   "source": "CenTax, Removing the childcare cliff-edge (September 2026), Table 4.2"
   },
   "intensive_displacement": {
    "offset_bn": {
@@ -25297,42 +25382,42 @@
   },
   "total_offset_bn": {
    "central": {
-    "2026": 0.022,
-    "2027": 0.024,
-    "2028": 0.026,
-    "2029": 0.028
+    "2026": 0.346,
+    "2027": 0.357,
+    "2028": 0.409,
+    "2029": 0.445
    },
    "low": {
-    "2026": 0.007,
-    "2027": 0.008,
-    "2028": 0.008,
-    "2029": 0.009
+    "2026": 0.165,
+    "2027": 0.169,
+    "2028": 0.186,
+    "2029": 0.198
    },
    "high": {
-    "2026": 0.045,
-    "2027": 0.049,
-    "2028": 0.052,
-    "2029": 0.056
+    "2026": 1.02,
+    "2027": 1.043,
+    "2028": 1.155,
+    "2029": 1.241
    }
   },
   "dynamic_cost_bn": {
    "central": {
-    "2026": 0.536,
-    "2027": 0.569,
-    "2028": 0.625,
-    "2029": 0.65
+    "2026": 0.212,
+    "2027": 0.236,
+    "2028": 0.242,
+    "2029": 0.233
    },
    "low": {
-    "2026": 0.551,
-    "2027": 0.585,
-    "2028": 0.643,
-    "2029": 0.669
+    "2026": 0.393,
+    "2027": 0.424,
+    "2028": 0.465,
+    "2029": 0.48
    },
    "high": {
-    "2026": 0.513,
-    "2027": 0.544,
-    "2028": 0.599,
-    "2029": 0.622
+    "2026": -0.462,
+    "2027": -0.45,
+    "2028": -0.504,
+    "2029": -0.563
    }
   },
   "population": {
@@ -25374,13 +25459,13 @@
    "elasticity_scales_status": "illustrative, not a sourced uncertainty interval"
   },
   "responding_population": "Adults (the first two in each family; not self-employed, students, disabled (receiving DLA or PIP) or aged 60 and over, the OBR's exclusions) in a family whose youngest child is under 12 and in which at least one adult's income, as the limits test it, is over £100,000. Mechanically, the partner of a parent over the limit, who under the reform brings the family the 30 hours and Tax-Free Childcare by working.",
-  "not_modelled": "The response of parents over £100,000 is not in the dynamic cost: neither those who today keep their income below the limit and would earn more without it (bunching; CenTax's +£210m intensive margin in 2029-30), nor their hours response to cheaper childcare (published separately as intensive_over_limit).",
+  "not_modelled": "The model cannot capture bunching: the survey data do not show parents keeping their income at or just below £100,000. It is added outside the model from CenTax's estimate (HMRC records, free hours only), which is the only published figure.",
   "notes": [
-   "Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less both offsets, at the same bound. Both apply to the total: they are not split by scheme.",
+   "Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the three offsets (moving into work, hours, bunching), at the same bound. They apply to the total: they are not split by scheme.",
    "Moving into work (extensive margin): the OBR elasticities are the percentage change in the probability of working for a percentage change in the gain to work (net of the childcare a parent would buy), converted from in-work income by the gain over in-work income. As in Adam and Phillips (Appendix E) they apply to the employed share: new employment is the sum over working adults of their own response, and it is shared among the non-working adults (who are the ones entering) in proportion to theirs. The offset is entrants' earnings less the rise in their household's net income (tax and National Insurance paid, less the childcare support the family now receives) and less the Tax-Free Childcare top-up on the care they start buying.",
-   "Hours (intensive margin): -0.042 is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, which we treat as a 100% price fall and apply to responding adults in work, at or below £100,000, whose out-of-pocket childcare cost falls; the model recomputes tax and benefits on the extra earnings. It is a total-hours estimate, so it overlaps with the extensive margin.",
+   "Hours (intensive margin): -0.042 is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, which we treat as a 100% price fall and apply to every responding adult in work whose out-of-pocket childcare cost falls, whatever their income, including the parent over £100,000 (whose extra earnings are taxed at up to 62%); the model recomputes tax and benefits on the extra earnings. It is a total-hours estimate, so it overlaps with the extensive margin, and it is not measured on parents over £100,000.",
    "Newly funded hours are assumed to displace paid care at 90.5% of their value (1 - 54/570, IFS BN189, which counts all displaced non-family care as paid). It is an assumption, published at 71.4% (only subsidisable care displaced, 1 - 163/570) and 100% (intensive_displacement), at central elasticities.",
-   "Sensitivity, not in the dynamic cost (intensive_over_limit): the parent over £100,000 responding to the cheaper childcare with the same elasticity. Their earnings are large and taxed at up to 62%, so it would add £0.21bn in 2029-30; the elasticity is not measured on this group.",
+   "Bunching (outside the model): CenTax's intensive-margin gain from parents who stop keeping their income at or below £100,000, Table 4.2: £0.15bn in 2027-28 and £0.21bn in 2029-30 central, from £0.10bn-£0.12bn (their high-cost scenario) to £0.63bn-£0.77bn (low-cost). 2028-29 is the midpoint and 2026-27 is held at 2027-28. It covers the free hours only, and may overlap a little with the hours response of parents near the limit.",
    "Low and high scale every elasticity by 1/3 and 2. The range is illustrative, not a sourced uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
    "The income and family-type breakdowns, who gains and the household calculator are static."
   ]
