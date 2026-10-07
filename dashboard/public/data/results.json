@@ -26,8 +26,8 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-07T16:40:42+00:00",
-  "git_revision": "c69ec278cda387ba2bb3ed25638ab47c89b2dac6",
+  "generated_at": "2026-10-07T16:44:30+00:00",
+  "git_revision": "bd33ece64e2d852f3bf843df75ac11c5daa05db6",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 12.9,
