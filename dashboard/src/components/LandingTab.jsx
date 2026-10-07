@@ -22,7 +22,7 @@ import {
 import { formatBn, formatCurrency, formatMoneyBn, formatPct, formatThousands } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, Section } from "./ui";
+import { Expandable, AXIS_STYLE, CustomTooltip, Section } from "./ui";
 
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
@@ -375,7 +375,9 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
         title="What changes for each scheme?"
         lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
       >
-        <SchemesTable />
+        <Expandable title="Show the table" testId="schemes-expandable">
+          <SchemesTable />
+        </Expandable>
       </Section>
 
       <Section

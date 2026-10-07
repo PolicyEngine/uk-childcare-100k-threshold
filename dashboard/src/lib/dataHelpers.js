@@ -435,9 +435,8 @@ export const LS_BOUND_LABELS = { central: "Central", low: "Low", high: "High" };
 export const STATIC_SETTING = {
   extensive: false,
   intensive: false,
-  bunching: false,
   bound: "central",
-  bounds: { extensive: "central", intensive: "central", bunching: "central" },
+  bounds: { extensive: "central", intensive: "central" },
 };
 
 /** The labour supply block: each margin's offset (£bn by year, positive = money back) and the dynamic cost. */
@@ -453,7 +452,6 @@ export function getLabourSupply(data) {
     years,
     extensive: { offset: read(["extensive", "offset_bn"]), entrants: read(["extensive", "entrants"]), ftes: read(["extensive", "ftes"]) },
     intensive: { offset: read(["intensive", "offset_bn"]), ftes: read(["intensive", "ftes"]) },
-    bunching: { offset: read(["bunching", "offset_bn"]) },
     dynamic: read(["dynamic_cost_bn"]),
     assumptions: ls.assumptions,
     notModelled: ls.not_modelled,
@@ -471,26 +469,26 @@ export function getLabourSupply(data) {
   for (const k of ["hours_price_elasticity", "price_elasticity_central", "price_elasticity_low", "price_elasticity_high"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
-  // The dynamic cost must be the static total less all three offsets, or the page's adjusted figures would not match it.
+  // The dynamic cost must be the static total less both offsets, or the page's adjusted figures would not match it.
   const total = byYear(data?.budget?.gross_bn?.total, years, "budget.gross_bn.total");
   for (const b of LS_BOUNDS) {
     years.forEach((y, i) => {
       if (out.extensive.entrants[b][i] < 0) fail("labour_supply.extensive.entrants", `${b} ${y}: negative`);
-      const expected = total[i] - out.extensive.offset[b][i] - out.intensive.offset[b][i] - out.bunching.offset[b][i];
+      const expected = total[i] - out.extensive.offset[b][i] - out.intensive.offset[b][i];
       if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less the offsets`);
     });
   }
   return out;
 }
 
-const LS_KEYS = { extensive: "ext", intensive: "int", bunching: "bunch" };
-const LS_WORDS = { extensive: "moving into work", intensive: "hours", bunching: "bunching" };
+const LS_KEYS = { extensive: "ext", intensive: "int" };
+const LS_WORDS = { extensive: "moving into work", intensive: "hours" };
 
 /** A response's own setting (low, central or high); `bound` is the shared default. */
 export const boundOf = (setting, margin) => setting.bounds?.[margin] ?? setting.bound ?? "central";
 
 /**
- * The labour supply setting from the URL: `?ls=ext,int:high,bunch:low` switches responses on, each with its own
+ * The labour supply setting from the URL: `?ls=ext,int:high` switches responses on, each with its own
  * setting (central when none is given); `bound` is an older shared setting, kept as the default. Anything unknown
  * reads as static.
  */
@@ -521,9 +519,9 @@ export function labourSupplyParams(setting) {
   return on.length ? [["ls", on.join(",")]] : [];
 }
 
-export const isStatic = (setting) => !setting.extensive && !setting.intensive && !setting.bunching;
+export const isStatic = (setting) => !setting.extensive && !setting.intensive;
 
-/** Which responses are on, in words: "moving into work, hours at the high setting and bunching". */
+/** Which responses are on, in words: "moving into work and hours at the high setting". */
 export function labourSupplyLabel(setting) {
   const on = Object.keys(LS_KEYS)
     .filter((m) => setting[m])

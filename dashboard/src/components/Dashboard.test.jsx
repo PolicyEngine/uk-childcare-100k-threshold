@@ -301,11 +301,9 @@ describe("the labour supply control", () => {
 
   it("explains labour supply on Methodology from the results file", () => {
     const text = textOf(<MethodTab data={data} />);
-    const f = String(final);
     expect(text).toContain(ls.responding_population);
     expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
     expect(text).toContain(ls.not_modelled);
-    expect(text).toContain(bn(ls.bunching.offset_bn.central[f]));
     expect(text).toContain(bn(CENTAX.parentsBn));
     expect(text).toContain(bn(CENTAX.partnersBn));
   });
@@ -314,7 +312,7 @@ describe("the labour supply control", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);
     expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])} (${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("moving into work, hours and bunching");
+    expect(off).toContain("moving into work and hours; bunching not modelled");
     const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
     const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
     expect(on).toContain(`${bn(cost)} (moving into work at the low setting)`);

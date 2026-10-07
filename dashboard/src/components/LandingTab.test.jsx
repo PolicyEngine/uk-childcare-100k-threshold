@@ -19,7 +19,6 @@ import { formatMoneyBn } from "../lib/formatters";
 import { realData as data, textOf } from "../lib/testUtils";
 
 const BOTH = { extensive: true, intensive: true, bound: "central" };
-const ALL = { extensive: true, intensive: true, bunching: true, bound: "central" };
 const EXTENSIVE = { extensive: true, intensive: false, bound: "central" };
 const STATIC = { extensive: false, intensive: false, bound: "central" };
 const years = data.meta.years.map(String);
@@ -35,7 +34,6 @@ describe("the yearly cost chart", () => {
 
   it.each([
     ["both margins", BOTH],
-    ["all three responses", ALL],
     ["moving into work alone", EXTENSIVE],
     ["static", STATIC],
   ])("adds up, in each year, to the cost after the response (%s)", (_, setting) => {
@@ -47,7 +45,7 @@ describe("the yearly cost chart", () => {
       const y = years[i];
       const expected = static_ ? data.budget.gross_bn.total[y] : data.budget.gross_bn.total[y] - offsets[i];
       expect(chartRowTotal(row, series)).toBeCloseTo(expected, 9);
-      if (setting === ALL) expect(Math.abs(chartRowTotal(row, series) - data.labour_supply.dynamic_cost_bn.central[y])).toBeLessThan(0.002);
+      if (setting === BOTH) expect(Math.abs(chartRowTotal(row, series) - data.labour_supply.dynamic_cost_bn.central[y])).toBeLessThan(0.002);
     });
   });
 

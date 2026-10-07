@@ -89,7 +89,7 @@ export function dynamicCell(data, setting) {
   const ls = getLabourSupply(data);
   if (isStatic(setting)) {
     const d = ls.dynamic;
-    return `${formatBn(d.central[li], 2)} (${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}, an illustrative range; moving into work, hours and bunching)`;
+    return `${formatBn(d.central[li], 2)} (${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}, an illustrative range; moving into work and hours; bunching not modelled)`;
   }
   const cost = budget.rows[li].total - labourSupplyOffset(data, setting)[li];
   return `${formatBn(cost, 2)} (${labourSupplyLabel(setting)})`;

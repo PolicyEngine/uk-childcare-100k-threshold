@@ -26,7 +26,6 @@ from .config import (
     VALIDATION_YEAR,
     WEEKS_PER_YEAR,
     YEARS,
-    bunching_bn,
 )
 from .engine import load_meta, run_path
 
@@ -424,17 +423,13 @@ def labour_supply(static_total, years=YEARS):
         "at_or_below_limit": at_or_below,
         "over_limit": over_limit,
     }
-    # Bunching, from CenTax, outside the model (config.CENTAX_BUNCHING_BN).
-    bunching = {"offset_bn": {b: {str(y): bunching_bn(b, y) for y in years} for b in BOUNDS},
-                "source": "CenTax, Removing the childcare cliff-edge (September 2026), Table 4.2"}
     # Sensitivity, not in the dynamic cost: the free-hours displacement assumption varied alone, central elasticities.
     intensive_displacement = {
         "offset_bn": {side: {str(y): _bn(float(z[f"{y}/intensive_displacement/{side}/offset"])) for y in years}
                       for side in FREE_HOURS_DISPLACEMENT_RANGE},
         "displacement": {side: round(v, 4) for side, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
     }
-    total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)]
-                               + bunching["offset_bn"][b][str(y)], 3)
+    total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
                  for y in years} for b in BOUNDS}
     dynamic = {b: {str(y): round(static_total[str(y)] - total[b][str(y)], 3) for y in years} for b in BOUNDS}
     checks = {}
@@ -448,7 +443,6 @@ def labour_supply(static_total, years=YEARS):
     return {
         "extensive": extensive,
         "intensive": intensive,
-        "bunching": bunching,
         "intensive_displacement": intensive_displacement,
         "total_offset_bn": total,
         "dynamic_cost_bn": dynamic,

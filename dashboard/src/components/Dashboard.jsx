@@ -81,9 +81,6 @@ const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on
 const BREWER_URL =
   "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17";
 
-const CENTAX_BUNCHING_URL =
-  "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42";
-
 /** One response as a card: the whole header is the switch; the source link sits outside it. */
 function ResponseCard({ on, onChange, bound, onBound, title, tag, description, source, testId }) {
   return (
@@ -158,7 +155,7 @@ export function LabourSupplyControl({ data, setting, onChange }) {
       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
         <span className="text-sm font-semibold text-slate-800">If parents change how much they work</span>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-2">
         <ResponseCard
           on={setting.extensive}
           onChange={(v) => onChange({ ...setting, extensive: v })}
@@ -180,17 +177,6 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           description="Parents in work, at any income, may work more as their childcare gets cheaper."
           source={<>{link(BREWER_URL, "Brewer et al.")}, assumed elasticity {a.hours_price_elasticity}</>}
           testId="toggle-intensive"
-        />
-        <ResponseCard
-          on={setting.bunching}
-          onChange={(v) => onChange({ ...setting, bunching: v })}
-          bound={boundOf(setting, "bunching")}
-          onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, bunching: x } })}
-          tag="Bunching"
-          title="No more holding income under £100,000"
-          description="Parents who keep their income just under £100,000 to keep the support stop doing so. Not an elasticity: CenTax's estimate, from HMRC records, of the extra tax this brings."
-          source={link(CENTAX_BUNCHING_URL, "CenTax estimate")}
-          testId="toggle-bunching"
         />
       </div>
     </div>

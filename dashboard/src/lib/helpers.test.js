@@ -241,19 +241,16 @@ describe("formatters", () => {
 describe("labour supply", () => {
   it("reads the setting from the URL and writes it back, static by default", async () => {
     const { parseLabourSupply, labourSupplyParams, labourSupplyOffset, getLabourSupply } = await import("./dataHelpers");
-    expect(parseLabourSupply(null, null)).toMatchObject({ extensive: false, intensive: false, bunching: false });
-    expect(parseLabourSupply("ext,int", "nonsense")).toMatchObject({ extensive: true, intensive: true, bunching: false, bounds: { extensive: "central", intensive: "central" } });
+    expect(parseLabourSupply(null, null)).toMatchObject({ extensive: false, intensive: false });
+    expect(parseLabourSupply("ext,int", "nonsense")).toMatchObject({ extensive: true, intensive: true, bounds: { extensive: "central", intensive: "central" } });
     expect(labourSupplyParams({ extensive: false, intensive: false, bound: "high" })).toEqual([]);
     expect(labourSupplyParams({ extensive: true, intensive: false, bound: "low" })).toEqual([["ls", "ext:low"]]);
-    expect(parseLabourSupply("ext,int:high,bunch:low", null).bounds).toEqual({ extensive: "central", intensive: "high", bunching: "low" });
+    expect(parseLabourSupply("ext,int:high", null).bounds).toEqual({ extensive: "central", intensive: "high" });
     const off = labourSupplyOffset(data, { extensive: false, intensive: false, bound: "central" });
     expect(off.every((v) => v === 0)).toBe(true);
     const ls = getLabourSupply(data);
     const both = labourSupplyOffset(data, { extensive: true, intensive: true, bound: "central" });
     both.forEach((v, i) => expect(v).toBeCloseTo(ls.extensive.offset.central[i] + ls.intensive.offset.central[i], 6));
-    expect(parseLabourSupply("ext,int,bunch", "low").bounds).toEqual({ extensive: "low", intensive: "low", bunching: "low" });
-    const all = labourSupplyOffset(data, { extensive: true, intensive: true, bunching: true, bound: "central" });
-    all.forEach((v, i) => expect(v).toBeCloseTo(ls.extensive.offset.central[i] + ls.intensive.offset.central[i] + ls.bunching.offset.central[i], 6));
   });
 
   it("refuses a dynamic cost that is not the static total less both offsets", async () => {

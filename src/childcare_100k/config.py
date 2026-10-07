@@ -236,26 +236,3 @@ FREE_HOURS_DISPLACEMENT_RANGE = {"low": 1 - 163 / 570, "high": 1.0}
 # which at least one adult's income, as the limits test it, is over £100,000.
 YOUNGEST_CHILD_MAX_AGE = 11
 
-
-# Bunching: parents who today keep their income at or just below £100,000 and would earn more
-# without the limit. The survey data cannot show this, so it is added outside the model from
-# CenTax (Removing the childcare cliff-edge, September 2026, Table 4.2, intensive-margin
-# behavioural gain, free hours only; CenTax label tax years by their later year, so 2028 is
-# 2027-28 and 2030 is 2029-30). Low and high are CenTax's high-cost and low-cost scenarios
-# (less and more money back). 2028-29 is the midpoint; 2026-27, which CenTax do not cost, is held
-# at the 2027-28 figure. £bn a year, positive is money back.
-CENTAX_BUNCHING_BN = {
-    "low": {2027: 0.10, 2029: 0.12},
-    "central": {2027: 0.15, 2029: 0.21},
-    "high": {2027: 0.63, 2029: 0.77},
-}
-
-
-def bunching_bn(bound, year):
-    """CenTax's bunching gain for a year: their two years, the midpoint between, 2026-27 held at 2027-28."""
-    v = CENTAX_BUNCHING_BN[bound]
-    if year <= 2027:
-        return v[2027]
-    if year >= 2029:
-        return v[2029]
-    return round((v[2027] + v[2029]) / 2, 3)

@@ -233,7 +233,6 @@ function LabourSupplySection({ data }) {
   const raw = data.labour_supply;
   const li = ls.years.length - 1;
   const year = fyLabel(ls.years[li]);
-  const bunch = ls.bunching.offset;
   const entrants = Math.round(ls.extensive.entrants.central[li] / 100) * 100;
   const oldRule = raw.extensive.non_worker_rule_entrants?.central?.[String(ls.years[li])];
   const extOffset = ls.extensive.offset.central[li];
@@ -243,7 +242,7 @@ function LabourSupplySection({ data }) {
     <Section
       id="labour-supply"
       title="Labour supply"
-      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the tax and National Insurance paid on extra work, net of the childcare support it brings, and, if switched on, CenTax's estimate of bunching."
+      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the tax and National Insurance paid on extra work, net of the childcare support it brings."
     >
       <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
         <li>
@@ -303,24 +302,13 @@ function LabourSupplySection({ data }) {
           {extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost rather than bringing money back.` : `bring back ${formatMoneyBn(extOffset)}.`}
         </li>
         <li>
-          <strong>Bunching (outside the model).</strong> {ls.notModelled} It brings back {formatBn(bunch.central[li], 2)}{" "}
-          in {year} ({formatBn(bunch.low[li], 2)} to {formatBn(bunch.high[li], 2)}{" "}
-          across CenTax&apos;s scenarios), from{" "}
-          <a
-            href="https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42"
-            target="_blank"
-            rel="noreferrer"
-          >
-            CenTax, Table 4.2
-          </a>
-          ; 2028-29 is the midpoint of their two years and 2026-27 is held at 2027-28.
+          <strong>Not modelled.</strong> {ls.notModelled}
         </li>
         <li>
           <strong>Against CenTax.</strong> CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
           {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
-          {formatBn(CENTAX.partnersBn, 2)} from partners entering work. We take the first from them as the bunching
-          adjustment; for the second we find {formatMoneyBn(extOffset)}, for the reasons above. Our hours response has
-          no CenTax counterpart.
+          {formatBn(CENTAX.partnersBn, 2)} from partners entering work. The first is not modelled here; for the second we
+          find {formatMoneyBn(extOffset)}, for the reasons above. Our hours response has no CenTax counterpart.
         </li>
       </ul>
     </Section>
