@@ -283,7 +283,7 @@ describe("the labour supply control", () => {
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%2Cint&bound=high", { scroll: false });
   });
 
-  it("sits under the tab bar on Budget impact and Who gains, not on Methodology", () => {
+  it("sits under the tab bar on Budget impact only, the one tab it changes", () => {
     render(<Dashboard data={data} />);
     const tablist = screen.getByRole("tablist");
     const control = screen.getByTestId("labour-supply-control");
@@ -292,7 +292,7 @@ describe("the labour supply control", () => {
     expect(screen.getByTestId("intro").contains(control)).toBe(false);
 
     fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
-    expect(screen.getByTestId("labour-supply-note").textContent).toContain("always static");
+    expect(screen.queryByTestId("labour-supply-control")).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
     expect(screen.queryByTestId("labour-supply-control")).toBeNull();

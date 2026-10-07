@@ -80,123 +80,136 @@ const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on
 const BREWER_URL =
   "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17";
 
-/** A switch with its label; the hint sits outside the clickable label so a link in it does not flip the switch. */
-function Toggle({ on, onChange, label, hint, testId }) {
+const CENTAX_BUNCHING_URL =
+  "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42";
+
+/** What a response does to the reform's cost in a year: "Cuts the cost by £240m in 2029-30", or "Adds £5m…". */
+function effectLabel(v, year) {
+  const m = `£${Math.round(Math.abs(v) * 1000).toLocaleString("en-GB")}m`;
+  return v < 0 ? `Adds ${m} to the cost in ${year}` : `Cuts the cost by ${m} in ${year}`;
+}
+
+/** One response as a card: the whole header is the switch; the source link sits outside it. */
+function ResponseCard({ on, onChange, title, tag, description, source, value, year, testId }) {
   return (
-    <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-      <label className="flex cursor-pointer items-center gap-2">
-        <button
-          type="button"
-          role="switch"
-          aria-checked={on}
-          aria-label={label}
-          data-testid={testId}
-          onClick={() => onChange(!on)}
-          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
+    <div
+      className={`flex flex-col rounded-xl border p-4 transition-colors ${
+        on ? "border-[color:var(--pe-color-primary-600)] bg-[color:var(--pe-color-primary-50)]" : "border-slate-200 bg-white"
+      }`}
+    >
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={title}
+        data-testid={testId}
+        onClick={() => onChange(!on)}
+        className="flex w-full items-start justify-between gap-3 text-left"
+      >
+        <span>
+          <span className="block text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tag}</span>
+          <span className="mt-0.5 block font-semibold text-slate-900">{title}</span>
+        </span>
+        <span
+          aria-hidden
+          className={`relative mt-1 inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
             on ? "bg-[color:var(--pe-color-primary-600)]" : "bg-slate-300"
           }`}
         >
-          <span
-            className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`}
-          />
-        </button>
-        <span className={on ? "font-semibold text-slate-900" : "text-slate-600"}>{label}</span>
-      </label>
-      <span className="text-xs text-slate-500">{hint}</span>
+          <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
+        </span>
+      </button>
+      <p className="mt-2 text-sm leading-5 text-slate-600">{description}</p>
+      <div className="mt-auto flex flex-wrap items-end justify-between gap-x-3 gap-y-1 pt-3 text-xs">
+        <span className="text-slate-500">Source: {source}</span>
+        <span className={`whitespace-nowrap font-semibold ${on ? "text-slate-900" : "text-slate-400"}`}>
+          {effectLabel(value, year)}
+        </span>
+      </div>
     </div>
   );
 }
 
 /**
- * Labour supply: the page opens static. Each margin can be switched on; the elasticity setting scales both. Only the
- * cost figures on Budget impact and the comparison on Methodology change. Shown under the tab bar on Budget impact and
- * Who gains; Methodology explains it.
+ * Labour supply: the page opens static. Each response can be switched on; the setting picks low, central or high for
+ * all of them. Only the cost figures on Budget impact and the comparison on Methodology change, so it is shown under
+ * the tab bar on Budget impact only; Methodology explains it.
  */
-export function LabourSupplyControl({ data, setting, onChange, tab }) {
-  const a = getLabourSupply(data).assumptions;
+export function LabourSupplyControl({ data, setting, onChange }) {
+  const ls = getLabourSupply(data);
+  const a = ls.assumptions;
+  const li = ls.years.length - 1;
+  const year = fyLabel(ls.years[li]);
+  const b = setting.bound;
   const any = setting.extensive || setting.intensive || setting.bunching;
-  let note;
-  if (tab === "who-gains") {
-    note =
-      "The figures on this tab are always static: who gains, the breakdowns and the household calculator do not change with this setting.";
-  } else if (any) {
-    note =
-      "Changes the cost on this tab and in the comparison on Methodology. Hours cover every parent whose childcare gets cheaper, whatever their income; bunching is CenTax's estimate, added outside the model. Methodology explains each part.";
-  } else {
-    note = "Off: the static costing, with nobody changing how much they work.";
-  }
+  const note = any
+    ? "Each card shows how much that response changes the reform's cost, through the tax and National Insurance paid on the extra earnings. Switched-on responses change the cost on this tab and in the comparison on Methodology, which explains each one. Who gains stays static."
+    : "All off: the static costing, with nobody changing how much they work. Switch a response on to see the cost after it.";
+  const link = (href, text) => (
+    <a href={href} target="_blank" rel="noreferrer" className="underline">
+      {text}
+    </a>
+  );
   return (
     <div className="mb-8" data-testid="labour-supply-control">
-      <span className="mb-1 block text-xs font-medium text-slate-500">Labour supply</span>
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm">
-        <Toggle
-          on={setting.extensive}
-          onChange={(v) => onChange({ ...setting, extensive: v })}
-          label="Extensive margin"
-          hint={
-            <>
-              Moving into work:{" "}
-              <a href={OBR_ELASTICITIES_URL} target="_blank" rel="noreferrer" className="underline">
-                OBR participation elasticities
-              </a>{" "}
-              on the gain to work
-            </>
-          }
-          testId="toggle-extensive"
-        />
-        <span className="h-5 w-px bg-slate-200" aria-hidden />
-        <Toggle
-          on={setting.intensive}
-          onChange={(v) => onChange({ ...setting, intensive: v })}
-          label="Intensive margin"
-          hint={
-            <>
-              Hours: assumed childcare-price elasticity {a.hours_price_elasticity}, extrapolated from{" "}
-              <a href={BREWER_URL} target="_blank" rel="noreferrer" className="underline">
-                Brewer et al.
-              </a>
-            </>
-          }
-          testId="toggle-intensive"
-        />
-        <span className="h-5 w-px bg-slate-200" aria-hidden />
-        <Toggle
-          on={setting.bunching}
-          onChange={(v) => onChange({ ...setting, bunching: v })}
-          label="Bunching"
-          hint={
-            <>
-              Parents no longer keeping income below £100,000:{" "}
-              <a
-                href="https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42"
-                target="_blank"
-                rel="noreferrer"
-                className="underline"
-              >
-                CenTax estimate
-              </a>
-            </>
-          }
-          testId="toggle-bunching"
-        />
+      <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-sm font-semibold text-slate-800">If parents change how much they work</span>
         {any ? (
-          <select
-            value={setting.bound}
-            onChange={(e) => onChange({ ...setting, bound: e.target.value })}
-            className="h-7 rounded-md border border-slate-200 bg-slate-50 px-1.5 text-sm text-slate-700"
-            aria-label="Elasticities"
-            data-testid="bound-select"
-          >
-            {LS_BOUNDS.map((b) => (
-              <option key={b} value={b}>
-                {LS_BOUND_LABELS[b]}
-                {b === "central" ? "" : ` (elasticities x${b === "low" ? "1/3" : "2"}, CenTax ${b === "low" ? "high" : "low"}-cost bunching; illustrative)`}
-              </option>
-            ))}
-          </select>
+          <label className="flex items-center gap-2 text-xs text-slate-600">
+            Setting
+            <select
+              value={b}
+              onChange={(e) => onChange({ ...setting, bound: e.target.value })}
+              className="h-7 rounded-full border border-slate-200 bg-white px-3 text-xs font-medium text-slate-800"
+              aria-label="Elasticities"
+              data-testid="bound-select"
+            >
+              {LS_BOUNDS.map((x) => (
+                <option key={x} value={x}>
+                  {LS_BOUND_LABELS[x]}
+                  {x === "central" ? "" : " (illustrative)"}
+                </option>
+              ))}
+            </select>
+          </label>
         ) : null}
       </div>
-      <p className="mt-1.5 text-xs text-slate-500" data-testid="labour-supply-note">
+      <div className="grid gap-3 md:grid-cols-3">
+        <ResponseCard
+          on={setting.extensive}
+          onChange={(v) => onChange({ ...setting, extensive: v })}
+          tag="Extensive margin"
+          title="Partners move into work"
+          description="A partner who doesn't work may start, now that working brings the family childcare support."
+          source={link(OBR_ELASTICITIES_URL, "OBR elasticities")}
+          value={ls.extensive.offset[b][li]}
+          year={year}
+          testId="toggle-extensive"
+        />
+        <ResponseCard
+          on={setting.intensive}
+          onChange={(v) => onChange({ ...setting, intensive: v })}
+          tag="Intensive margin"
+          title="Parents work more hours"
+          description="Parents in work, at any income, may work more as their childcare gets cheaper."
+          source={<>{link(BREWER_URL, "Brewer et al.")}, assumed elasticity {a.hours_price_elasticity}</>}
+          value={ls.intensive.offset[b][li]}
+          year={year}
+          testId="toggle-intensive"
+        />
+        <ResponseCard
+          on={setting.bunching}
+          onChange={(v) => onChange({ ...setting, bunching: v })}
+          tag="Bunching"
+          title="No more holding income under £100,000"
+          description="Parents who keep their income just below the limit stop doing so. Not in our data, so taken from CenTax."
+          source={link(CENTAX_BUNCHING_URL, "CenTax estimate")}
+          value={ls.bunching.offset[b][li]}
+          year={year}
+          testId="toggle-bunching"
+        />
+      </div>
+      <p className="mt-2 text-xs text-slate-500" data-testid="labour-supply-note">
         {note}
       </p>
     </div>
@@ -291,9 +304,8 @@ export function Dashboard({ data }) {
           ))}
         </div>
 
-        {activeTab === "budget" || activeTab === "who-gains" ? (
-          <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} tab={activeTab} />
-        ) : null}
+        {/* Only Budget impact changes with the labour supply setting, so the control shows only there. */}
+        {activeTab === "budget" ? <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} /> : null}
 
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
           {activeTab === "budget" && <LandingTab data={data} setting={setting} />}
