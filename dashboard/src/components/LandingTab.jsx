@@ -258,8 +258,8 @@ export function netGrossGapM(net, gross) {
   return Math.max(...net.map((v, i) => Math.round(Math.abs(v - gross[i]) * 1000)));
 }
 
-/** Each scheme side by side: what it gives, who qualifies today, what the reform changes, and its extra cost. */
-function SchemesTable({ lead }) {
+/** Each scheme side by side: where it applies, what it gives, who qualifies today and what the reform changes. */
+function SchemesTable() {
   const rows = [
     ["Where", "England", "UK-wide"],
     [
@@ -277,7 +277,6 @@ function SchemesTable({ lead }) {
       "Removes the £100,000 test. The minimum earnings test and every other condition stay.",
       "Removes the £100,000 test. The minimum earnings test and every other condition stay.",
     ],
-    [`Extra cost, ${nb(lead.year)}`, formatBn(lead.thirty_hours, 2), formatBn(lead.tax_free_childcare, 2)],
   ];
   return (
     <div className="overflow-x-auto">
@@ -329,22 +328,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
         id="schemes"
         title="What changes for each scheme?"
         lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
-        details={
-          <>
-            <p>
-              Adjusted net income is taxable income less pension contributions and Gift Aid, so a parent just over the
-              limit can get back under it by paying more into a pension. A couple both earning £95,000 qualify today;
-              a couple earning £101,000 and £20,000 do not.
-            </p>
-            <p>
-              The pledge names no nation. We read it as England&apos;s 30 hours plus Tax-Free Childcare, which is
-              UK-wide. The devolved governments&apos; own childcare offers, such as the Childcare Offer for Wales with its
-              own £100,000 test, are unchanged.
-            </p>
-          </>
-        }
       >
-        <SchemesTable lead={lead} />
+        <SchemesTable />
       </Section>
 
       <Section

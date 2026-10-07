@@ -401,7 +401,12 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
       >
         <p className="text-sm leading-6 text-slate-600" data-testid="limits-explainer">
           What each scheme gives, who qualifies today and what the reform changes are set out side by side at the top
-          of Budget impact. The model parameters the reform changes are below.
+          of Budget impact. Adjusted net income is taxable income less pension contributions and Gift Aid, so a parent
+          just over the limit can get back under it by paying more into a pension; the test is on each parent, so a
+          couple both earning £95,000 qualify today while a couple earning £101,000 and £20,000 do not. The pledge names
+          no nation: we read it as England&apos;s 30 hours plus Tax-Free Childcare, which is UK-wide, and the devolved
+          governments&apos; own childcare offers, such as the Childcare Offer for Wales with its own £100,000 test, are
+          unchanged. The model parameters the reform changes are below.
         </p>
       </Section>
 
