@@ -27,7 +27,6 @@ export const SCHEME_LABELS = {
   thirty_hours: "30 hours for working parents",
   tax_free_childcare: "Tax-Free Childcare",
 };
-export const COUNTRIES = ["England", "Scotland", "Wales", "Northern Ireland"];
 
 export function isNum(value) {
   return typeof value === "number" && Number.isFinite(value);
@@ -229,18 +228,40 @@ export function getDeciles(data, year) {
   return rows.map((r) => ({ ...r, suppressed: r.suppressed === true }));
 }
 
-/** The change by nation; a suppressed nation carries `suppressed: true` and null values. */
-export function getCountries(data, year) {
-  const block = `distribution.${year}.by_country`;
-  const rows = data?.distribution?.[String(year)]?.by_country;
-  if (!Array.isArray(rows) || rows.length === 0) fail(block, "missing");
+export const REGIONS = [
+  "North East",
+  "North West",
+  "Yorkshire and the Humber",
+  "East Midlands",
+  "West Midlands",
+  "East of England",
+  "London",
+  "South East",
+  "South West",
+  "Wales",
+  "Scotland",
+  "Northern Ireland",
+];
+export const FAMILY_TYPES = ["Lone parent", "Couple, one child", "Couple, two children", "Couple, three or more children", "Other family"];
+
+/** The breakdowns by region and family type; each cell carries a cost and families gaining, or is suppressed. */
+export const GROUPINGS = {
+  region: { key: "by_region", label: "region", names: REGIONS },
+  family_type: { key: "by_family_type", label: "family_type", names: FAMILY_TYPES },
+};
+
+export function getGroups(data, year, grouping) {
+  const g = GROUPINGS[grouping];
+  if (!g) fail(`distribution.${year}`, `unknown grouping ${JSON.stringify(grouping)}`);
+  const block = `distribution.${year}.${g.key}`;
+  const rows = data?.distribution?.[String(year)]?.[g.key];
+  if (!Array.isArray(rows) || rows.length !== g.names.length) fail(block, "missing");
   rows.forEach((r, i) => {
-    if (!COUNTRIES.includes(r?.country)) fail(`${block}.${i}.country`, `unknown nation ${JSON.stringify(r?.country)}`);
+    if (r?.[g.label] !== g.names[i]) fail(`${block}.${i}.${g.label}`, "out of order");
     checkCell(r, ["total_change_bn", "families_gaining"], `${block}.${i}`);
   });
-  // A single suppressed nation could be worked out from the UK total.
-  if (rows.filter((r) => r.suppressed === true).length === 1) fail(block, "a single suppressed nation can be recovered from the total");
-  return rows.map((r) => ({ ...r, suppressed: r.suppressed === true }));
+  if (rows.filter((r) => r.suppressed === true).length === 1) fail(block, "a single suppressed cell can be recovered from the total");
+  return rows.map((r) => ({ name: r[g.label], ...r, suppressed: r.suppressed === true }));
 }
 
 /** The years for the "Who gains" choice: every modelled year, each of which must have a valid distribution. */
@@ -249,7 +270,8 @@ export function getDistributionYears(data) {
   for (const y of years) {
     getRecipients(data, y);
     getDeciles(data, y);
-    getCountries(data, y);
+    getGroups(data, y, "region");
+    getGroups(data, y, "family_type");
   }
   return years;
 }
@@ -337,6 +359,35 @@ export function getLimitations(data) {
   return rows;
 }
 
+/** The household form's precomputed families: options, the default family, and net income by earnings for each. */
+export function getHouseholdGrid(data) {
+  const g = data?.household_grid;
+  if (!g || !Number.isInteger(g.year) || !Array.isArray(g.earnings)) fail("household_grid", "incomplete");
+  const dims = ["parents", "children", "spend_per_child"];
+  for (const d of dims) {
+    const opts = g.options?.[d];
+    if (!Array.isArray(opts) || opts.length === 0 || !opts.every((o) => isText(o?.id) && isText(o?.label))) fail(`household_grid.options.${d}`, "invalid");
+  }
+  const def = g.default;
+  if (!def || !g.options.parents.some((o) => o.id === def.parent) || !g.options.children.some((o) => o.id === def.children) || !g.options.spend_per_child.some((o) => o.id === def.spend_per_child)) fail("household_grid.default", "not an option");
+  for (let i = 1; i < g.earnings.length; i += 1) if (!(g.earnings[i] > g.earnings[i - 1])) fail("household_grid.earnings", "not increasing");
+  for (const p of g.options.parents)
+    for (const c of g.options.children)
+      for (const s of g.options.spend_per_child) {
+        const key = `${p.id}|${c.id}|${s.id}`;
+        const v = g.series?.[key];
+        if (!v || ![v.baseline, v.reform].every((a) => Array.isArray(a) && a.length === g.earnings.length && a.every(isNum))) fail(`household_grid.series.${key}`, "invalid");
+      }
+  return g;
+}
+
+/** One family's rows from the grid, in the shape cliffSummary reads. */
+export function householdRows(grid, choice) {
+  const v = grid.series[`${choice.parent}|${choice.children}|${choice.spend_per_child}`];
+  if (!v) fail("household_grid.series", `no family ${JSON.stringify(choice)}`);
+  return { rows: grid.earnings.map((e, i) => ({ earnings: e, baseline: v.baseline[i], reform: v.reform[i] })) };
+}
+
 /** Run every reader over the file; throws a ResultsError on the first invalid block. */
 export function validateResults(data) {
   const years = getYears(data);
@@ -352,6 +403,8 @@ export function validateResults(data) {
   getValidation(data);
   getAssumptions(data);
   cliffSummary(getCliff(data));
+  const grid = getHouseholdGrid(data);
+  cliffSummary(householdRows(grid, grid.default));
   getBenchmarks(data);
   getLimitations(data);
   return true;

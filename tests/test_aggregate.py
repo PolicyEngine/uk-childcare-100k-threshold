@@ -33,7 +33,7 @@ def _pair(year=2026, n=4, d_free=None, d_tfc=None, over_law=None, newly=None, n_
     common = dict(
         hh_weight=w, bu_weight=w, p_weight=w,
         hh_gov_balance=zero, hh_net_income=np.full(n, 50_000.0), hh_decile=np.arange(1, n + 1),
-        hh_country=np.array(["ENGLAND"] * n), bu_country=np.zeros(n, int),
+        hh_country=np.array(["ENGLAND"] * n), bu_country=np.zeros(n, int), bu_region=np.zeros(n, int), bu_family_type=np.zeros(n, int),
         bu_any_over_law=over_law, bu_n_age0=n_age0, rate_by_age=np.array([11.0, 11.0, 8.0, 6.0, 6.0]),
         p_age=np.full(n, 3.0), p_is_child=np.ones(n, bool),
         **extra,
@@ -89,23 +89,23 @@ def test_cell_with_no_gainers_but_one_loser_is_suppressed():
 
 def test_lone_suppressed_cell_with_no_complement_suppresses_the_breakdown():
     cells = [
-        {"country": "England", "total_change_bn": 0.5, "families_gaining": 150_000, "suppressed": False},
-        {"country": "Wales", "total_change_bn": None, "families_gaining": None, "suppressed": True},
-        {"country": "Scotland", "total_change_bn": 0.0, "families_gaining": 0, "suppressed": False},
+        {"region": "England", "total_change_bn": 0.5, "families_gaining": 150_000, "suppressed": False},
+        {"region": "Wales", "total_change_bn": None, "families_gaining": None, "suppressed": True},
+        {"region": "Scotland", "total_change_bn": 0.0, "families_gaining": 0, "suppressed": False},
     ]
     # England would be the only candidate, but it has changed records; drop it to leave none.
     out = A._complement([dict(c) for c in cells], [0, 5, 0])
     assert all(c["suppressed"] for c in out)
     assert all(c["total_change_bn"] is None and c["families_gaining"] is None for c in out)
-    assert [c["country"] for c in out] == ["England", "Wales", "Scotland"]
+    assert [c["region"] for c in out] == ["England", "Wales", "Scotland"]
 
 
 def test_lone_suppressed_cell_gets_the_smallest_changed_complement():
     cells = [
-        {"country": "England", "total_change_bn": 0.5, "families_gaining": 150_000, "suppressed": False},
-        {"country": "Scotland", "total_change_bn": 0.02, "families_gaining": 9_000, "suppressed": False},
-        {"country": "Wales", "total_change_bn": None, "families_gaining": None, "suppressed": True},
-        {"country": "Northern Ireland", "total_change_bn": 0.0, "families_gaining": 0, "suppressed": False},
+        {"region": "England", "total_change_bn": 0.5, "families_gaining": 150_000, "suppressed": False},
+        {"region": "Scotland", "total_change_bn": 0.02, "families_gaining": 9_000, "suppressed": False},
+        {"region": "Wales", "total_change_bn": None, "families_gaining": None, "suppressed": True},
+        {"region": "Northern Ireland", "total_change_bn": 0.0, "families_gaining": 0, "suppressed": False},
     ]
     out = A._complement(cells, [900, 40, 5, 0])
     assert [c["suppressed"] for c in out] == [False, True, True, False]
@@ -156,7 +156,7 @@ def test_a_child_counts_as_gaining_only_from_their_own_entitlement():
     fam = dict(  # noqa: C408 - keyword arrays read like engine.extract's output
         hh_weight=np.full(1, 1_000.0), bu_weight=np.full(1, 1_000.0), p_weight=np.full(2, 1_000.0),
         hh_gov_balance=np.zeros(1), hh_net_income=np.full(1, 50_000.0), hh_decile=np.array([10]),
-        hh_country=np.array(["ENGLAND"]), bu_country=np.zeros(1, int),
+        hh_country=np.array(["ENGLAND"]), bu_country=np.zeros(1, int), bu_region=np.zeros(1, int), bu_family_type=np.zeros(1, int),
         bu_any_over_law=np.ones(1, bool), bu_n_age0=np.zeros(1),
         rate_by_age=np.array([11.0, 11.0, 8.0, 6.0, 6.0]),
         p_age=np.array([3.0, 2.0]), p_is_child=np.ones(2, bool),
@@ -181,33 +181,32 @@ def test_a_child_counts_as_gaining_only_from_their_own_entitlement():
     assert out["children_gaining_by_age"]["3-4"] == 0
 
 
-def _multi_unit_country_runs(year=2026):
-    """Households holding several benefit units: England, Scotland and Northern Ireland have
-    20 one-family households each; Wales has five households of two benefit units each, so
-    ten Welsh families gain but only five Welsh households change."""
-    countries = ["ENGLAND"] * 20 + ["SCOTLAND"] * 20 + ["WALES"] * 5 + ["NORTHERN_IRELAND"] * 20
-    n_hh = len(countries)
-    order = list(A.COUNTRIES)
-    bu_household = np.concatenate([np.arange(0, 40), np.repeat(np.arange(40, 45), 2), np.arange(45, 65)])
-    n_bu = len(bu_household)
-    bu_country = np.array([order.index(countries[h]) for h in bu_household])
-    d_bu = np.full(n_bu, 1_000.0)
-    d_hh = np.bincount(bu_household, weights=d_bu, minlength=n_hh)
-    hw, bw = np.ones(n_hh), np.ones(n_bu)
-    zero_hh, zero_bu = np.zeros(n_hh), np.zeros(n_bu)
-    common = {"hh_weight": hw, "bu_weight": bw, "hh_decile": np.tile(np.arange(1, 11), 7)[:n_hh],
-              "hh_country": np.array(countries), "bu_country": bu_country}
-    base = FakeRun(year, **common, hh_net_income=np.full(n_hh, 50_000.0), hh_free=zero_hh, hh_tfc=zero_hh,
-                   bu_free=zero_bu, bu_tfc=zero_bu)
-    ref = FakeRun(year, **common, hh_net_income=50_000.0 + d_hh, hh_free=d_hh, hh_tfc=zero_hh,
-                  bu_free=d_bu, bu_tfc=zero_bu)
+def _region_runs(year=2026, welsh_families=5):
+    """Twenty gaining one-family households in each of the other regions, and a few in Wales."""
+    regions = [code for code in A.REGIONS for _ in range(welsh_families if code == "WALES" else 20)]
+    n = len(regions)
+    order = list(A.REGIONS)
+    bu_region = np.array([order.index(c) for c in regions])
+    d = np.full(n, 1_000.0)
+    w, zero = np.ones(n), np.zeros(n)
+    common = {"hh_weight": w, "bu_weight": w, "hh_decile": np.tile(np.arange(1, 11), n // 10 + 1)[:n],
+              "bu_region": bu_region, "bu_family_type": np.zeros(n, dtype=int)}
+    base = FakeRun(year, **common, hh_net_income=np.full(n, 50_000.0), hh_free=zero, hh_tfc=zero,
+                   bu_free=zero, bu_tfc=zero)
+    ref = FakeRun(year, **common, hh_net_income=50_000.0 + d, hh_free=d, hh_tfc=zero, bu_free=d, bu_tfc=zero)
     return {"baseline": base, "reform": ref}
 
 
-def test_country_gate_counts_each_measures_own_records():
-    """Ten gaining Welsh families in five households: the household-weighted total rests on
-    five records, so Wales is suppressed, and a second country is suppressed with it."""
-    cells = {c["country"]: c for c in A.distribution(_multi_unit_country_runs(), years=[2026])["2026"]["by_country"]}
+def test_region_cell_below_ten_families_is_suppressed_with_a_second():
+    """Five gaining Welsh families: Wales is suppressed, and a second region with it so Wales
+    cannot be worked out from the UK total."""
+    cells = {c["region"]: c for c in A.distribution(_region_runs(), years=[2026])["2026"]["by_region"]}
     assert cells["Wales"]["suppressed"] and cells["Wales"]["total_change_bn"] is None
     assert cells["Wales"]["families_gaining"] is None
     assert sum(c["suppressed"] for c in cells.values()) == 2
+
+
+def test_region_cell_with_ten_families_is_published():
+    cells = {c["region"]: c for c in A.distribution(_region_runs(welsh_families=10), years=[2026])["2026"]["by_region"]}
+    assert not any(c["suppressed"] for c in cells.values())
+    assert cells["Wales"]["families_gaining"] == 0  # 10 families, rounded to the nearest thousand

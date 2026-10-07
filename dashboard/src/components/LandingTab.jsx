@@ -236,30 +236,35 @@ function BenchmarkComparison({ data }) {
   return (
     <div className="space-y-3 text-sm leading-6 text-slate-600" data-testid="benchmark">
       <p>
-        <a href={benchmark.url} target="_blank" rel="noreferrer">
-          City AM
-        </a>{" "}
-        reports the cost of the party&apos;s plan as about £700m a year and says it is based on{" "}
-        <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
-          CenTax&apos;s report
-        </a>
-        , which costs removing the limit on the free childcare hours only. The party&apos;s{" "}
+        The Conservatives put the cost at about £700m a year when they announced the pledge, to be paid for by
+        cutting staff at arm&apos;s-length public bodies. Their{" "}
         <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
           announcement
         </a>{" "}
-        covers both the free hours and Tax-Free Childcare, and gives no figure, year or method.
+        covers both the free hours and Tax-Free Childcare, but publishes no method.{" "}
+        <a href={benchmark.url} target="_blank" rel="noreferrer">
+          City AM
+        </a>{" "}
+        says the figure is based on{" "}
+        <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
+          CenTax&apos;s report
+        </a>
+        , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
+        &ldquo;pushed up the costs slightly&rdquo;.
       </p>
       <p data-testid="benchmark-centax">
         CenTax estimate a static cost of {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year} for the free hours, and a
-        net cost of {formatBn(CENTAX.netBn, 2)} after £0.34bn of extra revenue: £0.21bn of tax from parents who no
+        net cost of {formatBn(CENTAX.netBn, 2)}{" "}
+        after £0.34bn of extra revenue: £0.21bn of tax from parents who no
         longer keep their income below £100,000, and £0.13bn of tax and National Insurance from partners who enter
-        work. The £0.7bn is close to the net figure.
+        work. CenTax&apos;s {CENTAX.year} is the 2029-30 tax year. The £0.7bn is close to this net figure plus a small
+        addition for Tax-Free Childcare.
       </p>
       <p data-testid="benchmark-like-for-like">
         Like for like, the comparison is our 30 hours cost with CenTax&apos;s static cost, both before any change
         in how much parents work: {formatBn(last.thirty_hours, 2)} in {nb(last.year)} against{" "}
-        {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year}. Our total for both schemes, {formatBn(last.total, 2)},
-        also includes Tax-Free Childcare, which CenTax do not cost.
+        {formatBn(CENTAX.staticBn, 2)} in {CENTAX.year}. Our total for both schemes is {formatBn(last.total, 2)}
+        in {nb(last.year)}, on the same static basis.
       </p>
     </div>
   );
@@ -347,12 +352,12 @@ export default function LandingTab({ data }) {
             value={benchmark.figure}
             detail={
               <>
-                Reported by{" "}
+                The party&apos;s figure, which{" "}
                 <a href={benchmark.url} target="_blank" rel="noreferrer">
                   City AM
                 </a>{" "}
-                as the party&apos;s; it traces to CenTax&apos;s cost of the free hours only. Like for like: our 30 hours
-                cost against CenTax&apos;s static cost
+                says traces to CenTax&apos;s cost of the free hours only. Like for like: our 30 hours cost against
+                CenTax&apos;s static cost
               </>
             }
             testId="card-benchmark"

@@ -34,6 +34,8 @@ import numpy as np
 from . import config
 from .config import (
     COUNTRIES,
+    FAMILY_TYPES,
+    REGIONS,
     FREE_HOURS_VARIABLES,
     HOURS_USAGE_VARIABLE,
     REFORM_PARAMETERS,
@@ -186,6 +188,10 @@ def extract(sim, year, baseline_extras=False):
     # Country of each benefit unit, as an integer code in config.COUNTRIES order.
     hh_code = np.array([list(COUNTRIES).index(c) for c in out["hh_country"]])
     out["bu_country"] = hh_code[bu_household]
+    # Region of each household and benefit unit, as an integer code in config.REGIONS order.
+    out["hh_region"] = calc("region").astype(str)
+    region_code = np.array([list(REGIONS).index(r) for r in out["hh_region"]])
+    out["bu_region"] = region_code[bu_household]
 
     def any_member(person_flag):
         """Benefit units with at least one member flagged (simulation mapping, checked against the index)."""
@@ -246,6 +252,16 @@ def extract(sim, year, baseline_extras=False):
     out["bu_any_over_law"] = any_member(out["p_ani_net_pension_over"])  # ANI net of pension contributions
     out["bu_child_under_5"] = any_member(is_child & (age < 5))
     out["bu_child_under_12"] = any_member(is_child & (age < 12))
+    # Family type, as an integer code in config.FAMILY_TYPES order: lone parent, or a couple by number of children.
+    n_children = np.bincount(out["p_benunit"], weights=is_child.astype(float), minlength=len(bu_ids))
+    family = calc("family_type").astype(str)
+    keys = list(FAMILY_TYPES)
+    out["bu_family_type"] = np.select(
+        [family == "LONE_PARENT", (family == "COUPLE_WITH_CHILDREN") & (n_children == 1),
+         (family == "COUPLE_WITH_CHILDREN") & (n_children == 2), (family == "COUPLE_WITH_CHILDREN") & (n_children >= 3)],
+        [keys.index("LONE_PARENT"), keys.index("COUPLE_1"), keys.index("COUPLE_2"), keys.index("COUPLE_3")],
+        default=keys.index("OTHER"),
+    )
     if baseline_extras:
         out["bu_would_claim_extended"] = calc("would_claim_extended_childcare").astype(bool)
         out["bu_would_claim_tfc"] = calc("would_claim_tfc").astype(bool)

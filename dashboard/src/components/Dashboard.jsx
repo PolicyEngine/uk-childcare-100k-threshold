@@ -4,7 +4,6 @@ import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import LandingTab from "./LandingTab";
 import WhoGainsTab from "./WhoGainsTab";
-import CliffTab from "./CliffTab";
 import MethodTab from "./MethodTab";
 import { fyLabel, getYears } from "../lib/dataHelpers";
 import { TabLayout } from "./ui";
@@ -12,7 +11,6 @@ import { TabLayout } from "./ui";
 export const TAB_OPTIONS = [
   { id: "budget", label: "Budget impact" },
   { id: "who-gains", label: "Who gains" },
-  { id: "cliff", label: "The cliff" },
   { id: "method", label: "Methodology" },
 ];
 export const DEFAULT_TAB = "budget";
@@ -27,16 +25,12 @@ const SECTIONS = {
     { id: "thirty-hours", title: "Inside the 30 hours" },
   ],
   "who-gains": [
-    { id: "deciles", title: "By income" },
+    { id: "household", title: "Your household" },
+    { id: "breakdown", title: "Where the gains go" },
     { id: "recipients", title: "Families gaining" },
-    { id: "nations", title: "By nation" },
-  ],
-  cliff: [
-    { id: "example", title: "One family" },
-    { id: "what-changes", title: "What changes" },
   ],
   method: [
-    { id: "model", title: "Data and model" },
+    { id: "model", title: "How we cost it" },
     { id: "limits", title: "How the limits work" },
     { id: "take-up", title: "Take-up" },
     { id: "validation", title: "Validation" },
@@ -47,8 +41,12 @@ const SECTIONS = {
 const ANNOUNCEMENT_URL = "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge";
 const REPO_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold";
 
+// The cliff had its own tab before it joined "Who gains"; old links still land on it.
+const TAB_ALIASES = { cliff: "who-gains" };
+
 function getInitialTab(tabParam) {
-  return TAB_OPTIONS.some((t) => t.id === tabParam) ? tabParam : DEFAULT_TAB;
+  const tab = TAB_ALIASES[tabParam] ?? tabParam;
+  return TAB_OPTIONS.some((t) => t.id === tab) ? tab : DEFAULT_TAB;
 }
 
 /** "Replication code: PolicyEngine/uk-childcare-100k-threshold." */
@@ -102,7 +100,8 @@ export function Dashboard({ data }) {
             <a href={ANNOUNCEMENT_URL} target="_blank" rel="noreferrer" className="underline">
               pledged
             </a>{" "}
-            to remove this limit, paid for by savings elsewhere in public spending. This dashboard costs removing it from
+            to remove this limit for both schemes, paid for by cutting staff at arm&apos;s-length public bodies; the pledge
+            sets no start date. This dashboard costs removing it from
             both schemes with{" "}
             <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
               PolicyEngine UK
@@ -155,7 +154,6 @@ export function Dashboard({ data }) {
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
           {activeTab === "budget" && <LandingTab data={data} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
-          {activeTab === "cliff" && <CliffTab data={data} />}
           {activeTab === "method" && <MethodTab data={data} />}
         </TabLayout>
 

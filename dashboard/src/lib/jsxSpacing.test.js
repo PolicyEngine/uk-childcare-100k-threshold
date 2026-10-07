@@ -38,7 +38,7 @@ async function compile(source, filename) {
 
 describe("JSX text compiles the same with and without HTML entities", () => {
   it("finds the components", () => {
-    expect(files.length).toBeGreaterThan(10);
+    expect(files.length).toBeGreaterThan(8);
   });
 
   it.each(files)("%s", async (file) => {

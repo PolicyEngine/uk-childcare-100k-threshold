@@ -1,6 +1,6 @@
 "use client";
 
-import { fyLabel, getAssumptions, getLimitations, getMeta, getReform, getValidation, META_PROVENANCE } from "../lib/dataHelpers";
+import { fyLabel, getAssumptions, getLimitations, getMeta, getReform, getValidation } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { Section } from "./ui";
 
@@ -14,14 +14,34 @@ export function formatUnit(value, unit) {
   return formatCount(value);
 }
 
+const REPO_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold";
+
 function VersionsTable({ meta }) {
   const rows = [
-    ["policyengine.py", meta.policyengine],
-    ["PolicyEngine UK", meta.policyengine_uk],
-    ["Dataset", `${meta.dataset} (revision ${meta.dataset_revision})`],
-    ...META_PROVENANCE.filter(([k]) => k in meta).map(([k, label]) => [label, meta[k]]),
+    [
+      "Model package",
+      <>
+        <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noreferrer">
+          policyengine.py {meta.policyengine}
+        </a>
+        , pinned exactly in the repository&apos;s pyproject.toml and uv.lock
+      </>,
+    ],
+    [
+      "Tax and benefit rules",
+      `policyengine-uk ${meta.policyengine_uk}, the version certified by the policyengine.py ${meta.policyengine} release bundle`,
+    ],
+    ["Dataset", meta.dataset_label ?? meta.dataset],
+    ...(meta.dataset_release ? [["Dataset release", meta.dataset_release]] : []),
+    ["Dataset revision", `${meta.dataset_revision}${meta.dataset_repo ? ` (${meta.dataset_repo})` : ""}`],
+    ...(meta.dataset_sha256 ? [["Dataset sha256, checked before every run", meta.dataset_sha256]] : []),
     ["Results generated", meta.generated_at],
-    ["Code revision", meta.git_revision],
+    [
+      "Code revision",
+      <a key="rev" href={`${REPO_URL}/commit/${meta.git_revision}`} target="_blank" rel="noreferrer">
+        {meta.git_revision}
+      </a>,
+    ],
   ];
   return (
     <div className="overflow-x-auto">
@@ -29,7 +49,7 @@ function VersionsTable({ meta }) {
         <tbody>
           {rows.map(([k, v]) => (
             <tr key={k}>
-              <td className="font-medium text-slate-700">{k}</td>
+              <td className="w-[260px] font-medium text-slate-700">{k}</td>
               <td className="break-all">{v}</td>
             </tr>
           ))}
@@ -140,10 +160,33 @@ export default function MethodTab({ data }) {
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="method-tab">
       <Section
         id="model"
-        title="Data and model"
-        lead="Every figure comes from PolicyEngine UK, a microsimulation model of UK taxes and benefits, run on survey data reweighted to official totals."
+        title="How we cost it"
+        lead="Every figure comes from PolicyEngine UK, a microsimulation model of UK taxes and benefits, run on Microcosm, PolicyEngine's survey-based dataset of UK households reweighted to official totals."
+        detailsTitle="Exact versions"
+        details={<VersionsTable meta={meta} />}
       >
-        <VersionsTable meta={meta} />
+        <ol className="list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="method-steps">
+          <li>
+            For each year from {fyLabel(meta.years[0])} to {fyLabel(meta.years.at(-1))}, we run the model twice on the
+            same households: once with today&apos;s rules, and once with the £100,000 limit removed from both the 30
+            hours and Tax-Free Childcare.
+          </li>
+          <li>
+            The cost is the extra government spending on funded hours and Tax-Free Childcare top-ups between the two
+            runs. Families gaining, and how much, come from the same comparison, household by household.
+          </li>
+          <li>
+            The costing is static: parents work, earn and pay for childcare exactly as they do today in both runs.
+          </li>
+          <li>
+            Further runs change one uncertain assumption at a time (how many hours families use, babies under one, and
+            income net of pension contributions) to give the low and high estimates on the Budget impact tab.
+          </li>
+          <li>
+            Every version is pinned, so the results can be rebuilt exactly: the model package and the dataset release
+            are fixed, and the dataset file&apos;s checksum is verified before each run. The exact versions are below.
+          </li>
+        </ol>
       </Section>
 
       <Section
@@ -192,6 +235,11 @@ export default function MethodTab({ data }) {
             limit can get back under it by paying more into a pension.
           </li>
           <li>The reform removes only the £100,000 test. The minimum earnings test and every other condition stay.</li>
+          <li>
+            The pledge names no nation. We read it as England&apos;s 30 hours plus Tax-Free Childcare, which is
+            UK-wide. The devolved governments&apos; own childcare offers, such as the Childcare Offer for Wales with its
+            own £100,000 test, are unchanged.
+          </li>
         </ul>
       </Section>
 
@@ -206,7 +254,7 @@ export default function MethodTab({ data }) {
       <Section
         id="validation"
         title="Baseline validation"
-        lead="How the model's take-up and spending under current policy compare with official statistics."
+        lead="How the model's picture of today, before any reform, compares with official statistics."
         details={
           <p>
             The two largest gaps against official statistics are spending through Tax-Free Childcare accounts, which

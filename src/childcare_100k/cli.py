@@ -30,7 +30,7 @@ from .config import (
 )
 from .datasets import MICROCOSM
 from .engine import is_current, load_meta, run_isolated
-from .household import cliff_example
+from .household import cliff_example, household_grid
 from .validation import baseline_validation
 
 
@@ -142,6 +142,9 @@ def _validation_value(rows, label, year):
     return matches[0]
 
 
+FUNDED_HOURS_SPENDING = "Free early years entitlements spending"
+
+
 def data_limitations(rows):
     """Limitations stated with this dataset's own validation figures."""
     free = _validation_value(rows, "Free early years entitlements spending (all three entitlements)", 2026)
@@ -203,7 +206,7 @@ def build(metas):
         "reform": {
             "title": "Remove the £100,000 income limit on 30 funded hours and Tax-Free Childcare",
             "description": (
-                "The Conservative proposal (3-4 October 2026) to remove the £100,000 adjusted-net-income limit, "
+                "The Conservative pledge (announced 4 October 2026, with no start date) to remove the £100,000 adjusted-net-income limit, "
                 "tested on each parent, for the 30 funded hours for working parents in England (children aged 9 "
                 "months to 4 years) and for Tax-Free Childcare (UK-wide: £2 top-up for every £8 paid in, up to "
                 "£2,000 a child a year, £4,000 if disabled). The universal 15 hours for 3- and 4-year-olds is "
@@ -241,9 +244,12 @@ def build(metas):
         },
         "recipients": agg.recipients(runs),
         "distribution": agg.distribution(runs),
-        "baseline_validation": validation,
+        # The funded-hours spending rows only feed the limitation above: the gap to DfE is a
+        # model/data issue filed upstream, stated once there rather than as a validation row.
+        "baseline_validation": [r for r in validation if not r["label"].startswith(FUNDED_HOURS_SPENDING)],
         "assumptions": {"microcosm": assumptions},
         "cliff_example": cliff_example(),
+        "household_grid": household_grid(),
         "benchmarks": [
             {
                 "source": "Conservative Party",
@@ -252,17 +258,20 @@ def build(metas):
                 "ours_label": f"Static gross cost of the 30 funded hours in {_fy(BENCHMARK_YEAR)}",
                 "year": BENCHMARK_YEAR,
                 "like_for_like": (
-                    "City AM reports the cost as 'about £700m per year' and says the costing 'is based on a recent "
-                    "report by the Centre for the Analysis of Taxation'; the party's announcement gives no figure, "
-                    "year or method. CenTax (Removing the childcare cliff-edge: impacts and cost of reform, September "
-                    "2026, Table 4.2) estimates a static cost of £980m in 2030 for removing the £100,000 threshold "
-                    "on the free childcare hours only, and a net cost of £640m after £340m of extra revenue: £210m "
-                    "of tax from parents who no longer keep their income below £100,000 and £130m of tax and "
-                    "National Insurance from partners who enter work. It does not cover Tax-Free Childcare. The like-for-like "
-                    f"comparison is our static cost of the 30 funded hours in {_fy(BENCHMARK_YEAR)}, "
-                    f"£{thirty:.2f}bn, against CenTax's static £0.98bn. Our total for both schemes is "
-                    f"£{budget['total'][y]:.2f}bn (range £{sens['range_bn']['low'][y]:.2f}bn to "
-                    f"£{sens['range_bn']['high'][y]:.2f}bn), with no behavioural response."
+                    "The Conservatives put the cost at about £700m a year when they announced the pledge (PA, "
+                    "BBC), to be paid for by cutting staff at arm's-length public bodies (about £1.6bn by the end of "
+                    "the decade); they published no method. City AM says the costing 'is based on a recent report by "
+                    "the Centre for the Analysis of Taxation' and that removing the Tax-Free Childcare limit as well "
+                    "'pushed up the costs slightly'. CenTax (Removing the childcare cliff-edge: impacts and cost of "
+                    "reform, September 2026, Table 4.2) covers the free childcare hours only: a static cost of £980m "
+                    "in 2030 (CenTax label tax years by their later year, so this is 2029-30) and a net cost of £640m "
+                    "after £340m of extra revenue: £210m of tax from parents who no longer keep their income below "
+                    "£100,000 and £130m of tax and National Insurance from partners who enter work. The £0.7bn is "
+                    "therefore close to CenTax's net free-hours figure with a small addition for Tax-Free Childcare. "
+                    "Our figures are static, so the like-for-like comparison is our static cost of the 30 funded "
+                    f"hours in {_fy(BENCHMARK_YEAR)}, £{thirty:.2f}bn, against CenTax's static £0.98bn. Our total "
+                    f"for both schemes, £{budget['total'][y]:.2f}bn (range £{sens['range_bn']['low'][y]:.2f}bn to "
+                    f"£{sens['range_bn']['high'][y]:.2f}bn), covers both schemes on the same static basis."
                 ),
                 "url": CONSERVATIVE_SOURCE_URL,
                 "announcement_url": CONSERVATIVE_ANNOUNCEMENT_URL,

@@ -91,6 +91,29 @@ MIN_CELL_RECORDS = 10
 GAIN_THRESHOLD = 1.0
 
 COUNTRIES = {"ENGLAND": "England", "SCOTLAND": "Scotland", "WALES": "Wales", "NORTHERN_IRELAND": "Northern Ireland"}
+# ITL1 regions (policyengine-uk's household ``region``), in ONS order.
+REGIONS = {
+    "NORTH_EAST": "North East",
+    "NORTH_WEST": "North West",
+    "YORKSHIRE": "Yorkshire and the Humber",
+    "EAST_MIDLANDS": "East Midlands",
+    "WEST_MIDLANDS": "West Midlands",
+    "EAST_OF_ENGLAND": "East of England",
+    "LONDON": "London",
+    "SOUTH_EAST": "South East",
+    "SOUTH_WEST": "South West",
+    "WALES": "Wales",
+    "SCOTLAND": "Scotland",
+    "NORTHERN_IRELAND": "Northern Ireland",
+}
+# Family types for the gains breakdown: lone parent or couple, by number of children.
+FAMILY_TYPES = {
+    "LONE_PARENT": "Lone parent",
+    "COUPLE_1": "Couple, one child",
+    "COUPLE_2": "Couple, two children",
+    "COUPLE_3": "Couple, three or more children",
+    "OTHER": "Other family",
+}
 
 # ── Cliff example ────────────────────────────────────────────────────────
 CLIFF = {
@@ -104,9 +127,38 @@ CLIFF = {
     "region": "SOUTH_EAST",
 }
 
+# ── Household form on the dashboard ──────────────────────────────────────
+# Every combination is precomputed (household.household_grid). The default is the
+# published cliff family above, so the form opens on a household that hits the cliff.
+HOUSEHOLD_GRID = {
+    # £60,001 to £140,001 in £1,000 steps, so £99,001 and £100,001 sit either side of the limit.
+    "earnings_min": 60_001,
+    "earnings_step": 1_000,
+    "earnings_count": 81,
+    "parents": [
+        {"id": "couple20", "label": "Couple, partner earns £20,000", "partner_earnings": 20_000},
+        {"id": "couple40", "label": "Couple, partner earns £40,000", "partner_earnings": 40_000},
+        {"id": "couple80", "label": "Couple, partner earns £80,000", "partner_earnings": 80_000},
+        {"id": "lone", "label": "Lone parent", "partner_earnings": None},
+    ],
+    "children": [
+        {"id": "3", "label": "One child aged 3", "ages": [3]},
+        {"id": "2-3", "label": "Two children, aged 2 and 3", "ages": [2, 3]},
+        {"id": "1-3", "label": "Two children, aged 1 and 3", "ages": [1, 3]},
+        {"id": "3-7", "label": "Two children, aged 3 and 7", "ages": [3, 7]},
+    ],
+    "spend_per_child": [
+        {"id": "5k", "label": "£5,000 a year per child", "amount": 5_000},
+        {"id": "10k", "label": "£10,000 a year per child", "amount": 10_000},
+        {"id": "15k", "label": "£15,000 a year per child", "amount": 15_000},
+    ],
+    "default": {"parent": "couple40", "children": "2-3", "spend_per_child": "10k"},
+}
+
 # ── Benchmark ────────────────────────────────────────────────────────────
 CONSERVATIVE_COST_BN = 0.7
-# The party's announcement (conservatives.com, 4 October 2026) gives no figure;
+# The party's web announcement (conservatives.com, 4 October 2026) gives no figure; the party's
+# briefing to PA and the BBC put it at about £700m a year;
 # City AM reports it as "scrapped at a cost of about £700m per year" and says the
 # costing "is based on a recent report by the Centre for the Analysis of Taxation":
 # CenTax's net £640m in 2030 for the free hours only (static £980m, Table 4.2; the £340m

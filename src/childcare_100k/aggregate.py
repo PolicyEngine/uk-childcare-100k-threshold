@@ -16,10 +16,11 @@ import numpy as np
 from microdf import MicroSeries
 
 from .config import (
-    COUNTRIES,
+    FAMILY_TYPES,
     FREE_HOURS_VARIABLES,
     GAIN_THRESHOLD,
     MIN_CELL_RECORDS,
+    REGIONS,
     UNDER_ONE_WEEKLY_HOURS,
     VALIDATION_YEAR,
     WEEKS_PER_YEAR,
@@ -237,7 +238,7 @@ def _cell_ok(*n_records):
     return all(n == 0 or n >= MIN_CELL_RECORDS for n in n_records)
 
 
-_LABELS = ("decile", "country")
+_LABELS = ("decile", "region", "family_type")
 
 
 def _suppress(cell):
@@ -263,6 +264,29 @@ def _complement(cells, sizes):
     i = min(candidates, key=lambda j: sizes[j])
     cells[i] = _suppress(cells[i])
     return cells
+
+
+def _groups(label, groups, bu_code, spend, fam_gain, bu_gain, bu_changed):
+    """Total extra spending and families gaining for each group of benefit units, suppressed like the other breakdowns.
+
+    Both measures rest on benefit units (a benefit unit's weight is its household's), so one
+    gaining and one changed count gate each cell.
+    """
+    cells, sizes = [], []
+    for i, name in enumerate(groups.values()):
+        m = bu_code == i
+        n_gain, n_changed = _records(bu_gain & m), _records(bu_changed & m)
+        sizes.append(n_changed)
+        if not _cell_ok(n_gain, n_changed):
+            cells.append({label: name, "total_change_bn": None, "families_gaining": None, "suppressed": True})
+            continue
+        cells.append({
+            label: name,
+            "total_change_bn": _bn(spend[m].sum()),
+            "families_gaining": _k(fam_gain[m].sum()),
+            "suppressed": False,
+        })
+    return _complement(cells, sizes)
 
 
 def distribution(runs, years=YEARS):
@@ -295,38 +319,20 @@ def distribution(runs, years=YEARS):
                 "suppressed": False,
             })
 
-        hh_country = b(y, "hh_country")
-        bu_country = b(y, "bu_country")  # index into COUNTRIES, mapped by the simulation
         d_bu = family_changes(b, r, y)[2]
         bu_gain = d_bu > GAIN_THRESHOLD
-        dh = (r(y, "hh_free") + r(y, "hh_tfc")) - (b(y, "hh_free") + b(y, "hh_tfc"))
-        spend = MicroSeries(dh, weights=hw)
         fam_gain = MicroSeries(bu_gain.astype(float), weights=bw)
         bu_changed = np.abs(d_bu) > GAIN_THRESHOLD
-        hh_changed = np.abs(dh) > GAIN_THRESHOLD
-        by_country, country_sizes = [], []
-        for i, (code, name) in enumerate(COUNTRIES.items()):
-            m = hh_country == code
-            mb = bu_country == i
-            # Each published measure rests on its own records: families_gaining on
-            # benefit units, total_change_bn on households (a household can hold
-            # several benefit units). Gate on every count, not the larger of them.
-            n_bu_gain = _records(bu_gain & mb)
-            n_bu_changed = _records(bu_changed & mb)
-            n_hh_changed = _records(hh_changed & m)
-            country_sizes.append(max(n_bu_changed, n_hh_changed))
-            if not _cell_ok(n_bu_gain, n_bu_changed, n_hh_changed):
-                by_country.append({"country": name, "total_change_bn": None, "families_gaining": None, "suppressed": True})
-                continue
-            by_country.append({
-                "country": name,
-                "total_change_bn": _bn(spend[m].sum()),
-                "families_gaining": _k(fam_gain[mb].sum()),
-                "suppressed": False,
-            })
-        # The deciles' mean changes and the countries' totals add up to published UK totals,
+        # The deciles' mean changes and the groups' totals add up to published UK totals,
         # so a lone suppressed cell is protected by suppressing a second one.
-        out[str(y)] = {"by_decile": _complement(rows, row_sizes), "by_country": _complement(by_country, country_sizes)}
+        bu_spend = MicroSeries(d_bu, weights=bw)
+        out[str(y)] = {
+            "by_decile": _complement(rows, row_sizes),
+            "by_region": _groups("region", REGIONS, b(y, "bu_region"), bu_spend, fam_gain, bu_gain, bu_changed),
+            "by_family_type": _groups(
+                "family_type", FAMILY_TYPES, b(y, "bu_family_type"), bu_spend, fam_gain, bu_gain, bu_changed
+            ),
+        }
     return out
 
 
