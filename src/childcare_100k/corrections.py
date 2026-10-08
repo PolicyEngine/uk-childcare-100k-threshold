@@ -1,6 +1,6 @@
 """Model corrections applied to every run, baseline and reform alike.
 
-Five corrections, each pending an upstream fix in policyengine-uk (2.102.3 is the
+Six corrections, each pending an upstream fix in policyengine-uk (2.102.3 is the
 certified version; policyengine-uk#2079, merged after it, fixes the first two and the
 fifth):
 
@@ -10,6 +10,7 @@ fifth):
 4. Salary sacrifice returned to pay from April 2029 is not income for the limits.
 5. Tax-Free Childcare regards a partner on a caring or incapacity benefit as in
    qualifying paid work (SI 2015/448 reg 13).
+6. Both childcare schemes test the claimant and partner, not the ``is_parent`` flags.
 
 1. Exactly £100,000 qualifies for the 30 hours
 -----------------------------------------------
@@ -118,10 +119,41 @@ Allowance, so its ``carers_allowance`` is both the entitlement and the payment
 not exist yet). Not mapped: NI credits for incapacity (upstream's
 ``receives_limited_capability_for_work_credits``, an input not in the data) and carer's
 leave (reg 13(1)(c), upstream's ``tax_free_childcare_on_carers_leave``, likewise an
-input). Upstream's ``is_claimant_or_partner`` does not exist in 2.102.3; the stand-in
-(``claimant_or_partner``) is the members flagged ``is_parent`` where the benefit unit
-flags any (the people ``tax_free_childcare_eligible`` already income-tests), otherwise
-its two eldest adults.
+input). Upstream's ``is_claimant_or_partner`` does not exist in 2.102.3; section 6
+ports it.
+
+6. The claimant and partner, not the ``is_parent`` flags
+--------------------------------------------------------
+Childcare Payments Act 2014 s.3(1) requires the claimant's partner, as well as the
+claimant, to meet the eligibility conditions (SI 2015/448 reg 9: in qualifying paid
+work, or regarded as in it under reg 13; reg 15: the income limit). SI 2022/1134 reg 14
+and 15 likewise test the parent and their partner. policyengine-uk 2.102.3 finds the
+partner through ``is_parent``: the Tax-Free Childcare final income gate tests only
+flagged parents, and the 30 hours' work condition counts them (a single flagged parent
+in work passes as a lone parent). A couple whose partner is not flagged a parent (a
+step-parent, say) was therefore paid Tax-Free Childcare when that partner neither
+worked nor was regarded as working (the corrected reform paid the £2,000 cap to a
+£120,000 earner with a nonworking unflagged partner), and a flagged parent on
+Carer's Allowance whose unflagged partner works was refused the 30 hours.
+
+``claimant_or_partner`` ports upstream's ``is_claimant_or_partner`` (merged after
+2.102.3): the claimant is the adult benefit-unit head; the partner is the eldest other
+flagged parent if there is one, else the eldest other adult not presumed to be the
+claimant's child (16 or more years younger and under 20, or at any age when a flagged
+claimant has no such younger member to explain the flag); two flagged parents under an
+unflagged head are the couple. "Adult" is upstream's ``is_hbai_adult`` (not an HBAI
+dependent child: under 16; 16-17 and neither head nor flagged; 18-19, neither, in
+non-advanced education or approved training with a flagged parent), ported as
+``hbai_adult``; the presumption's ages (20, 16) are upstream's parameters, which 2.102.3
+lacks. The replacements use it in place of the flags:
+
+- Tax-Free Childcare's work condition (section 5) and reg 13 test, and the final
+  eligibility's income gate (``tax_free_childcare_eligible``), which upstream still
+  writes with ``is_parent``.
+- The 30 hours' work condition (``extended_childcare_entitlement_work_condition``,
+  whose ``defined_for = "is_parent"`` is lifted) and income test (which tested every
+  member 18 or over, so a lone parent living with a dependent 18- or 19-year-old failed
+  it too).
 
 Each replacement reproduces the model's formula with only the stated change. The
 model's formulas are fingerprinted: if policyengine-uk changes any of them, the
@@ -143,6 +175,8 @@ THIRTY_HOURS_ELIGIBLE = "extended_childcare_entitlement_eligible"
 THIRTY_HOURS_VALUE = "extended_childcare_entitlement"
 UNIVERSAL_ELIGIBLE = "universal_childcare_entitlement_eligible"
 TARGETED_ELIGIBLE = "targeted_childcare_entitlement_eligible"
+TFC_ELIGIBLE = "tax_free_childcare_eligible"
+THIRTY_HOURS_WORK_CONDITION = "extended_childcare_entitlement_work_condition"
 # sha256 of inspect.getsource() of each model formula this module replaces (policyengine-uk 2.102.3).
 EXPECTED_FORMULA_SHA256 = {
     THIRTY_HOURS_INCOME_TEST: "8ae8e181373d300974d7bdf434ea7e4ceeaf47a4c3a0e986a01a46d35e8ecfff",
@@ -152,7 +186,12 @@ EXPECTED_FORMULA_SHA256 = {
     UNIVERSAL_ELIGIBLE: "322527b7a86eea6e066574f2126f6ad7f47af6caeb7aab7ab64968ab4e6758c5",
     TARGETED_ELIGIBLE: "d4a98f6ca5d5a82eb92e2c3f9796f9a76b8952b1bb5834409a30b6a5f160a88a",
     TFC_WORK_CONDITION: "079ae1c2eafb745a7c97c3b08600049abad4a1d5728cf520cd49d49e4e049c7a",
+    TFC_ELIGIBLE: "98ce3d2f004afee87e4beb588fe03649080e8fcfa777e310821ef38cff185948",
+    THIRTY_HOURS_WORK_CONDITION: "4c147af4d5a1dc81a20dc7d24969519bd10d2a072736ad72038472c4f57d0484",
 }
+# Replacements that also lift the variable's ``defined_for`` (the model restricts it to
+# ``is_parent``, which would hide an unflagged partner from the corrected formula).
+CLEAR_DEFINED_FOR = {THIRTY_HOURS_WORK_CONDITION}
 # SI 2015/448 reg 13(1)(b) as amended from 1 December 2022 (section 5), in 2.102.3's variables:
 # "paid or entitled to" ...
 TFC_CARING_OR_INCAPACITY_BENEFITS = [
@@ -187,14 +226,70 @@ def thirty_hours_income_test(person, period, parameters):
     )
 
 
-def claimant_or_partner(person, period):
-    """Stand-in for upstream's ``is_claimant_or_partner`` (section 5): flagged parents, else the two eldest adults."""
+# Upstream's presumption parameters (household.demographic.benefit_unit.presumed_child and
+# household.demographic.hbai.dependent_child), which 2.102.3 does not have.
+PRESUMED_CHILD_AGE_LIMIT = 20
+PRESUMED_CHILD_MINIMUM_AGE_GAP = 16
+DEPENDENT_CHILD_AGE_LIMIT = 16
+DEPENDENT_YOUNG_PERSON_AGE_LIMIT = 20
+
+
+def hbai_adult(person, period):
+    """Upstream's ``is_hbai_adult``: everyone who is not a dependent child (``is_hbai_dependent_child``'s fallback).
+
+    Under 16; 16 or 17 and neither the benefit-unit head nor flagged a parent; or 18 or 19,
+    neither head nor parent, in non-advanced education or approved training and living
+    with a flagged parent aged 16 or over.
+    """
+    age = person("age", period)
     is_parent = person("is_parent", period)
-    adult = person("is_adult", period)
-    eldest_two = adult & (
-        person.get_rank(person.benunit, -person("age", period), condition=adult) < 2
+    lives_as_dependant = ~person("is_benunit_head", period) & ~is_parent
+    in_education_or_training = person("is_in_non_advanced_education", period) | person(
+        "is_in_approved_training", period
     )
-    return np.where(person.benunit.any(is_parent), is_parent, eldest_two)
+    under_child_age = age < DEPENDENT_CHILD_AGE_LIMIT
+    lives_with_identified_parent = person.benunit.any(is_parent & ~under_child_age)
+    under_18_dependant = lives_as_dependant & person("age_under_18", period)
+    young_person = (
+        lives_as_dependant
+        & (age < DEPENDENT_YOUNG_PERSON_AGE_LIMIT)
+        & in_education_or_training
+        & lives_with_identified_parent
+    )
+    return ~(under_child_age | under_18_dependant | young_person)
+
+
+def claimant_or_partner(person, period):
+    """Upstream's ``is_claimant_or_partner`` (section 6): the claimant and, in a couple, the partner, flagged or not."""
+    age = person("age", period)
+    adult = hbai_adult(person, period)
+    is_head = person("is_benunit_head", period)
+    head_is_adult = person.benunit.any(is_head & adult)
+    eldest_adult = adult & (person.get_rank(person.benunit, -age, condition=adult) == 0)
+    adult_head = is_head & adult
+    eldest_adult_head = adult_head & (
+        person.get_rank(person.benunit, -age, condition=adult_head) == 0
+    )
+    claimant = np.where(head_is_adult, eldest_adult_head, eldest_adult)
+    claimant_age = person.benunit.max(np.where(claimant, age, -np.inf))
+    identified_parent = adult & person("is_parent", period)
+    other_parent = identified_parent & ~claimant
+    claimant_is_parent = person.benunit.any(claimant & identified_parent)
+    # Two flagged parents other than a non-parent claimant are the couple.
+    parents_are_couple = (person.benunit.sum(other_parent) >= 2) & ~claimant_is_parent
+    parent_couple = other_parent & (
+        person.get_rank(person.benunit, -age, condition=other_parent) < 2
+    )
+    large_gap = claimant_age - age >= PRESUMED_CHILD_MINIMUM_AGE_GAP
+    young_child = (age < PRESUMED_CHILD_AGE_LIMIT) & large_gap
+    # A flagged claimant with no young child to explain the flag is the parent of a
+    # much younger member at any age.
+    flag_unexplained = claimant_is_parent & ~person.benunit.any(young_child)
+    presumed_child = ((age < PRESUMED_CHILD_AGE_LIMIT) | flag_unexplained) & large_gap
+    other_adult = adult & ~claimant & ~presumed_child
+    pool = np.where(person.benunit.any(other_parent), other_parent, other_adult)
+    partner = pool & (person.get_rank(person.benunit, -age, condition=pool) == 0)
+    return np.where(parents_are_couple, parent_couple, claimant | partner)
 
 
 def tfc_regarded_as_in_paid_work(person, period):
@@ -252,6 +347,53 @@ def tfc_income_test(person, period, parameters):
     )
 
 
+def tfc_eligible(benunit, period, parameters):
+    """policyengine-uk's formula with the income test on the claimant and partner, not the ``is_parent`` flags (section 6)."""
+    person = benunit.members
+    has_qualifying_child = benunit.any(person("tax_free_childcare_qualifying_child", period))
+    meets_income_condition = benunit.all(
+        person("tax_free_childcare_meets_income_requirements", period)
+        | ~claimant_or_partner(person, period)
+    )
+    childcare_eligible = benunit("tax_free_childcare_program_eligible", period)
+    work_eligible = benunit("tax_free_childcare_work_condition", period)
+    return np.logical_and.reduce(
+        [has_qualifying_child, meets_income_condition, childcare_eligible, work_eligible]
+    )
+
+
+def thirty_hours_work_condition(person, period, parameters):
+    """policyengine-uk's formula on the claimant and partner (section 6) instead of the ``is_parent`` flags.
+
+    A single claimant must be in work; in a couple both must be, or one in work and the
+    other (or the family) on one of the model's ``disability_criteria`` (reg 14(4), 15(4)).
+    Reported on the claimant and partner only.
+    """
+    benunit = person.benunit
+    in_work = person("in_work", period)
+    p = parameters(period).gov.dfe.extended_childcare_entitlement
+    variables = person.entity.get_variable
+    person_criteria = [v for v in p.disability_criteria if variables(v).entity.is_person]
+    group_criteria = [v for v in p.disability_criteria if not variables(v).entity.is_person]
+    on_person_criteria = (
+        add(person, period, person_criteria) > 0
+        if person_criteria
+        else np.zeros(person.count, dtype=bool)
+    )
+    on_group_criteria = (
+        add(benunit, period, group_criteria) > 0 if group_criteria else False
+    )
+    disability_eligible = on_person_criteria | on_group_criteria
+    member = claimant_or_partner(person, period)
+    members = benunit.sum(member)
+    single_eligible = (members == 1) & in_work
+    all_working = benunit.all(in_work | ~member)
+    some_working = benunit.any(in_work & member)
+    any_disability_eligible = benunit.any(disability_eligible & member)
+    couple_eligible = (members == 2) & (all_working | (some_working & any_disability_eligible))
+    return member & (single_eligible | couple_eligible)
+
+
 def specified_benefit_exempt(person, period, parameters):
     """An adult who meets reg 14(4)/15(4) through a specified benefit (module docstring, section 2)."""
     p = parameters(period).gov.dfe.extended_childcare_entitlement
@@ -274,14 +416,14 @@ def specified_benefit_exempt(person, period, parameters):
 
 
 def thirty_hours_eligible(benunit, period, parameters):
-    """policyengine-uk's formula, with an adult on a specified benefit exempt from the income test (reg 14(4), 15(4))."""
+    """policyengine-uk's formula on the claimant and partner (section 6), one on a specified benefit exempt from the income test (reg 14(4), 15(4))."""
     country = benunit.household("country", period)
     countries = country.possible_values
     in_england = country == countries.ENGLAND
     person = benunit.members
     person_meets_income_condition = (
         person("extended_childcare_entitlement_meets_income_requirements", period)
-        | person("is_child", period)
+        | ~claimant_or_partner(person, period)
         | specified_benefit_exempt(person, period, parameters)
     )
     meets_income_condition = benunit.all(person_meets_income_condition)
@@ -340,6 +482,8 @@ REPLACEMENTS = {
     UNIVERSAL_ELIGIBLE: universal_eligible,
     TARGETED_ELIGIBLE: targeted_eligible,
     TFC_WORK_CONDITION: tfc_work_condition,
+    TFC_ELIGIBLE: tfc_eligible,
+    THIRTY_HOURS_WORK_CONDITION: thirty_hours_work_condition,
 }
 
 
@@ -361,6 +505,8 @@ def apply_to_system(tax_benefit_system):
                 f"{name}: the model's formula changed upstream (sha256 {digest}); review the correction"
             )
         variable.formulas["0001-01-01"] = replacement
+        if name in CLEAR_DEFINED_FOR:
+            variable.defined_for = None
         setattr(variable, MARK, True)
 
 
