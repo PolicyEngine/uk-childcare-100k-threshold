@@ -294,8 +294,8 @@ function LabourSupplySection({ data }) {
           <a href="https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf" target="_blank" rel="noreferrer">
             OBR&apos;s income elasticities
           </a>{" "}
-          ({a.income_elasticities}) times the percentage rise in household net income from the reform, before any
-          response: a family made better off works slightly less. In {year}, at central elasticities, the price effect
+          ({a.income_elasticities}) times the rise in household net income from the reform, before any response, as
+          a percentage of household disposable income: a family made better off works slightly less. In {year}, at central elasticities, the price effect
           brings back {formatMoneyBn(ls.intensive.price.central[li])} (
           {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} from adults at or below £100,000,{" "}
           {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it) and the income effect costs{" "}
@@ -306,6 +306,13 @@ function LabourSupplySection({ data }) {
           {disp
             ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatMoneyBn(disp.offset_bn.low[String(ls.years[li])])} or ${formatMoneyBn(disp.offset_bn.high[String(ls.years[li])])}`
             : ""}
+          .
+        </li>
+        <li>
+          <strong>Couples.</strong> {a.couples}{" "}
+          <a href={a.couples_issue_url} target="_blank" rel="noreferrer">
+            Reported to policyengine-uk
+          </a>
           .
         </li>
         <li>

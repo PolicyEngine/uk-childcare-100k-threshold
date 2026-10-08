@@ -472,6 +472,8 @@ export function getLabourSupply(data) {
   if (!isText(ls.responding_population)) fail("labour_supply.responding_population", "missing");
   if (!isText(ls.assumptions?.participation_elasticities)) fail("labour_supply.assumptions.participation_elasticities", "missing");
   if (!isText(ls.assumptions?.income_elasticities)) fail("labour_supply.assumptions.income_elasticities", "missing");
+  if (!isText(ls.assumptions?.couples)) fail("labour_supply.assumptions.couples", "missing");
+  if (!isText(ls.assumptions?.couples_issue_url)) fail("labour_supply.assumptions.couples_issue_url", "missing");
   for (const k of ["hours_for_new_entrants", "free_hours_displacement"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
