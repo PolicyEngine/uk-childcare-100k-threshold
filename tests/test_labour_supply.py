@@ -192,7 +192,7 @@ def test_gain_to_work_elasticity_uses_the_gain_actually_used():
         "elasticity_wrt_income": np.array([0.5]),
         "not_excluded": np.ones(n, bool), "eligible": np.ones(n, bool), "over_limit": np.zeros(n, bool),
         "weights": np.ones(n), "employment_income": np.array([40_000.0]), "weekly_hours": np.array([30.0]),
-        "entrant_earnings": np.zeros(n), "cells": np.zeros((n, 4), int),
+        "entrant_earnings": np.zeros(n), "cells": np.zeros((n, 4), int), "hourly_wage": np.zeros(n),
     }
     ref = {"gtw_gain_to_work": np.array([11_000.0]), "gtw_in_work_income": np.array([151_000.0]),
            "gtw_out_of_work_income": np.array([130_000.0]), "gtw_entrant_subsidy": np.zeros(n)}
@@ -489,6 +489,35 @@ def test_a_cell_with_no_responding_non_worker_falls_back_to_a_coarser_cell():
     # No like non-worker at any level but the last: everyone shares it, in proportion to their pull.
     alone = _prep(pct=[0.2, 0.5], elasticity=[0.1] * 2, emp=[40_000, 0], cells=[[1, 1, 1, 0], [2, 2, 2, 0]])
     assert ls.participation_response(alone, 1.0)["allocated_everyone"] == pytest.approx(10 * 0.02)
+
+
+def test_entry_sensitivities_change_only_the_entry_placed_in_a_coarser_cell():
+    """A3: a quintile-5 worker's entry falls back to a quintile-2 non-worker; a quintile-2 worker's stays in its cell.
+
+    ``same_cell_only`` drops the fallen-back entry; ``worker_profile`` gives it the implying worker's hourly wage
+    (the profile arrays stand in for the recompute) and leaves the same-cell entry on the non-worker's own profile.
+    """
+    # Records: q5 worker, q2 worker, q2 non-worker (all one sex/couple/child cell).
+    cells = [[15, 10, 1, 0], [12, 10, 1, 0], [12, 10, 1, 0]]
+    prep = _prep(pct=[0.2, 0.1, 0.1], elasticity=[0.1] * 3, emp=[90_000, 20_000, 0], cells=cells)
+    prep["wage"] = np.array([45.0, 10.0, 0.0])
+    central = ls.participation_response(prep, 1.0)
+    assert central["allocated_sex_couple_child_quintile"] == pytest.approx(10 * 0.01)
+    assert central["allocated_sex_couple_child"] == pytest.approx(10 * 0.02)
+    same = ls.participation_response(prep, 1.0, "same_cell_only")
+    assert same["entrants"] == pytest.approx(10 * 0.01)
+    assert same["allocated_unallocated"] == pytest.approx(10 * 0.02)
+    assert same["offset"] == pytest.approx(central["offset"] / 3)
+    _, _, fallback = ls.allocate_entrants(np.array([0.02, 0.01, 0.0]), np.array([0.0, 0.0, 0.01]),
+                                          np.asarray(cells), np.full(3, 10.0), wage=prep["wage"])
+    assert fallback["fallback_enter"][2] == pytest.approx(0.02)
+    assert fallback["fallback_wage"][2] == pytest.approx(45.0)  # the quintile-5 worker's wage
+    prep.update(profile_earnings=np.full(3, 45.0 * 18.8 * 52), profile_gain=np.full(3, 30_000.0),
+                profile_subsidy=np.full(3, 200.0))
+    worker = ls.participation_response(prep, 1.0, "worker_profile")
+    assert worker["entrants"] == pytest.approx(central["entrants"])
+    own = 10 * 0.01 * (18_000 - 15_000 - 200)
+    assert worker["offset"] == pytest.approx(own + 10 * 0.02 * (45.0 * 18.8 * 52 - 30_000 - 200))
 
 
 def _two_earner_couple(year=2027):

@@ -374,7 +374,7 @@ def labour_supply(static_total, years=YEARS):
     Offsets are £bn a year, positive = money back to the Exchequer.
     """
     from .engine import LABOUR_SUPPLY_JOB
-    from .labour_supply import ENTRY_CELL_LEVELS
+    from .labour_supply import ENTRY_CELL_LEVELS, ENTRY_SENSITIVITIES
 
     load_meta(LABOUR_SUPPLY_JOB)  # raises on a provenance mismatch
     z = np.load(run_path(LABOUR_SUPPLY_JOB))
@@ -402,6 +402,16 @@ def labour_supply(static_total, years=YEARS):
         # same OBR cell, or, where it has none, in a coarser one.
         "allocated_by_cell_level": {level: by_year("extensive", f"allocated_{level}", lambda x: _round_to(x, 100))
                                     for level in ENTRY_CELL_LEVELS},
+        # Sensitivities, not in the dynamic cost (labour_supply.ENTRY_SENSITIVITIES), central elasticities: the
+        # entrants placed in a coarser cell dropped, or given the earnings of the workers who imply them.
+        "entry_sensitivity": {
+            name: {
+                "offset_bn": {str(y): _bn(float(z[f"{y}/extensive_sensitivity/{name}/offset"])) for y in years},
+                "entrants": {str(y): _round_to(z[f"{y}/extensive_sensitivity/{name}/entrants"], 100) for y in years},
+                "earnings_bn": {str(y): _bn(float(z[f"{y}/extensive_sensitivity/{name}/earnings"])) for y in years},
+            }
+            for name in ENTRY_SENSITIVITIES
+        },
     }
     # Hours response (hours_response.py) of every responding adult in work, split by their own income: a price
     # effect (positive: money back) and an income effect (negative: money out), and the net of the two.

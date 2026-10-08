@@ -88,9 +88,12 @@ import numpy as np
 import pandas as pd
 from microdf import MicroSeries
 from policyengine_uk.dynamics.participation import (
+    WEEKS_IN_YEAR,
     calculate_earnings_quintile,
     calculate_participation_elasticities,
+    hourly_wage,
     impute_wages_for_nonworkers,
+    weighted_median,
 )
 from policyengine_uk.dynamics.progression import calculate_labour_net_income_elasticities
 
@@ -110,6 +113,10 @@ from .config import (
 
 # The levels of ``entry_cells``, finest first.
 ENTRY_CELL_LEVELS = ("sex_couple_child_quintile", "sex_couple_child", "sex_couple", "everyone")
+# Sensitivities for the implied entrants placed in a coarser cell than their own (A3 of the
+# rereview of #6), central elasticities: dropped ("same_cell_only"), or given the earnings
+# of the workers who imply them ("worker_profile"). Not in the dynamic cost.
+ENTRY_SENSITIVITIES = ("same_cell_only", "worker_profile")
 
 COUNT_ADULTS = 2
 # A gain to work that changes by less than this (£ a year) is treated as unchanged when
@@ -394,6 +401,38 @@ def hours_inputs(sim, year):
     }
 
 
+def _hourly_wage(sim, year):
+    """(working, hourly wage, 0) for ``np.where``: upstream's hourly wage of each worker."""
+    _, wage, working = hourly_wage(sim, year)
+    return np.asarray(working, bool), np.asarray(wage, float), 0.0
+
+
+def worker_profile(sim, year, base, prep):
+    """The ``worker_profile`` sensitivity's entrants: the coarser-cell entry at the implying workers' wage.
+
+    The central allocation's coarser-cell entry (:func:`allocate_entrants`) is given the
+    weighted median hourly wage of the workers who imply it, at the entrants'
+    ``HOURS_FOR_NEW_ENTRANTS`` hours a week, and its gain and Tax-Free Childcare are
+    recomputed on the reform (``sim``) at those earnings (:func:`gain_to_work`). Returns the
+    ``profile_*`` arrays :func:`participation_response` reads.
+    """
+    change = np.where(prep["eligible"], prep["elasticity"] * prep["pct"], 0.0)
+    change = np.clip(change, -PARTICIPATION_CHANGE_BOUND, PARTICIPATION_CHANGE_BOUND)
+    working = prep["employment_income"] > 0
+    implied = np.where(prep["eligible"] & working, np.maximum(change, 0), 0.0)
+    pull = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
+    _, _, fallback = allocate_entrants(implied, pull, prep["cells"], prep["weights"], wage=prep["wage"])
+    moved = fallback["fallback_enter"] > 0
+    earnings = np.where(moved, fallback["fallback_wage"] * HOURS_FOR_NEW_ENTRANTS * WEEKS_IN_YEAR,
+                        base["entrant_earnings"])
+    gtw = gain_to_work(sim, year, earnings, base["actual_cost"], base["imputed_cost"])
+    return {
+        "profile_earnings": earnings,
+        "profile_gain": gtw["in_work_income"] - gtw["out_of_work_income"],
+        "profile_subsidy": gtw["entrant_subsidy"],
+    }
+
+
 def baseline_side(sim, year):
     """Everything the response needs from the baseline simulation, for one year."""
     respond = responding(sim, year)
@@ -416,6 +455,8 @@ def baseline_side(sim, year):
         "employment_income": values(sim, "employment_income", year).astype(float),
         "weekly_hours": values(sim, "hours_worked", year).astype(float) / LSR_WEEKS_PER_YEAR,
         "entrant_earnings": entrant_earnings,
+        # Workers' hourly wage (upstream's ``hourly_wage``; zero for non-workers): the worker_profile sensitivity.
+        "hourly_wage": np.where(*_hourly_wage(sim, year)),
         "actual_cost": actual_cost,
         "imputed_cost": imputed_cost,
         "elasticity_wrt_income": elasticity,
@@ -476,12 +517,13 @@ def prepare(base, ref):
         "employment_income": base["employment_income"],
         "weekly_hours": base["weekly_hours"],
         "entrant_earnings": base["entrant_earnings"],
+        "wage": base["hourly_wage"],
         "moved_outside_weighted": float(MicroSeries(moved_outside.astype(float), weights=base["weights"]).sum()),
         "moved_outside_records": int(moved_outside.sum()),
     }
 
 
-def allocate_entrants(implied, pull, cells, weights):
+def allocate_entrants(implied, pull, cells, weights, levels=len(ENTRY_CELL_LEVELS), wage=None):
     """Share each worker's implied entry among the non-workers of the same cell (Adam and Phillips, Appendix E).
 
     ``implied`` is each worker's own positive e x dG/G (zero for everyone else), ``pull``
@@ -491,26 +533,46 @@ def allocate_entrants(implied, pull, cells, weights):
     proportion to their own weighted pull; workers in a cell with no responding
     non-worker pass to the next, coarser level. Returns each non-worker's probability of
     entering (before any cap) and the weighted entrants allocated at each level, plus any
-    left unallocated (only if no non-worker responds at all).
+    left unallocated (only if no non-worker responds at all, or beyond ``levels``).
+
+    With ``levels=1`` only the full cell is used (the ``same_cell_only`` sensitivity).
+    The third item describes the entry placed in a coarser cell: ``fallback_enter``, each
+    non-worker's part of it, and, given each worker's hourly ``wage``,
+    ``fallback_wage``: the weighted median hourly wage of the workers whose implied entry
+    it is (weighted by their implied entrants), for the ``worker_profile`` sensitivity.
     """
     enter = np.zeros_like(pull, dtype=float)
+    fallback_enter = np.zeros_like(pull, dtype=float)
+    fallback_wage_sum = np.zeros_like(pull, dtype=float)
     remaining = implied * weights
     by_level = {}
-    for level, name in enumerate(ENTRY_CELL_LEVELS):
+    for level, name in enumerate(ENTRY_CELL_LEVELS[:levels]):
         key = cells[:, level]
         frame = pd.DataFrame({"cell": key, "implied": remaining, "pull": pull * weights})
         sums = frame.groupby("cell")[["implied", "pull"]].sum()
         ok = sums[(sums["implied"] > 0) & (sums["pull"] > 0)]
         factor = (ok["implied"] / ok["pull"]).reindex(key).fillna(0.0).to_numpy()
-        enter += pull * factor
+        share = pull * factor
+        enter += share
         placed = np.isin(key, ok.index.to_numpy())
+        if level > 0:
+            fallback_enter += share
+            if wage is not None:
+                sources = placed & (remaining > 0)
+                cell_wage = {
+                    cell: weighted_median(wage[sources & (key == cell)], remaining[sources & (key == cell)])
+                    for cell in np.unique(key[sources])
+                }
+                fallback_wage_sum += share * pd.Series(cell_wage, dtype=float).reindex(key).fillna(0.0).to_numpy()
         by_level[name] = float(remaining[placed].sum())
         remaining = np.where(placed, 0.0, remaining)
     by_level["unallocated"] = float(remaining.sum())
-    return enter, by_level
+    fallback_wage = np.divide(fallback_wage_sum, fallback_enter, out=np.zeros_like(fallback_enter),
+                              where=fallback_enter > 0)
+    return enter, by_level, {"fallback_enter": fallback_enter, "fallback_wage": fallback_wage}
 
 
-def participation_response(prep, scale):
+def participation_response(prep, scale, sensitivity=None):
     """Expected entrants, leavers, full-time equivalents, earnings and exchequer offset at one scale.
 
     The OBR elasticity (Adam and Phillips, Appendix E) is the percentage change in the
@@ -529,6 +591,11 @@ def participation_response(prep, scale):
     such non-worker falls back to a coarser cell (:func:`allocate_entrants`, whose counts
     by level are reported). No non-worker's probability may exceed 1; entry above that
     is dropped, and reported (``entry_capped``).
+
+    ``sensitivity`` (``ENTRY_SENSITIVITIES``) changes only the entry placed in a coarser
+    cell: ``same_cell_only`` drops it (reported as ``allocated_unallocated``);
+    ``worker_profile`` gives it the earnings, gain and subsidy in
+    ``prep["profile_*"]`` (:func:`worker_profile`) in place of the non-worker's own.
     """
     w = prep["weights"]
     emp = prep["employment_income"]
@@ -542,22 +609,34 @@ def participation_response(prep, scale):
     implied_each = np.where(prep["eligible"] & working, np.maximum(change, 0), 0.0)
     implied = total(implied_each)
     pull = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
-    enter, by_level = allocate_entrants(implied_each, pull, prep["cells"], w)
+    levels = 1 if sensitivity == "same_cell_only" else len(ENTRY_CELL_LEVELS)
+    enter, by_level, fallback = allocate_entrants(implied_each, pull, prep["cells"], w, levels, prep.get("wage"))
     capped = np.maximum(enter - 1.0, 0.0)
+    scale_down = np.divide(np.minimum(enter, 1.0), enter, out=np.ones_like(enter), where=enter > 0)
     enter = np.minimum(enter, 1.0)
     leave = np.where(prep["eligible"] & working, np.maximum(-change, 0), 0.0)
 
     earnings = prep["entrant_earnings"]
     gain = prep["reform_gain"]
+    subsidy = prep["entrant_subsidy"]
+    # Each non-worker's entry in two parts: placed in its own cell (own profile) and in a
+    # coarser one (own profile, or the implying workers' under ``worker_profile``).
+    own, other = enter, np.zeros_like(enter)
+    if sensitivity == "worker_profile":
+        other = fallback["fallback_enter"] * scale_down
+        own = enter - other
+    entrant_earnings = own * earnings + other * prep.get("profile_earnings", earnings)
+    entrant_gain = own * gain + other * prep.get("profile_gain", gain)
+    entrant_subsidy = own * subsidy + other * prep.get("profile_subsidy", subsidy)
     return {
         "entrants": total(enter),
         "leavers": total(leave),
         "ftes": total(enter) * HOURS_FOR_NEW_ENTRANTS / FULL_TIME_HOURS
         - total(leave * prep["weekly_hours"] / FULL_TIME_HOURS),
-        "earnings": total(enter * earnings) - total(leave * emp),
+        "earnings": total(entrant_earnings) - total(leave * emp),
         # Tax and NI paid and support withdrawn, less the support the family now gets.
-        "offset": total(enter * (earnings - gain - prep["entrant_subsidy"])) - total(leave * (emp - gain)),
-        "tax_and_ni": total(enter * (earnings - gain)) - total(leave * (emp - gain)),
+        "offset": total(entrant_earnings - entrant_gain - entrant_subsidy) - total(leave * (emp - gain)),
+        "tax_and_ni": total(entrant_earnings - entrant_gain) - total(leave * (emp - gain)),
         "bound_binding": total((np.abs(change) >= PARTICIPATION_CHANGE_BOUND) & prep["eligible"]),
         # Diagnostics: the new employment implied by the workers' records, the part implied by
         # workers over £100,000, what the old non-worker-only rule would have given, the implied
@@ -599,6 +678,11 @@ def run(build_simulation, log=print):
         for bound, scale in ELASTICITY_SCALES.items():
             for k, v in participation_response(prep, scale).items():
                 arrays[f"{y}/extensive/{bound}/{k}"] = v
+        # Where the entrants placed in a coarser cell come from (A3), central elasticities.
+        prep.update(worker_profile(sim, y, base[y], prep))
+        for sensitivity in ENTRY_SENSITIVITIES:
+            for k, v in participation_response(prep, 1.0, sensitivity).items():
+                arrays[f"{y}/extensive_sensitivity/{sensitivity}/{k}"] = v
             hours = hours_response(sim, y, base[y], ref, scale)
             for k, v in hours["at_or_below_limit"].items():
                 arrays[f"{y}/intensive/{bound}/{k}"] = v
