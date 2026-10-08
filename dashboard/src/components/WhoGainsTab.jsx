@@ -35,7 +35,7 @@ import {
 import { formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Select } from "./ui";
+import { Expandable, AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Select } from "./ui";
 
 export const SUPPRESSED = "too few records";
 
@@ -508,21 +508,23 @@ function GenderSection({ data, year }) {
         </>
       }
     >
-      <GroupChart rows={byEarner} measure="families_gaining" />
-      {!pf.suppressed && !pm.suppressed ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2" data-testid="partner-not-working">
-          {[pf, pm].map((p) => (
-            <div key={p.higher_earner} className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{p.higher_earner}</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{formatPct(p.partner_not_working_pct, 0)}</p>
-              <p className="text-sm text-slate-600">
-                of couples with a child under 12 have a {p.higher_earner.startsWith("Father") ? "mother" : "father"} who
-                does not work ({formatCount(p.families)} families, {fy})
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <Expandable title="Show the chart" testId="gender-expandable">
+        <GroupChart rows={byEarner} measure="families_gaining" />
+        {!pf.suppressed && !pm.suppressed ? (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2" data-testid="partner-not-working">
+            {[pf, pm].map((p) => (
+              <div key={p.higher_earner} className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{p.higher_earner}</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{formatPct(p.partner_not_working_pct, 0)}</p>
+                <p className="text-sm text-slate-600">
+                  of couples with a child under 12 have a {p.higher_earner.startsWith("Father") ? "mother" : "father"} who
+                  does not work ({formatCount(p.families)} families, {fy})
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Expandable>
     </Section>
   );
 }
