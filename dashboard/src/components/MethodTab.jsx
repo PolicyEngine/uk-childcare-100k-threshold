@@ -227,6 +227,9 @@ function AssumptionNotes({ rows, takeUp }) {
   );
 }
 
+// £m to one decimal, signed: the entry sensitivities are a few £m.
+const formatM = (x) => `${x < 0 ? "-" : "+"}£${Math.abs(x).toFixed(1)}m`;
+
 function LabourSupplySection({ data }) {
   const ls = getLabourSupply(data);
   const a = ls.assumptions;
@@ -278,7 +281,7 @@ function LabourSupplySection({ data }) {
           that group has no responding non-worker, the nearest broader group
           {isNum(fellBack) ? ` (about ${formatCount(fellBack)} of the entrants in ${year})` : ""}.
           {entrySens
-            ? ` Those take the earnings and support of non-workers in other earnings quintiles; dropping them, the ${year} offset would be ${formatBn(entrySens.same_cell_only.offset_bn[yKey], 3)}, and giving them the hourly wage of the workers who imply them, ${formatBn(entrySens.worker_profile.offset_bn[yKey], 3)}.`
+            ? ` Those take the earnings and support of non-workers in other earnings quintiles; dropping them, the ${year} offset would be ${formatM(entrySens.same_cell_only.offset_m[yKey])}, and giving them the hourly wage of the workers who imply them, ${formatM(entrySens.worker_profile.offset_m[yKey])}, against ${formatM(entrySens.central_offset_m[yKey])}.`
             : ""}
           {isNum(oldRule) ? ` Applying the elasticity to each non-worker instead would give about ${formatCount(oldRule)} entrants in ${year}.` : ""}{" "}
           Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random draws.

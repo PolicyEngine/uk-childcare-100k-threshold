@@ -403,14 +403,16 @@ def labour_supply(static_total, years=YEARS):
         "allocated_by_cell_level": {level: by_year("extensive", f"allocated_{level}", lambda x: _round_to(x, 100))
                                     for level in ENTRY_CELL_LEVELS},
         # Sensitivities, not in the dynamic cost (labour_supply.ENTRY_SENSITIVITIES), central elasticities: the
-        # entrants placed in a coarser cell dropped, or given the earnings of the workers who imply them.
+        # entrants placed in a coarser cell dropped, or given the earnings of the workers who imply them. Offsets
+        # in £m to 0.1 (they are a few £m), with the central offset at the same precision.
         "entry_sensitivity": {
-            name: {
-                "offset_bn": {str(y): _bn(float(z[f"{y}/extensive_sensitivity/{name}/offset"])) for y in years},
+            "central_offset_m": {str(y): round(get(y, "extensive", "central", "offset") / 1e6, 1) for y in years},
+            **{name: {
+                "offset_m": {str(y): round(float(z[f"{y}/extensive_sensitivity/{name}/offset"]) / 1e6, 1)
+                             for y in years},
                 "entrants": {str(y): _round_to(z[f"{y}/extensive_sensitivity/{name}/entrants"], 100) for y in years},
                 "earnings_bn": {str(y): _bn(float(z[f"{y}/extensive_sensitivity/{name}/earnings"])) for y in years},
-            }
-            for name in ENTRY_SENSITIVITIES
+            } for name in ENTRY_SENSITIVITIES},
         },
     }
     # Hours response (hours_response.py) of every responding adult in work, split by their own income: a price

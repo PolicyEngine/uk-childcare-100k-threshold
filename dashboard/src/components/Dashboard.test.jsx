@@ -257,8 +257,9 @@ describe("methodology", () => {
     const ls = data.labour_supply;
     const y = String(Object.keys(ls.extensive.offset_bn.central).at(-1));
     const b3 = (x) => formatBn(x, 3);
-    expect(text).toContain(b3(ls.extensive.entry_sensitivity.same_cell_only.offset_bn[y]));
-    expect(text).toContain(b3(ls.extensive.entry_sensitivity.worker_profile.offset_bn[y]));
+    const m = (x) => `£${Math.abs(x).toFixed(1)}m`;
+    expect(text).toContain(m(ls.extensive.entry_sensitivity.same_cell_only.offset_m[y]));
+    expect(text).toContain(m(ls.extensive.entry_sensitivity.worker_profile.offset_m[y]));
     expect(text).toContain(b3(ls.intensive_income_basis.paid_care_fixed_spend.offset_bn[y]));
     expect(text).toContain(b3(ls.intensive_income_basis.government_cost.offset_bn[y]));
     expect(text).toMatch(/top-up the family no longer gets/);
