@@ -320,10 +320,10 @@ function LabourSupplySection({ data }) {
           {formatMoneyBn(ls.intensive.offset.central[li])} back. The funded hours fully cover the paid care of the
           families of about {formatCount(covered)} of the {formatCount(paying)} adults in work who pay for childcare
           {disp
-            ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatMoneyBn(disp.offset_bn.low[String(ls.years[li])])} or ${formatMoneyBn(disp.offset_bn.high[String(ls.years[li])])}`
+            ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatBn(disp.offset_bn.low[yKey], 3)} or ${formatBn(disp.offset_bn.high[yKey], 3)} rather than ${formatBn(ls.intensive.offset.central[li], 3)}`
             : ""}
           {incomeBasis
-            ? `; counting the funded hours at their cost to government in the income effect, it would be ${formatMoneyBn(incomeBasis.offset_bn[yKey])}`
+            ? `; counting the funded hours at their cost to government in the income effect, it would be ${formatBn(incomeBasis.offset_bn[yKey], 3)}`
             : ""}
           .
         </li>
