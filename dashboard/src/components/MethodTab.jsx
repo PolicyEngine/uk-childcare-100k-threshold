@@ -250,6 +250,7 @@ function LabourSupplySection({ data }) {
         .reduce((t, [, v]) => t + (v.central?.[yKey] ?? 0), 0)
     : null;
   const incomeBasis = raw.intensive_income_basis;
+  const priceBasis = raw.intensive_price_basis;
   const entrySens = raw.extensive.entry_sensitivity;
   const covered = groupSum("workers_fully_covered");
   const paying = groupSum("workers_paying_for_childcare");
@@ -304,7 +305,7 @@ function LabourSupplySection({ data }) {
           part-time free care, which we treat as a 100% price fall; it is not measured on parents over £100,000).
           It applies to the change in the price of the family&apos;s next hour of paid childcare, for adults whose
           family pays for childcare. Tax-Free Childcare lowers that price where the reform newly pays it and the cap
-          does not bind. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
+          does not bind on the paid care the family still buys once the funded hours replace some of it. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
           test, so for a family that still buys paid care on top of them an extra hour costs what it did; they make it
           free only where they are worth more than all the paid care the family buys, judged on value with funded hours assumed to
           replace {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care (an assumption; IFS BN189
@@ -316,10 +317,10 @@ function LabourSupplySection({ data }) {
           </a>{" "}
           ({a.income_elasticities}) times the family&apos;s gain from the reform, before any response, as a percentage
           of its disposable income: a family made better off works slightly less. The gain is measured like that
-          income: the change in cash income, Tax-Free Childcare included, plus the paid childcare the newly funded
-          hours replace (at the same displacement rate, capped at what the family pays), less the Tax-Free Childcare
-          top-up the family no longer gets on the care it stops buying; not what the funded hours cost the
-          government. In {year}, at central elasticities, the price effect
+          income: the paid childcare the newly funded hours replace (at the same displacement rate, capped at what
+          the family pays) plus the change in cash income, recomputed on the care the family still buys, so the
+          Tax-Free Childcare and Universal Credit childcare element it no longer gets on the care it stops buying
+          come off; not what the funded hours cost the government. In {year}, at central elasticities, the price effect
           brings back {formatMoneyBn(ls.intensive.price.central[li])} (
           {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} from adults at or below £100,000,{" "}
           {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it) and the income effect costs{" "}
@@ -330,8 +331,11 @@ function LabourSupplySection({ data }) {
           {disp
             ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatBn(disp.offset_bn.low[yKey], 3)} or ${formatBn(disp.offset_bn.high[yKey], 3)} rather than ${formatBn(ls.intensive.offset.central[li], 3)}`
             : ""}
+          {priceBasis?.original_spend
+            ? `; reading the Tax-Free Childcare price change at today's spend, ${formatBn(priceBasis.original_spend.offset_bn[yKey], 3)}`
+            : ""}
           {incomeBasis?.paid_care_fixed_spend
-            ? `; keeping the top-up on the care the funded hours replace (spending held fixed), it would be ${formatBn(incomeBasis.paid_care_fixed_spend.offset_bn[yKey], 3)}`
+            ? `; keeping the cash support on the care the funded hours replace (spending held fixed), ${formatBn(incomeBasis.paid_care_fixed_spend.offset_bn[yKey], 3)}`
             : ""}
           {incomeBasis?.government_cost
             ? `; counting the funded hours at their cost to government in the income effect, ${formatBn(incomeBasis.government_cost.offset_bn[yKey], 3)}`

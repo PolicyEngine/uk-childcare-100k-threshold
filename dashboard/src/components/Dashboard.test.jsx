@@ -262,7 +262,8 @@ describe("methodology", () => {
     expect(text).toContain(m(ls.extensive.entry_sensitivity.worker_profile.offset_m[y]));
     expect(text).toContain(b3(ls.intensive_income_basis.paid_care_fixed_spend.offset_bn[y]));
     expect(text).toContain(b3(ls.intensive_income_basis.government_cost.offset_bn[y]));
-    expect(text).toMatch(/top-up the family no longer gets/);
+    expect(text).toContain(b3(ls.intensive_price_basis.original_spend.offset_bn[y]));
+    expect(text).toMatch(/Universal Credit childcare element it no longer gets/);
   });
 
   it("pins the model package and the dataset release, revision and checksum", () => {
