@@ -404,7 +404,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       >
         {dynamic ? (
           <p className="mb-3 text-sm text-slate-600" data-testid="chart-setting">
-            Labour supply on ({labourSupplyLabel(setting)}):{" "}
+            Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see
+            Methodology):{" "}
             {offsets.every((v) => v >= 0)
               ? "the grey bars below zero are the money back from parents working more"
               : offsets.every((v) => v <= 0)

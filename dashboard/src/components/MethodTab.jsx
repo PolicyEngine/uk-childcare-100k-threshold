@@ -239,6 +239,14 @@ function LabourSupplySection({ data }) {
   const disp = raw.intensive_displacement;
   const groupSum = (k) =>
     ["at_or_below_limit", "over_limit"].reduce((t, g) => t + (raw.intensive[g]?.[k]?.central?.[String(ls.years[li])] ?? 0), 0);
+  const yKey = String(ls.years[li]);
+  const byLevel = raw.extensive.allocated_by_cell_level;
+  const fellBack = byLevel
+    ? Object.entries(byLevel)
+        .filter(([level]) => level !== "sex_couple_child_quintile")
+        .reduce((t, [, v]) => t + (v.central?.[yKey] ?? 0), 0)
+    : null;
+  const incomeBasis = raw.intensive_income_basis;
   const covered = groupSum("workers_fully_covered");
   const paying = groupSum("workers_paying_for_childcare");
   const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
@@ -263,14 +271,19 @@ function LabourSupplySection({ data }) {
           percentage change in the gain to work; it is converted from in-work income by the gain to work over in-work
           income, and the gain to work is net of the childcare a parent would then pay for, less the Tax-Free
           Childcare the scenario would pay on it. Because the probability change applies to the employed share, new
-          employment is the sum over working adults of their own response (Adam and Phillips, Appendix E); it is
-          shared among the non-working adults, who are the ones entering, in proportion to theirs.
+          employment is the sum over working adults of their own response (Adam and Phillips, Appendix E). It is
+          shared among non-working adults like them, who are the ones entering: those in the same OBR group (sex,
+          couple, age of the youngest child and earnings quintile), in proportion to their own response, or, where
+          that group has no responding non-worker, the nearest broader group
+          {isNum(fellBack) ? ` (about ${formatCount(fellBack)} of the entrants in ${year})` : ""}.
           {isNum(oldRule) ? ` Applying the elasticity to each non-worker instead would give about ${formatCount(oldRule)} entrants in ${year}.` : ""}{" "}
           Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random draws.
         </li>
         <li>
-          <strong>Hours (intensive margin).</strong> Every responding adult in work, at or below £100,000 and over it,
-          in two parts; the model recomputes tax and benefits on each.{" "}
+          <strong>Hours (intensive margin).</strong>{" "}
+          Every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone&apos;s combined change in earnings;
+          the parts are an attribution that adds up to it (the price change alone, then the income effect as the
+          remainder).{" "}
           <em>Price effect:</em> an assumed childcare-price elasticity of hours of {a.hours_price_elasticity}, an
           extrapolated scenario assumption, not an estimated price elasticity (
           <a
@@ -286,7 +299,7 @@ function LabourSupplySection({ data }) {
           family pays for childcare. Tax-Free Childcare lowers that price where the reform newly pays it and the cap
           does not bind. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
           test, so for a family that still buys paid care on top of them an extra hour costs what it did; they make it
-          free only where they cover all the paid care the family buys, judged on value with funded hours assumed to
+          free only where they are worth more than all the paid care the family buys, judged on value with funded hours assumed to
           replace {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care (an assumption; IFS BN189
           supports {formatPct(a.free_hours_displacement_range.low * 100, 1)} to{" "}
           {formatPct(a.free_hours_displacement * 100, 1)}).{" "}
@@ -294,8 +307,11 @@ function LabourSupplySection({ data }) {
           <a href="https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf" target="_blank" rel="noreferrer">
             OBR&apos;s income elasticities
           </a>{" "}
-          ({a.income_elasticities}) times the rise in household net income from the reform, before any response, as
-          a percentage of household disposable income: a family made better off works slightly less. In {year}, at central elasticities, the price effect
+          ({a.income_elasticities}) times the family&apos;s gain from the reform, before any response, as a percentage
+          of its disposable income: a family made better off works slightly less. The gain is measured like that
+          income: the change in cash income, Tax-Free Childcare included, plus the paid childcare the newly funded
+          hours replace (at the same displacement rate, capped at what the family pays), not what the funded hours
+          cost the government. In {year}, at central elasticities, the price effect
           brings back {formatMoneyBn(ls.intensive.price.central[li])} (
           {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} from adults at or below £100,000,{" "}
           {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it) and the income effect costs{" "}
@@ -305,6 +321,9 @@ function LabourSupplySection({ data }) {
           families of about {formatCount(covered)} of the {formatCount(paying)} adults in work who pay for childcare
           {disp
             ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatMoneyBn(disp.offset_bn.low[String(ls.years[li])])} or ${formatMoneyBn(disp.offset_bn.high[String(ls.years[li])])}`
+            : ""}
+          {incomeBasis
+            ? `; counting the funded hours at their cost to government in the income effect, it would be ${formatMoneyBn(incomeBasis.offset_bn[yKey])}`
             : ""}
           .
         </li>

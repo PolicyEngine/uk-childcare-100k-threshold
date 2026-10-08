@@ -305,6 +305,17 @@ def test_labour_supply_block():
         lo, mid, hi = (ls["intensive"]["offset_bn"][b][y] for b in ("low", "central", "high"))
         assert lo <= mid <= hi
         assert ls["population"][y]["adults_moved_outside_population"] == 0
+        # The hours screen (OBR Table A3) keeps disabled adults, whom participation (Table A4) excludes.
+        assert ls["population"][y]["hours_responding_adults"] >= ls["population"][y]["responding_adults"]
+        # Every implied entrant is placed somewhere (labour_supply.allocate_entrants).
+        for bound in ("central", "low", "high"):
+            placed = sum(v[bound][y] for v in ls["extensive"]["allocated_by_cell_level"].values())
+            assert placed == pytest.approx(ls["extensive"]["entrants"][bound][y], abs=300)
+        # The income-basis sensitivity shares the price effect and nets to its own parts.
+        sens = ls["intensive_income_basis"]
+        assert sens["basis"] == "government_cost"
+        assert sens["price_offset_bn"][y] == pytest.approx(ls["intensive"]["price_offset_bn"]["central"][y], abs=0.0015)
+        assert sens["offset_bn"][y] == pytest.approx(sens["price_offset_bn"][y] + sens["income_offset_bn"][y], abs=0.0015)
     assert "bunching" in ls["not_modelled"].lower()
 
 
