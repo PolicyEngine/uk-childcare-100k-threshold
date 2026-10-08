@@ -138,10 +138,14 @@ Carer's Allowance whose unflagged partner works was refused the 30 hours.
 
 ``claimant_or_partner`` ports upstream's ``is_claimant_or_partner`` (merged after
 2.102.3): the claimant is the adult benefit-unit head; the partner is the eldest other
-flagged parent if there is one, else the eldest other adult not presumed to be the
-claimant's child (16 or more years younger and under 20, or at any age when a flagged
-claimant has no such younger member to explain the flag); two flagged parents under an
-unflagged head are the couple. "Adult" is upstream's ``is_hbai_adult`` (not an HBAI
+flagged parent if there is one, else the eldest other adult; outside a couple, an adult
+presumed to be the claimant's child (16 or more years younger and under 20, or at any age
+when a flagged claimant has no such younger member to explain the flag) is passed over;
+two flagged parents under an unflagged head are the couple. Within a benefit unit the
+model makes a couple (``is_couple``, two or more members 18 or over) the presumption does
+not apply: the other adult is the partner whatever their age or flag (a 19-year-old
+nonworking partner of a £120,000 earner was presumed a child, and the corrected reform
+paid that couple £2,000 of Tax-Free Childcare and £3,633.88 of extended hours). "Adult" is upstream's ``is_hbai_adult`` (not an HBAI
 dependent child: under 16; 16-17 and neither head nor flagged; 18-19, neither, in
 non-advanced education or approved training with a flagged parent), ported as
 ``hbai_adult``; the presumption's ages (20, 16) are upstream's parameters, which 2.102.3
@@ -286,7 +290,12 @@ def claimant_or_partner(person, period):
     # much younger member at any age.
     flag_unexplained = claimant_is_parent & ~person.benunit.any(young_child)
     presumed_child = ((age < PRESUMED_CHILD_AGE_LIMIT) | flag_unexplained) & large_gap
-    other_adult = adult & ~claimant & ~presumed_child
+    # In a benefit unit the model itself makes a couple (``is_couple``: two or more members
+    # 18 or over), the other adult is the claimant's partner at any age: the presumption
+    # applies only outside a couple. An 18- or 19-year-old dependent young person (not an
+    # ``hbai_adult``) is still not the partner.
+    in_couple = person.benunit("is_couple", period)
+    other_adult = adult & ~claimant & (in_couple | ~presumed_child)
     pool = np.where(person.benunit.any(other_parent), other_parent, other_adult)
     partner = pool & (person.get_rank(person.benunit, -age, condition=pool) == 0)
     return np.where(parents_are_couple, parent_couple, claimant | partner)

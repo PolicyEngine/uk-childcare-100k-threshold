@@ -265,14 +265,17 @@ def test_the_30_hours_test_the_claimant_and_partner():
     assert _tfc(sim) == pytest.approx(2_000)
 
 
-def test_a_lone_parent_with_a_grown_up_child_is_still_single():
-    """A dependent 18-year-old (or one 16 or more years younger) is neither claimant nor partner, as upstream."""
+def _parent_and_young_adult(young, a_income=120_000, reform=True, corrected=True):
+    """A 2027 benefit unit: a 40-year-old flagged parent, an unflagged 19-year-old (``young``), a three-year-old in
+    £10,000 of paid care."""
     from policyengine_uk import Simulation
     from policyengine_uk.utils.scenario import Scenario
 
+    from childcare_100k import config
+
     people = {
-        "a": {"age": {Y: 40}, "employment_income": {Y: 40_000}, "is_parent": {Y: True}},
-        "b": {"age": {Y: 19}},
+        "a": {"age": {Y: 40}, "employment_income": {Y: a_income}, "is_parent": {Y: True}},
+        "b": {"age": {Y: 19}, **young},
         "c": {"age": {Y: 3}, "childcare_expenses": {Y: 10_000}},
     }
     situation = {
@@ -282,8 +285,38 @@ def test_a_lone_parent_with_a_grown_up_child_is_still_single():
                             "maximum_extended_childcare_hours_usage": {Y: 30}}},
         "households": {"hh": {"members": list(people), "region": {Y: "SOUTH_EAST"}}},
     }
-    scenario = Scenario(simulation_modifier=corrections.apply_corrections, applied_before_data_load=True)
-    sim = Simulation(situation=situation, scenario=scenario)
+    scenario = Scenario(
+        parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS) if reform else None,
+        simulation_modifier=corrections.apply_corrections if corrected else None,
+        applied_before_data_load=True,
+    )
+    return Simulation(situation=situation, scenario=scenario)
+
+
+def test_a_young_partner_in_a_couple_is_tested():
+    """C2 of the rereview at bc0d71c: the model makes a 40-year-old £120,000 earner and a nonworking 19-year-old in one
+    benefit unit a couple (is_couple). The earlier proxy presumed the 19-year-old the earner's child and the corrected
+    reform paid £2,000 of Tax-Free Childcare and £3,633.88 of extended hours; the partner fails the work test
+    (2014 Act s.3(1), SI 2015/448 reg 9, SI 2022/1134 reg 14), so both are nil."""
+    sim = _parent_and_young_adult({})
+    assert sim.calculate("is_couple", Y).all()
+    assert corrections.claimant_or_partner(sim.populations["person"], Y).tolist() == [True, True, False]
+    assert _tfc(sim) == 0
+    assert _funded(sim)["extended"] == 0
+    # The same couple with the 19-year-old flagged a parent, as she checked: nil as well.
+    assert _tfc(_parent_and_young_adult({"is_parent": {Y: True}})) == 0
+    # Below the limit, today, nil too; and a working 19-year-old partner qualifies the couple.
+    assert _tfc(_parent_and_young_adult({}, a_income=40_000, reform=False)) == 0
+    working = _parent_and_young_adult({"employment_income": {Y: 20_000}})
+    assert _tfc(working) == pytest.approx(2_000)
+    assert _funded(working)["extended"] > 0
+
+
+def test_a_lone_parent_with_a_dependent_young_person_is_still_single():
+    """A dependent 19-year-old (in non-advanced education, living with a flagged parent: not an HBAI adult) is neither
+    claimant nor partner, though the model counts the unit a couple; nor is one presumed a child outside a couple."""
+    sim = _parent_and_young_adult({"is_in_non_advanced_education": {Y: True}}, a_income=40_000, reform=False)
+    assert sim.calculate("is_couple", Y).all()
     assert corrections.claimant_or_partner(sim.populations["person"], Y).tolist() == [True, False, False]
     assert _tfc(sim) == pytest.approx(2_000)
     assert sim.calculate("extended_childcare_entitlement_eligible", Y).all()
