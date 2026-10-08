@@ -6,6 +6,7 @@
 """
 
 import argparse
+import hashlib
 import json
 import subprocess
 import time
@@ -41,19 +42,35 @@ from .config import (
     YEARS,
 )
 from .datasets import MICROCOSM
-from .engine import JOBS, is_current, load_meta, run_isolated
+from .engine import JOBS, SOURCE_DIR, is_current, load_meta, run_isolated
 from .validation import DFE_FUNDING_URL
 from .household import cliff_example, household_grid
 from .validation import baseline_validation
 
 
 def _git_revision():
-    """The commit the build runs on. Raises if it cannot be read (no "unknown" placeholder)."""
+    """The commit the build runs on. Raises if it cannot be read (no "unknown" placeholder), or if the package
+    source differs from that commit: the revision must be the code that produced the results."""
     revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True,
                               check=True).stdout.strip()
     if len(revision) != 40:
         raise RuntimeError(f"unexpected git revision {revision!r}")
+    dirty = subprocess.run(["git", "status", "--porcelain", "--", "src"], cwd=REPO, capture_output=True, text=True,
+                           check=True).stdout.strip()
+    if dirty:
+        raise RuntimeError(f"uncommitted changes under src/; commit them before building:\n{dirty}")
     return revision
+
+
+# The code that turns the cached runs into results.json (the runs' own code is in run_definition_sha256).
+AGGREGATION_FILES = ("aggregate.py", "cli.py", "config.py", "household.py", "validation.py")
+
+
+def _aggregation_hash():
+    digest = hashlib.sha256()
+    for name in AGGREGATION_FILES:
+        digest.update((SOURCE_DIR / name).read_bytes())
+    return digest.hexdigest()
 
 
 def run_all(rerun=False, log=print):
@@ -115,7 +132,8 @@ LIMITATIONS = [
     "overstates the funded 3- and 4-year-olds slightly.",
     "Childcare spending is held fixed: a family that gains funded hours would in practice pay for fewer hours, which "
     "would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly. The hours response's income "
-    "effect counts the paid care the funded hours displace, but likewise leaves the top-up on that care in place.",
+    "effect does not: it counts the paid care the funded hours displace and recomputes the family's cash income, "
+    "Tax-Free Childcare and the Universal Credit childcare element included, on the care it still buys.",
     "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), 1-6% below DfE's "
     "2026-27 national average rates (see baseline_validation), so the 30-hours leg is slightly understated.",
     "A partner who does not work because of caring or incapacity: for the 30 hours the model now applies SI "
@@ -317,6 +335,7 @@ def build(metas):
             "years": YEARS,
             "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "git_revision": _git_revision(),
+            "aggregation_sha256": _aggregation_hash(),
             "min_cell_size": MIN_CELL_RECORDS,
             "run_seconds": {k: v["seconds"] for k, v in metas.items()},
             "peak_rss_gb": {k: v["peak_rss_gb"] for k, v in metas.items()},
@@ -433,7 +452,9 @@ def build(metas):
                 "for mothers whose youngest child becomes eligible for full-time rather than part-time free care, "
                 "treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive "
                 "margin. Tax-Free Childcare lowers the marginal price where the reform newly pays it and the cap "
-                "does not bind (the model's own rate on the next pound of spend). The 30 funded hours are a fixed "
+                "does not bind (the model's own rate on the next pound of spend, at the spend the family still makes once "
+                "the funded hours displace paid care; intensive_price_basis publishes it at today's spend). The 30 "
+                "funded hours are a fixed "
                 "amount, conditional only on both parents meeting the minimum earnings test, so for a family that "
                 "still buys paid care on top of them they do not change what an extra hour costs; they lower the "
                 "marginal price (to zero) only where they are worth more than all the paid care the family buys. "
@@ -443,10 +464,11 @@ def build(metas):
                 "apply_progression_responses applies them except for the income measure. The gain is on the same "
                 "disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid "
                 "childcare the newly funded hours displace (their value at the displacement rate below, capped at "
-                "what the family pays), less the Tax-Free Childcare top-up on that displaced spend (recomputed by "
-                "the model on the care the family still buys), not the funded hours at government cost. "
-                "intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend: the "
-                "top-up on displaced spend kept) and at government cost (government_cost). Neither elasticity is "
+                "what the family pays), with the reform's cash income recomputed by the model on the care the family "
+                "still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced "
+                "spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with "
+                "spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither "
+                "elasticity is "
                 "measured on parents over £100,000.",
                 "Whether newly funded hours cover a family's paid care, and how much paid care they save it, is "
                 "judged on value, with funded hours "

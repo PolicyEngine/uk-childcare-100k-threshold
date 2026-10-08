@@ -30,8 +30,13 @@ def test_top_level_keys():
 def test_meta():
     m = RESULTS["meta"]
     for key in ("policyengine", "policyengine_uk", "dataset", "dataset_release", "dataset_repo", "dataset_revision",
-                "dataset_sha256", "dataset_management", "generated_at", "git_revision"):
+                "dataset_sha256", "dataset_management", "generated_at", "git_revision", "aggregation_sha256"):
         assert isinstance(m[key], str) and m[key]
+    # The results were aggregated by the aggregation code in this checkout (cli._git_revision also refuses a build
+    # with uncommitted source, so git_revision is the code that produced them).
+    from childcare_100k.cli import _aggregation_hash
+
+    assert m["aggregation_sha256"] == _aggregation_hash()
     assert m["years"] == YEARS
     assert m["lead_year"] == 2027
     assert m["run_provenance"]["dataset_sha256"] == m["dataset_sha256"]
@@ -322,7 +327,11 @@ def test_labour_supply_block():
         for sens in ls["intensive_income_basis"].values():
             assert sens["price_offset_bn"][y] == pytest.approx(ls["intensive"]["price_offset_bn"]["central"][y], abs=0.0015)
             assert sens["offset_bn"][y] == pytest.approx(sens["price_offset_bn"][y] + sens["income_offset_bn"][y], abs=0.0015)
-        # Keeping the top-up on the displaced spend makes the gain, and so the income effect's cost, no smaller.
+        # The price-basis sensitivity nets to its own parts.
+        assert set(ls["intensive_price_basis"]) == {"original_spend"}
+        orig = ls["intensive_price_basis"]["original_spend"]
+        assert orig["offset_bn"][y] == pytest.approx(orig["price_offset_bn"][y] + orig["income_offset_bn"][y], abs=0.0015)
+        # Keeping the support on the displaced spend makes the gain, and so the income effect's cost, no smaller.
         assert (ls["intensive_income_basis"]["paid_care_fixed_spend"]["income_offset_bn"][y]
                 <= ls["intensive"]["income_offset_bn"]["central"][y] + 0.0015)
     assert "bunching" in ls["not_modelled"].lower()

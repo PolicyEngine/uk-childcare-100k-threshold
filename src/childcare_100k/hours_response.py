@@ -35,7 +35,13 @@ many hours the family buys is a lump sum, which enters through the income effect
   ``tax_free_childcare`` when its childcare spend rises by 1% (``tfc_marginal_rate``),
   which carries the routed share (59.3% of spend in this data, so about 11.9p per £1),
   each child's cap, the eligible part of the year and the take-up draw. A family at the
-  cap gets no price change from Tax-Free Childcare.
+  cap gets no price change from Tax-Free Childcare. The reform's rate is read at the
+  spend the family still makes once the newly funded hours displace paid care (below),
+  the spending the income effect assumes (:func:`at_displaced_spend`): a family whose
+  £11,000 of care puts it at the £2,000 cap today, but which buys £7,710.38 once the
+  funded hours displace £3,289.62, faces a 20% marginal rate, not zero. The rate at
+  today's spend is published as a sensitivity (``PRICE_BASIS_SENSITIVITIES``,
+  ``original_spend``).
 * The 30 funded hours are a fixed number of hours, conditional only on both parents
   passing the minimum earnings test. For a family that still buys paid care on top of
   the newly funded hours, the funded hours do not change the price of the marginal hour
@@ -78,13 +84,14 @@ disposable income (``hbai_household_net_income``, static, before any response: c
 benefits and taxes, Tax-Free Childcare included, funded hours not) plus the paid care
 the newly funded hours displace (:func:`paid_care_saving`: their funding value x
 ``FREE_HOURS_DISPLACEMENT``, the price rule's assumption, capped at what the family
-spends today), less the Tax-Free Childcare top-up on that displaced spend
-(:func:`tfc_withdrawn`: the family no longer pays for the care, so it no longer puts it
-through its account), as a percentage of baseline disposable income. The top-up is the
-model's, recomputed on the reform with each child's ``childcare_expenses`` lowered in
-proportion to the family's displaced spend (:func:`tfc_at_displaced_spend`). Published as
-sensitivities (``INCOME_BASIS_SENSITIVITIES``): ``paid_care_fixed_spend``, the same gain
-with spending held fixed, so the top-up on the displaced spend is kept; and
+spends today), as a percentage of baseline disposable income. The reform's disposable
+income is the model's, recomputed with each child's ``childcare_expenses`` lowered in
+proportion to the family's displaced spend (:func:`at_displaced_spend`): the family no
+longer pays for that care, so every cash payment tied to childcare spending falls with
+it together, Tax-Free Childcare (the top-up on the displaced spend) and the Universal
+Credit childcare element (85% of charges paid, SI 2013/376 reg 34(1)) among them. Published
+as sensitivities (``INCOME_BASIS_SENSITIVITIES``): ``paid_care_fixed_spend``, the same
+gain with spending held fixed, so that support on the displaced spend is kept; and
 ``government_cost``, the change in ``household_net_income``, which values the funded
 hours at what the government pays for them, over the same base. The base is disposable income rather than
 ``household_net_income``, which also deducts policyengine-uk's expected stamp duty
@@ -99,8 +106,9 @@ interventions, parents and child ages it was not estimated on. It is a total-hou
 effect, so it also overlaps with the extensive margin. The low and high bounds scale
 both elasticities (``ELASTICITY_SCALES``).
 
-Dropped from the port: the Universal Credit childcare element. It is unchanged by the
-reform and families with a parent over £100,000 receive essentially no Universal Credit.
+The Universal Credit childcare element is not a price change: the reform does not change
+it at a given spend. It enters the income effect through the recomputed disposable income
+at displaced spend, like the Tax-Free Childcare top-up.
 """
 
 from __future__ import annotations
@@ -115,6 +123,7 @@ from .config import (
     FULL_TIME_HOURS,
     HOURS_PRICE_ELASTICITY,
     INCOME_BASIS,
+    PRICE_BASIS,
 )
 from .labour_supply import values
 
@@ -148,12 +157,15 @@ def tfc_marginal_rate(sim, year):
     return np.clip(rate, 0.0, 1.0)
 
 
-def marginal_price_change(base, ref, displacement=FREE_HOURS_DISPLACEMENT):
+def marginal_price_change(base, ref, displacement=FREE_HOURS_DISPLACEMENT, price_basis=PRICE_BASIS):
     """Proportional change in the price of the family's marginal hour of paid care, and who is fully covered.
 
     Baseline marginal price: 1 less the baseline Tax-Free Childcare rate. Reform: zero if
     newly funded hours (at ``displacement`` of their value) more than cover all the
-    family's paid care, otherwise 1 less the reform's Tax-Free Childcare rate. Funded
+    family's paid care, otherwise 1 less the reform's Tax-Free Childcare rate:
+    ``remaining_spend`` (central), the rate on the paid care the family still buys once the
+    funded hours displace some of it, the spending the central income gain assumes;
+    ``original_spend`` (a sensitivity), the rate at the family's spend today. Funded
     value exactly equal to the spend covers the hours the family buys and no more: the
     next hour lies beyond the fixed entitlement and is bought at the full price, so the
     test is strict.
@@ -161,7 +173,13 @@ def marginal_price_change(base, ref, displacement=FREE_HOURS_DISPLACEMENT):
     expenses = base["actual_cost"]
     covered = (expenses > 0) & (newly_funded_value(base, ref) * displacement > expenses)
     before = 1.0 - base["tfc_rate"]
-    after = np.where(covered, 0.0, 1.0 - ref["tfc_rate"])
+    if price_basis == "remaining_spend":
+        reform_rate = displaced(ref, displacement)["tfc_rate"]
+    elif price_basis == "original_spend":
+        reform_rate = ref["tfc_rate"]
+    else:
+        raise ValueError(price_basis)
+    after = np.where(covered, 0.0, 1.0 - reform_rate)
     change = np.divide(after - before, before, out=np.zeros_like(before), where=before > 0)
     return covered, np.clip(change, -1.0, 1.0)
 
@@ -192,7 +210,7 @@ def paid_care_saving(base, ref, displacement=FREE_HOURS_DISPLACEMENT):
 
 
 def displacement_key(displacement):
-    """The key a displacement rate's recomputed top-up is stored under (``ref["bu_tfc_displaced"]``)."""
+    """The key a displacement rate's recomputed reform is stored under (``ref["displaced"]``)."""
     return round(float(displacement), 6)
 
 
@@ -200,35 +218,56 @@ def displacement_key(displacement):
 DISPLACEMENTS = (FREE_HOURS_DISPLACEMENT, *FREE_HOURS_DISPLACEMENT_RANGE.values())
 
 
-def tfc_at_displaced_spend(sim, year, base, ref, displacement=FREE_HOURS_DISPLACEMENT):
-    """The family's ``tax_free_childcare`` on the reform once the displaced paid care is no longer bought (on each member).
+def at_displaced_spend(sim, year, base, ref, displacement=FREE_HOURS_DISPLACEMENT):
+    """The reform once the paid care the newly funded hours displace is no longer bought (on each member).
 
     Each person's ``childcare_expenses`` is scaled by 1 - (the family's displaced spend,
-    :func:`paid_care_saving` before the household sum) / (the family's spend), so the
-    model recomputes the top-up child by child on the care the family still pays for,
-    with its routed share, caps and eligibility. The simulation is restored afterwards.
+    :func:`paid_care_saving` before the household sum) / (the family's spend) and the model
+    recomputes, with the routed share, caps, eligibility and every other rule, on the care
+    the family still pays for:
+
+    * ``hh_disposable_income``: the household's ``hbai_household_net_income`` (Tax-Free
+      Childcare, the Universal Credit childcare element and any other cash support tied
+      to childcare spending respond together): the central income gain's
+      (:func:`income_gain`);
+    * ``bu_tfc``: the family's ``tax_free_childcare``;
+    * ``tfc_rate``: the family's marginal Tax-Free Childcare rate at that remaining spend
+      (as :func:`tfc_marginal_rate`, the spend raised by ``TFC_STEP``): the central price
+      rule's (:func:`marginal_price_change`).
+
+    The simulation is restored afterwards.
     """
     from .labour_supply import per_person
 
     spend = values(sim, "childcare_expenses", year).astype(float)
     bu_spend = base["actual_cost"]
-    displaced = np.minimum(newly_funded_value(base, ref) * displacement, bu_spend)
+    remaining = bu_spend - np.minimum(newly_funded_value(base, ref) * displacement, bu_spend)
     # The baseline's person arrays and the reform's share one person order: a benefit-unit
     # share on each member.
-    kept = np.divide(bu_spend - displaced, bu_spend, out=np.ones_like(bu_spend), where=bu_spend > 0)
+    kept = np.divide(remaining, bu_spend, out=np.ones_like(bu_spend), where=bu_spend > 0)
+
+    def tfc():
+        return per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float))
+
     try:
         sim.reset_calculations()
         sim.set_input("childcare_expenses", year, (spend * kept).astype(np.float32))
-        return per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float))
+        out = {"bu_tfc": tfc(),
+               "hh_disposable_income": values(sim, "hbai_household_net_income", year, "person").astype(float)}
+        sim.reset_calculations()
+        sim.set_input("childcare_expenses", year, (spend * kept * (1 + TFC_STEP)).astype(np.float32))
+        after = tfc()
     finally:
         sim.reset_calculations()
         sim.set_input("childcare_expenses", year, spend.astype(np.float32))
+    rate = np.divide(after - out["bu_tfc"], remaining * TFC_STEP, out=np.zeros_like(remaining), where=remaining > 0)
+    out["tfc_rate"] = np.clip(rate, 0.0, 1.0)
+    return out
 
 
-def tfc_withdrawn(base, ref, displacement=FREE_HOURS_DISPLACEMENT):
-    """The Tax-Free Childcare top-up on the displaced spend, summed over the household (on each person)."""
-    at_displaced = ref["bu_tfc_displaced"][displacement_key(displacement)]
-    return _household_total(base, np.maximum(ref["bu_tfc"] - at_displaced, 0.0))
+def displaced(ref, displacement=FREE_HOURS_DISPLACEMENT):
+    """The reform at displaced spend (:func:`at_displaced_spend`), as stored in ``ref["displaced"]``."""
+    return ref["displaced"][displacement_key(displacement)]
 
 
 def _members(base, group):
@@ -237,9 +276,9 @@ def _members(base, group):
     return base["hours_eligible"] & in_group & (base["employment_income"] > 0) & (base["weekly_hours"] > 0)
 
 
-def price_change(base, ref, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT):
+def price_change(base, ref, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT, price_basis=PRICE_BASIS):
     """Who responds to the price (in work, family pays for childcare) and their marginal price change."""
-    covered, change = marginal_price_change(base, ref, displacement)
+    covered, change = marginal_price_change(base, ref, displacement, price_basis)
     respond = _members(base, group) & (base["actual_cost"] > 0)
     return respond, np.where(respond, change, 0.0), respond & covered
 
@@ -248,17 +287,18 @@ def income_gain(base, ref, displacement=FREE_HOURS_DISPLACEMENT, basis=INCOME_BA
     """The household's gain from the reform that the income effect responds to (module docstring).
 
     ``paid_care`` (the central basis): the change in disposable income
-    (``hbai_household_net_income``: cash, Tax-Free Childcare included, funded hours not)
-    plus the paid childcare the newly funded hours displace (:func:`paid_care_saving`),
-    less the Tax-Free Childcare top-up on that displaced spend (:func:`tfc_withdrawn`).
-    ``paid_care_fixed_spend`` (a sensitivity): the same, keeping the top-up on the
-    displaced spend (spending held fixed).
+    (``hbai_household_net_income``: cash, Tax-Free Childcare and the Universal Credit
+    childcare element included, funded hours not), the reform's recomputed at the spend
+    left once the newly funded hours displace paid care (:func:`at_displaced_spend`), plus
+    the paid childcare they displace (:func:`paid_care_saving`).
+    ``paid_care_fixed_spend`` (a sensitivity): the same with spending held fixed, so the
+    reform's disposable income keeps the support tied to the displaced spend.
     ``government_cost`` (a sensitivity): the change in ``household_net_income``, which
     counts the funded hours at what the government pays for them.
     """
     if basis in ("paid_care", "paid_care_fixed_spend"):
-        gain = ref["hh_disposable_income"] - base["hh_disposable_income"] + paid_care_saving(base, ref, displacement)
-        return gain - tfc_withdrawn(base, ref, displacement) if basis == "paid_care" else gain
+        reform = displaced(ref, displacement) if basis == "paid_care" else ref
+        return reform["hh_disposable_income"] - base["hh_disposable_income"] + paid_care_saving(base, ref, displacement)
     if basis == "government_cost":
         return ref["hh_net_income"] - base["hh_net_income"]
     raise ValueError(basis)
@@ -281,9 +321,9 @@ def income_change(base, ref, group="at_or_below_limit", displacement=FREE_HOURS_
 
 
 def earnings_shares(base, ref, scale, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT,
-                    basis=INCOME_BASIS):
+                    basis=INCOME_BASIS, price_basis=PRICE_BASIS):
     """Each part's proportional change in earnings (and hours) for every person, at one elasticity scale."""
-    respond_p, d_price, covered = price_change(base, ref, group, displacement)
+    respond_p, d_price, covered = price_change(base, ref, group, displacement, price_basis)
     respond_i, d_income = income_change(base, ref, group, displacement, basis)
     return {
         "price": np.where(respond_p, HOURS_PRICE_ELASTICITY * scale * d_price, 0.0),
@@ -318,7 +358,8 @@ def _offset(sim, year, extra, weights):
     return float(MicroSeries(extra, weights=weights).sum()) - _net_income_rise(sim, year, extra)
 
 
-def hours_response(sim, year, base, ref, scale, displacement=FREE_HOURS_DISPLACEMENT, basis=INCOME_BASIS):
+def hours_response(sim, year, base, ref, scale, displacement=FREE_HOURS_DISPLACEMENT, basis=INCOME_BASIS,
+                   price_basis=PRICE_BASIS):
     """The hours response of every responding adult in work at one elasticity scale, by group and in total.
 
     Returns ``{group: {...} for group in GROUPS}`` and ``"total"``. Each holds
@@ -341,7 +382,7 @@ def hours_response(sim, year, base, ref, scale, displacement=FREE_HOURS_DISPLACE
     def total(x):
         return float(MicroSeries(x, weights=w).sum())
 
-    shares = {g: earnings_shares(base, ref, scale, g, displacement, basis) for g in GROUPS}
+    shares = {g: earnings_shares(base, ref, scale, g, displacement, basis, price_basis) for g in GROUPS}
     extra = {g: {part: emp * shares[g][part] for part in COMPONENTS} for g in GROUPS}
     combined = {g: extra[g]["price"] + extra[g]["income"] for g in GROUPS}
     net = _offset(sim, year, sum(combined.values()), w)

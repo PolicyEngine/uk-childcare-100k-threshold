@@ -106,6 +106,7 @@ from .config import (
     LSR_WEEKS_PER_YEAR,
     PARTICIPATION_CHANGE_BOUND,
     INCOME_BASIS_SENSITIVITIES,
+    PRICE_BASIS_SENSITIVITIES,
     YEARS,
     YOUNGEST_CHILD_BANDS,
     YOUNGEST_CHILD_MAX_AGE,
@@ -471,17 +472,17 @@ def baseline_side(sim, year):
 def reform_side(sim, year, base):
     """The reform's gain to work, on the baseline's imputed earnings and childcare.
 
-    Also the reform's Tax-Free Childcare once the paid care the newly funded hours
-    displace is no longer bought, at each displacement rate the hours margin uses
-    (``hours_response.tfc_at_displaced_spend``).
+    Also the reform once the paid care the newly funded hours displace is no longer
+    bought (its disposable income, Tax-Free Childcare and marginal Tax-Free Childcare
+    rate), at each displacement rate the hours margin uses
+    (``hours_response.at_displaced_spend``).
     """
-    from .hours_response import DISPLACEMENTS, displacement_key, tfc_at_displaced_spend
+    from .hours_response import DISPLACEMENTS, at_displaced_spend, displacement_key
 
     out = {f"gtw_{k}": v for k, v in gain_to_work(
         sim, year, base["entrant_earnings"], base["actual_cost"], base["imputed_cost"]).items()}
     out.update(hours_inputs(sim, year))
-    out["bu_tfc_displaced"] = {displacement_key(d): tfc_at_displaced_spend(sim, year, base, out, d)
-                               for d in DISPLACEMENTS}
+    out["displaced"] = {displacement_key(d): at_displaced_spend(sim, year, base, out, d) for d in DISPLACEMENTS}
     return out
 
 
@@ -701,6 +702,11 @@ def run(build_simulation, log=print):
         for basis in INCOME_BASIS_SENSITIVITIES:
             for k, v in hours_response(sim, y, base[y], ref, 1.0, basis=basis)["total"].items():
                 arrays[f"{y}/intensive_income_basis/{basis}/{k}"] = v
+        # The price effect's Tax-Free Childcare rate at today's spend, not the spend left after
+        # displacement, central elasticities.
+        for basis in PRICE_BASIS_SENSITIVITIES:
+            for k, v in hours_response(sim, y, base[y], ref, 1.0, price_basis=basis)["total"].items():
+                arrays[f"{y}/intensive_price_basis/{basis}/{k}"] = v
     del sim
     gc.collect()
     return arrays

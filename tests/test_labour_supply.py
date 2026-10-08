@@ -35,9 +35,12 @@ def _base(**overrides):
 
 
 def _ref(free=0.0, tfc_rate=0.0, gain=0.0, n=4):
-    """The reform: newly funded hours worth ``free``, a Tax-Free Childcare rate, and a cash gain ``gain``."""
+    """The reform: newly funded hours worth ``free``, a Tax-Free Childcare rate, and a cash gain ``gain``, the same
+    at the spend left after displacement unless a test changes ``displaced``."""
     return {"bu_free": np.full(n, free), "bu_tfc": np.zeros(n), "tfc_rate": np.full(n, tfc_rate),
-            "bu_tfc_displaced": {hr.displacement_key(d): np.zeros(n) for d in hr.DISPLACEMENTS},
+            "displaced": {hr.displacement_key(d): {"bu_tfc": np.zeros(n), "tfc_rate": np.full(n, tfc_rate),
+                                                   "hh_disposable_income": np.full(n, 100_000.0 + gain)}
+                          for d in hr.DISPLACEMENTS},
             "hh_net_income": np.full(n, 100_000.0 + gain + free),
             "hh_disposable_income": np.full(n, 100_000.0 + gain)}
 
@@ -413,14 +416,30 @@ def test_income_gain_counts_paid_care_saved_and_cash_not_the_funding_value():
     np.testing.assert_allclose(hr.paid_care_saving(two, _ref(free=4_000.0)), displaced + 1_000.0)
 
 
-def test_income_gain_withdraws_the_top_up_on_the_displaced_spend():
-    """A5: the top-up the family no longer gets on care it no longer buys comes off the central gain only."""
+def test_income_gain_is_cash_income_at_the_displaced_spend():
+    """A5, A7: the central gain takes the reform's cash income recomputed at the spend left after displacement, so
+    whatever support the family loses on care it no longer buys comes off it; the fixed-spend sensitivity keeps it."""
     base = _base()
     ref = _ref(free=4_000.0, gain=500.0)
-    ref["bu_tfc"] = np.full(4, 1_000.0)
-    ref["bu_tfc_displaced"][hr.displacement_key(config.FREE_HOURS_DISPLACEMENT)] = np.full(4, 300.0)
+    hr.displaced(ref)["hh_disposable_income"] = ref["hh_disposable_income"] - 700.0
     fixed = hr.income_gain(base, ref, basis="paid_care_fixed_spend")
     np.testing.assert_allclose(hr.income_gain(base, ref), fixed - 700.0)
+    # Each displacement rate reads its own recompute.
+    low = config.FREE_HOURS_DISPLACEMENT_RANGE["low"]
+    np.testing.assert_allclose(hr.income_gain(base, ref, low), hr.income_gain(base, ref, low, "paid_care_fixed_spend"))
+
+
+def test_price_change_reads_the_reform_rate_at_the_remaining_spend():
+    """A6: the central price rule takes the reform's Tax-Free Childcare rate at the spend left after displacement;
+    the original-spend sensitivity, at today's spend."""
+    ref = _ref(free=4_000.0, tfc_rate=0.0)
+    hr.displaced(ref)["tfc_rate"] = np.full(4, 0.2)
+    _, central = hr.marginal_price_change(_base(), ref)
+    _, original = hr.marginal_price_change(_base(), ref, price_basis="original_spend")
+    np.testing.assert_allclose(central, -0.2)
+    np.testing.assert_allclose(original, 0.0)
+    with pytest.raises(ValueError):
+        hr.marginal_price_change(_base(), ref, price_basis="other")
 
 
 def _paying_two_earner_couple(year=2027):
@@ -440,11 +459,79 @@ def test_income_gain_on_her_household_is_consistent_with_the_displaced_spend():
     ref = ls.reform_side(sim, 2027, base)
     assert hr.paid_care_saving(base, ref)[0] == pytest.approx(3_289.62, abs=0.01)
     assert ref["bu_tfc"][0] == pytest.approx(1_000.0)
-    assert ref["bu_tfc_displaced"][hr.displacement_key(config.FREE_HOURS_DISPLACEMENT)][0] == pytest.approx(342.08, abs=0.01)
+    assert hr.displaced(ref)["bu_tfc"][0] == pytest.approx(342.08, abs=0.01)
     assert hr.income_gain(base, ref)[0] == pytest.approx(3_631.70, abs=0.01)
     assert hr.income_gain(base, ref, basis="paid_care_fixed_spend")[0] == pytest.approx(4_289.62, abs=0.01)
     # The recompute leaves the simulation's spend as it was.
     assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(5_000.0)
+
+
+def test_price_change_on_her_household_at_the_remaining_spend():
+    """A6 of the rereview at bc0d71c: £120,000 and £40,000 earners, a three-year-old, £11,000 of paid care. At £11,000
+    the reform's top-up is at the £2,000 cap, a zero marginal rate; the funded hours displace £3,289.62, and on the
+    £7,710.38 left the model's marginal rate is 20%, so the next paid hour is 20% cheaper than today (no Tax-Free
+    Childcare over £100,000)."""
+    situation = _paying_two_earner_couple()
+    situation["people"]["child"]["childcare_expenses"] = {2027: 11_000}
+    base = ls.baseline_side(_corrected(situation, False), 2027)
+    sim = _corrected(situation, True)
+    ref = ls.reform_side(sim, 2027, base)
+    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(3_289.62, abs=0.01)
+    assert ref["bu_tfc"][0] == pytest.approx(2_000.0)
+    assert hr.displaced(ref)["bu_tfc"][0] == pytest.approx(0.2 * 7_710.38, abs=0.01)
+    np.testing.assert_allclose(ref["tfc_rate"][:2], 0.0, atol=1e-3)
+    np.testing.assert_allclose(hr.displaced(ref)["tfc_rate"][:2], 0.2, atol=1e-3)
+    _, central = hr.marginal_price_change(base, ref)
+    _, original = hr.marginal_price_change(base, ref, price_basis="original_spend")
+    np.testing.assert_allclose(central[:2], -0.2, atol=1e-3)
+    np.testing.assert_allclose(original[:2], 0.0, atol=1e-3)
+    assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(11_000.0)
+
+
+def _london_uc_family(year=2027):
+    """María's A7 household: employed parents on £100,001 and £16,000 in London, children aged 3, 5, 6 and 7, £11,000
+    of paid care (for the three-year-old) and £30,000 a year of private rent, claiming Universal Credit."""
+    people = {
+        "a": {"age": {year: 35}, "employment_income": {year: 100_001}, "hours_worked": {year: 1_950},
+              "is_parent": {year: True}},
+        "b": {"age": {year: 34}, "employment_income": {year: 16_000}, "hours_worked": {year: 1_040},
+              "is_parent": {year: True}},
+        "c3": {"age": {year: 3}, "childcare_expenses": {year: 11_000}},
+        "c5": {"age": {year: 5}}, "c6": {"age": {year: 6}}, "c7": {"age": {year: 7}},
+    }
+    members = list(people)
+    return {
+        "people": people,
+        "benunits": {"bu": {"members": members, "would_claim_tfc": {year: True},
+                            "would_claim_extended_childcare": {year: True}, "would_claim_uc": {year: True},
+                            "maximum_extended_childcare_hours_usage": {year: 30}}},
+        "households": {"hh": {"members": members, "region": {year: "LONDON"}, "rent": {year: 30_000},
+                              "tenure_type": {year: "RENT_PRIVATELY"}}},
+    }
+
+
+def test_income_gain_on_her_household_withdraws_the_uc_childcare_element():
+    """A7 of the rereview at bc0d71c: the reform gives the London family £3,633.88 of extended hours (no Tax-Free
+    Childcare: it claims Universal Credit). Displacing £3,289.62 of its £11,000 of care cuts its UC childcare element
+    from £9,350 to £6,553.82 (85% of charges paid, SI 2013/376 reg 34(1)) and its cash income by £2,796.18, which the
+    central gain now takes off; the TFC-only adjustment missed it."""
+    base_sim = _corrected(_london_uc_family(), False)
+    base = ls.baseline_side(base_sim, 2027)
+    sim = _corrected(_london_uc_family(), True)
+    ref = ls.reform_side(sim, 2027, base)
+    assert float(sim.calculate("extended_childcare_entitlement", 2027).sum()) == pytest.approx(3_633.88, abs=0.01)
+    assert float(sim.calculate("tax_free_childcare", 2027).sum()) == 0
+    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(9_350.0, abs=0.01)
+    saving = hr.paid_care_saving(base, ref)[0]
+    assert saving == pytest.approx(3_289.62, abs=0.01)
+    lost = ref["hh_disposable_income"][0] - hr.displaced(ref)["hh_disposable_income"][0]
+    assert lost == pytest.approx(2_796.18, abs=0.01)
+    assert hr.income_gain(base, ref, basis="paid_care_fixed_spend")[0] - hr.income_gain(base, ref)[0] == pytest.approx(
+        2_796.18, abs=0.01)
+    # The UC childcare element at the displaced spend, recomputed alone.
+    sim.reset_calculations()
+    sim.set_input("childcare_expenses", 2027, np.array([0, 0, 11_000 - saving, 0, 0, 0], np.float32))
+    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(6_553.82, abs=0.01)
 
 
 def test_disabled_workers_keep_the_hours_response():

@@ -22,6 +22,7 @@ from .config import (
     GAIN_THRESHOLD,
     INCOME_BASIS_SENSITIVITIES,
     MIN_CELL_RECORDS,
+    PRICE_BASIS_SENSITIVITIES,
     REGIONS,
     UNDER_ONE_WEEKLY_HOURS,
     VALIDATION_YEAR,
@@ -457,14 +458,17 @@ def labour_supply(static_total, years=YEARS):
                                    for y in years} for side in FREE_HOURS_DISPLACEMENT_RANGE},
         "displacement": {side: round(v, 4) for side, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
     }
-    # Sensitivities, not in the dynamic cost: the income effect's gain with spending held fixed (the top-up on the
-    # displaced spend kept) and with the funded hours at government cost (hours_response.income_gain), central
-    # elasticities, both groups.
-    intensive_income_basis = {
-        basis: {f"{k}_bn": {str(y): _bn(float(z[f"{y}/intensive_income_basis/{basis}/{k}"])) for y in years}
-                for k in ("offset", "price_offset", "income_offset")}
-        for basis in INCOME_BASIS_SENSITIVITIES
-    }
+    # Sensitivities, not in the dynamic cost, central elasticities, both groups: the income effect's gain with
+    # spending held fixed (the support on the displaced spend kept) and with the funded hours at government cost
+    # (hours_response.income_gain); the price effect's Tax-Free Childcare rate at today's spend
+    # (hours_response.marginal_price_change).
+    def sensitivity(block, bases):
+        return {basis: {f"{k}_bn": {str(y): _bn(float(z[f"{y}/{block}/{basis}/{k}"])) for y in years}
+                        for k in ("offset", "price_offset", "income_offset")}
+                for basis in bases}
+
+    intensive_income_basis = sensitivity("intensive_income_basis", INCOME_BASIS_SENSITIVITIES)
+    intensive_price_basis = sensitivity("intensive_price_basis", PRICE_BASIS_SENSITIVITIES)
     total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
                  for y in years} for b in BOUNDS}
     dynamic = {b: {str(y): round(static_total[str(y)] - total[b][str(y)], 3) for y in years} for b in BOUNDS}
@@ -485,6 +489,7 @@ def labour_supply(static_total, years=YEARS):
         "intensive": intensive,
         "intensive_displacement": intensive_displacement,
         "intensive_income_basis": intensive_income_basis,
+        "intensive_price_basis": intensive_price_basis,
         "total_offset_bn": total,
         "dynamic_cost_bn": dynamic,
         "population": checks,

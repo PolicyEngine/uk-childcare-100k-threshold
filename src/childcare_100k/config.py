@@ -238,14 +238,20 @@ FREE_HOURS_DISPLACEMENT = 1 - 54 / 570
 FREE_HOURS_DISPLACEMENT_RANGE = {"low": 1 - 163 / 570, "high": 1.0}
 # The income effect's gain (hours_response.income_gain): "paid_care" counts the paid
 # childcare the newly funded hours displace plus cash (disposable income, Tax-Free
-# Childcare included), the same resource definition as its HBAI disposable-income base;
-# The Tax-Free Childcare top-up on the displaced spend is withdrawn, since the family no
-# longer pays for that care. Published as sensitivities (``intensive_income_basis``):
-# "paid_care_fixed_spend", the same gain with the top-up kept on the displaced spend
-# (spending held fixed), and "government_cost", which counts the funded hours at their
-# funding value.
+# Childcare and the Universal Credit childcare element included), the same resource
+# definition as its HBAI disposable-income base, with the reform's cash income
+# recomputed at the spend left after displacement (the family no longer pays for that
+# care, so the support tied to it goes). Published as sensitivities
+# (``intensive_income_basis``): "paid_care_fixed_spend", the same gain with spending held
+# fixed, and "government_cost", which counts the funded hours at their funding value.
 INCOME_BASIS = "paid_care"
 INCOME_BASIS_SENSITIVITIES = ("paid_care_fixed_spend", "government_cost")
+# The price effect's reform Tax-Free Childcare rate (hours_response.marginal_price_change):
+# "remaining_spend" reads it at the spend left after displacement, the income effect's
+# spending; published as a sensitivity (``intensive_price_basis``), "original_spend", at
+# the family's spend today.
+PRICE_BASIS = "remaining_spend"
+PRICE_BASIS_SENSITIVITIES = ("original_spend",)
 # Cells within which implied entrants are allocated to non-workers (labour_supply.entry_cells):
 # the OBR Table A1 groups' youngest-child bands.
 YOUNGEST_CHILD_BANDS = (0, 3, 6, 11)
