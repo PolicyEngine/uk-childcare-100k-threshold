@@ -236,6 +236,16 @@ AKGUNDUZ_PLANTENGA_URL = "https://www.uu.nl/sites/default/files/rebo_use_dp_2015
 # newly funded hour. Varied on its own at central elasticities (``intensive_displacement``).
 FREE_HOURS_DISPLACEMENT = 1 - 54 / 570
 FREE_HOURS_DISPLACEMENT_RANGE = {"low": 1 - 163 / 570, "high": 1.0}
+# The income effect's gain (hours_response.income_gain): "paid_care" counts the paid
+# childcare the newly funded hours displace plus cash (disposable income, Tax-Free
+# Childcare included), the same resource definition as its HBAI disposable-income base;
+# "government_cost" counts the funded hours at their funding value, published as a
+# sensitivity (``intensive_income_basis``).
+INCOME_BASIS = "paid_care"
+INCOME_BASIS_SENSITIVITY = "government_cost"
+# Cells within which implied entrants are allocated to non-workers (labour_supply.entry_cells):
+# the OBR Table A1 groups' youngest-child bands.
+YOUNGEST_CHILD_BANDS = (0, 3, 6, 11)
 # The responding population: adults in a benefit unit whose youngest child is under 12
 # (the Tax-Free Childcare band, which contains the 30 hours' 9 months-4 years) and in
 # which at least one adult's income, as the limits test it, is over £100,000.

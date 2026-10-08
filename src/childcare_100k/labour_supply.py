@@ -39,8 +39,9 @@ year (:func:`excluded`).
 The responding population
 =========================
 
-Every adult (the first two in each benefit unit, not self-employed, students, disabled
-(receiving DLA or PIP) or aged 60 and over: the OBR's exclusions, Table A4) in a
+Every adult (the first two in each benefit unit, not self-employed, students or aged 60
+and over: the OBR's exclusions, Tables A3 and A4; for moving into work, also not disabled
+(receiving DLA or PIP), which Table A4 adds and Table A3 does not) in a
 benefit unit whose youngest child is under 12 and in which at least one adult's income,
 as the limits test it (adjusted net income less salary sacrifice returned to pay,
 ``corrections.py``), is over £100,000 in the baseline: the parent over the limit as
@@ -101,9 +102,14 @@ from .config import (
     HOURS_FOR_NEW_ENTRANTS,
     LSR_WEEKS_PER_YEAR,
     PARTICIPATION_CHANGE_BOUND,
+    INCOME_BASIS_SENSITIVITY,
     YEARS,
+    YOUNGEST_CHILD_BANDS,
     YOUNGEST_CHILD_MAX_AGE,
 )
+
+# The levels of ``entry_cells``, finest first.
+ENTRY_CELL_LEVELS = ("sex_couple_child_quintile", "sex_couple_child", "sex_couple", "everyone")
 
 COUNT_ADULTS = 2
 # A gain to work that changes by less than this (£ a year) is treated as unchanged when
@@ -137,21 +143,33 @@ def benunit_max(sim, year, person_values):
     return s.groupby(person_ids).transform("max").to_numpy()
 
 
-def excluded(sim, year):
-    """Adults the OBR framework holds outside the response, for an explicit year."""
+def excluded_from_hours(sim, year):
+    """Adults the OBR progression model (Table A3) holds outside the hours response, for an explicit year.
+
+    Self-employed, full-time students and everyone aged 60 or over; and anyone who is not
+    one of the first two adults (children, and further adults whose gain to work is not
+    computed).
+    """
     status = values(sim, "employment_status", year).astype(str)
     age = values(sim, "age", year).astype(float)
     adult_index = values(sim, "adult_index", year).astype(float)
-    # OBR Table A4 also holds disabled people outside the participation response; the
-    # model's disability flag is receipt of DLA or PIP (``is_disabled_for_benefits``).
-    disabled = values(sim, "is_disabled_for_benefits", year).astype(bool)
     return (
         np.isin(status, ["FT_SELF_EMPLOYED", "PT_SELF_EMPLOYED", "STUDENT"])
-        | disabled
         | (age >= 60)
         | (adult_index == 0)
         | (adult_index > COUNT_ADULTS)
     )
+
+
+def excluded(sim, year):
+    """Adults the OBR participation model (Table A4) holds outside the participation response.
+
+    Table A3's exclusions and, in Table A4 only, disabled people; the model's disability
+    flag is receipt of DLA or PIP (``is_disabled_for_benefits``). Table A3 does not
+    exclude disabled people, so they keep the hours response.
+    """
+    disabled = values(sim, "is_disabled_for_benefits", year).astype(bool)
+    return excluded_from_hours(sim, year) | disabled
 
 
 def limit_income(sim, year):
@@ -198,20 +216,47 @@ class CoupleView:
         return getattr(self._sim, name)
 
 
-def elasticities(sim, year):
+def earnings_quintile(sim, year):
+    """Upstream's earnings quintile (1-5), for the costed year: workers on their earnings, non-workers on imputed."""
+    previous = sim.default_calculation_period
+    sim.default_calculation_period = year
+    try:
+        return np.asarray(calculate_earnings_quintile(sim, year, HOURS_FOR_NEW_ENTRANTS), int)
+    finally:
+        sim.default_calculation_period = previous
+
+
+def elasticities(sim, year, quintile=None):
     """OBR Table A1 participation elasticities (upstream), placed on upstream's earnings quintiles.
 
     ``calculate_participation_elasticities`` reads the simulation's default period, so
     it is moved to the costed year for the call and restored. Its groups are assigned
     by whether a person is in a couple, married or not (:class:`CoupleView`).
     """
+    if quintile is None:
+        quintile = earnings_quintile(sim, year)
     previous = sim.default_calculation_period
     sim.default_calculation_period = year
     try:
-        quintile = calculate_earnings_quintile(sim, year, HOURS_FOR_NEW_ENTRANTS)
         return np.asarray(calculate_participation_elasticities(CoupleView(sim), quintile), float)
     finally:
         sim.default_calculation_period = previous
+
+
+def entry_cells(sim, year, quintile):
+    """Each person's cell for allocating implied entrants, finest first (``ENTRY_CELL_LEVELS``).
+
+    The OBR Table A1 groups: sex, whether in a couple (:class:`CoupleView`), the band of
+    the youngest child's age (``YOUNGEST_CHILD_BANDS``: 0-2, 3-5, 6-10, 11) and earnings
+    quintile. Coarser levels drop the quintile, then the child band; the last is everyone.
+    """
+    female = values(sim, "gender", year).astype(str) == "FEMALE"
+    couple = values(sim, "is_couple", year, "person").astype(bool)
+    youngest = values(sim, "youngest_child_age", year, "person").astype(float)
+    band = np.digitize(np.nan_to_num(youngest, nan=-1.0), YOUNGEST_CHILD_BANDS)
+    q = np.asarray(quintile, int)
+    group = female * 2 + couple
+    return np.stack([group * 100 + band * 10 + q, group * 100 + band * 10, group * 100, np.zeros_like(q)], axis=1)
 
 
 def income_elasticities(sim, year):
@@ -356,9 +401,15 @@ def baseline_side(sim, year):
     actual_cost = per_person(sim, year, values(sim, "childcare_expenses", year, "benunit").astype(float))
     entrant_earnings = np.asarray(impute_wages_for_nonworkers(sim, year, HOURS_FOR_NEW_ENTRANTS), float)
     imputed_cost = imputed_childcare_cost(sim, year, eligible, actual_cost)
-    elasticity = elasticities(sim, year)
+    quintile = earnings_quintile(sim, year)
+    elasticity = elasticities(sim, year, quintile)
     out = {
+        # Participation (Table A4 screen) and hours (Table A3 screen: disabled people respond).
         "eligible": eligible,
+        "hours_eligible": respond & ~excluded_from_hours(sim, year),
+        "cells": entry_cells(sim, year, quintile),
+        "benunit_id": values(sim, "benunit_id", year, "person"),
+        "household_id": values(sim, "household_id", year, "person"),
         "over_limit": limit_income(sim, year) > BASELINE_LIMIT,
         "not_excluded": ~excluded(sim, year),
         "weights": values(sim, "household_weight", year, "person").astype(float),
@@ -410,6 +461,7 @@ def prepare(base, ref):
         "reform_gain": reform_gain,
         "entrant_subsidy": ref["gtw_entrant_subsidy"],
         "eligible": base["eligible"],
+        "cells": base["cells"],
         "over_limit": base["over_limit"],
         "weights": base["weights"],
         "employment_income": base["employment_income"],
@@ -418,6 +470,35 @@ def prepare(base, ref):
         "moved_outside_weighted": float(MicroSeries(moved_outside.astype(float), weights=base["weights"]).sum()),
         "moved_outside_records": int(moved_outside.sum()),
     }
+
+
+def allocate_entrants(implied, pull, cells, weights):
+    """Share each worker's implied entry among the non-workers of the same cell (Adam and Phillips, Appendix E).
+
+    ``implied`` is each worker's own positive e x dG/G (zero for everyone else), ``pull``
+    each non-worker's (zero for workers), ``cells`` the levels of :func:`entry_cells`,
+    finest first. At each level, a cell holding both unallocated implied entry and
+    non-workers who respond shares its weighted implied entry among those non-workers in
+    proportion to their own weighted pull; workers in a cell with no responding
+    non-worker pass to the next, coarser level. Returns each non-worker's probability of
+    entering (before any cap) and the weighted entrants allocated at each level, plus any
+    left unallocated (only if no non-worker responds at all).
+    """
+    enter = np.zeros_like(pull, dtype=float)
+    remaining = implied * weights
+    by_level = {}
+    for level, name in enumerate(ENTRY_CELL_LEVELS):
+        key = cells[:, level]
+        frame = pd.DataFrame({"cell": key, "implied": remaining, "pull": pull * weights})
+        sums = frame.groupby("cell")[["implied", "pull"]].sum()
+        ok = sums[(sums["implied"] > 0) & (sums["pull"] > 0)]
+        factor = (ok["implied"] / ok["pull"]).reindex(key).fillna(0.0).to_numpy()
+        enter += pull * factor
+        placed = np.isin(key, ok.index.to_numpy())
+        by_level[name] = float(remaining[placed].sum())
+        remaining = np.where(placed, 0.0, remaining)
+    by_level["unallocated"] = float(remaining.sum())
+    return enter, by_level
 
 
 def participation_response(prep, scale):
@@ -432,9 +513,13 @@ def participation_response(prep, scale):
 
     So the number of entrants is the sum over eligible workers of their positive
     e x dG/G (a worker whose gain falls leaves with probability e x |dG/G|, as before).
-    Who enters is a non-worker, so those entrants are given the earnings, gain and
-    subsidy of the eligible non-workers, shared in proportion to each non-worker's own
-    weighted e x dG/G; no non-worker's probability may exceed 1.
+    Who enters is a non-worker *like the workers who imply the entry*: each cell's implied
+    entrants (sex, couple, youngest child's age band, earnings quintile: the OBR groups,
+    :func:`entry_cells`) are given the earnings, gain and subsidy of the cell's eligible
+    non-workers, shared in proportion to each one's own weighted e x dG/G; a cell with no
+    such non-worker falls back to a coarser cell (:func:`allocate_entrants`, whose counts
+    by level are reported). No non-worker's probability may exceed 1; entry above that
+    is dropped, and reported (``entry_capped``).
     """
     w = prep["weights"]
     emp = prep["employment_income"]
@@ -445,11 +530,11 @@ def participation_response(prep, scale):
     def total(x):
         return float(MicroSeries(x, weights=w).sum())
 
-    implied = total(np.where(prep["eligible"] & working, np.maximum(change, 0), 0.0))
+    implied_each = np.where(prep["eligible"] & working, np.maximum(change, 0), 0.0)
+    implied = total(implied_each)
     pull = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
-    pull_total = total(pull)
-    enter = pull * (implied / pull_total) if pull_total > 0 else np.zeros_like(pull)
-    capped = enter > 1
+    enter, by_level = allocate_entrants(implied_each, pull, prep["cells"], w)
+    capped = np.maximum(enter - 1.0, 0.0)
     enter = np.minimum(enter, 1.0)
     leave = np.where(prep["eligible"] & working, np.maximum(-change, 0), 0.0)
 
@@ -466,11 +551,13 @@ def participation_response(prep, scale):
         "tax_and_ni": total(enter * (earnings - gain)) - total(leave * (emp - gain)),
         "bound_binding": total((np.abs(change) >= PARTICIPATION_CHANGE_BOUND) & prep["eligible"]),
         # Diagnostics: the new employment implied by the workers' records, the part implied by
-        # workers over £100,000, and what the old non-worker-only rule would have given.
+        # workers over £100,000, what the old non-worker-only rule would have given, the implied
+        # entrants allocated at each cell level, and the entry dropped by the cap of 1.
         "implied_entrants": implied,
         "implied_by_over_limit": total(np.where(prep["eligible"] & working & prep["over_limit"], np.maximum(change, 0), 0.0)),
-        "non_worker_rule_entrants": pull_total,
-        "entry_capped": total(capped.astype(float)),
+        "non_worker_rule_entrants": total(pull),
+        **{f"allocated_{k}": v for k, v in by_level.items()},
+        "entry_capped": total(capped),
     }
 
 
@@ -480,7 +567,7 @@ def run(build_simulation, log=print):
     ``build_simulation(scenario)`` returns a corrected policyengine.py simulation
     (engine._simulation). Returns flat arrays for the run cache: ``{year}/{margin}/{bound}/{metric}``.
     """
-    from .hours_response import GROUPS, hours_response
+    from .hours_response import hours_response
 
     sim = build_simulation("baseline")
     base = {}
@@ -503,16 +590,22 @@ def run(build_simulation, log=print):
         for bound, scale in ELASTICITY_SCALES.items():
             for k, v in participation_response(prep, scale).items():
                 arrays[f"{y}/extensive/{bound}/{k}"] = v
-            for k, v in hours_response(sim, y, base[y], ref, scale, "at_or_below_limit").items():
+            hours = hours_response(sim, y, base[y], ref, scale)
+            for k, v in hours["at_or_below_limit"].items():
                 arrays[f"{y}/intensive/{bound}/{k}"] = v
-            for k, v in hours_response(sim, y, base[y], ref, scale, "over_limit").items():
+            for k, v in hours["over_limit"].items():
                 arrays[f"{y}/intensive_over_limit/{bound}/{k}"] = v
-        # The displacement assumption varied on its own, at central elasticities, both groups summed
-        # (hours_response.py): it sets which families' paid care the newly funded hours fully cover.
+        arrays[f"{y}/hours_responding_adults"] = float(
+            MicroSeries(base[y]["hours_eligible"].astype(float), weights=prep["weights"]).sum())
+        # The displacement assumption varied on its own, at central elasticities, both groups
+        # (hours_response.py): it sets which families' paid care the newly funded hours fully cover
+        # and how much paid care they displace.
         for side, displacement in FREE_HOURS_DISPLACEMENT_RANGE.items():
-            parts = [hours_response(sim, y, base[y], ref, 1.0, g, displacement) for g in GROUPS]
-            for k in parts[0]:
-                arrays[f"{y}/intensive_displacement/{side}/{k}"] = sum(p[k] for p in parts)
+            for k, v in hours_response(sim, y, base[y], ref, 1.0, displacement)["total"].items():
+                arrays[f"{y}/intensive_displacement/{side}/{k}"] = v
+        # The income effect's gain with the funded hours at government cost, central elasticities.
+        for k, v in hours_response(sim, y, base[y], ref, 1.0, basis=INCOME_BASIS_SENSITIVITY)["total"].items():
+            arrays[f"{y}/intensive_income_basis/{INCOME_BASIS_SENSITIVITY}/{k}"] = v
     del sim
     gc.collect()
     return arrays

@@ -26,6 +26,7 @@ def _base(**overrides):
         "employment_income": np.array([40_000.0, 120_000.0, 30_000.0, 0.0]),
         "weekly_hours": np.array([30.0, 40.0, 30.0, 0.0]),
         "eligible": np.ones(n, bool),
+        "hours_eligible": np.ones(n, bool),
         "over_limit": np.array([False, True, False, False]),
         "weights": np.ones(n),
     }
@@ -34,8 +35,10 @@ def _base(**overrides):
 
 
 def _ref(free=0.0, tfc_rate=0.0, gain=0.0, n=4):
+    """The reform: newly funded hours worth ``free``, a Tax-Free Childcare rate, and a cash gain ``gain``."""
     return {"bu_free": np.full(n, free), "bu_tfc": np.zeros(n), "tfc_rate": np.full(n, tfc_rate),
-            "hh_net_income": np.full(n, 100_000.0 + gain)}
+            "hh_net_income": np.full(n, 100_000.0 + gain + free),
+            "hh_disposable_income": np.full(n, 100_000.0 + gain)}
 
 
 def test_funded_hours_below_the_familys_paid_care_are_not_a_price_change():
@@ -104,22 +107,25 @@ class _FakeSim:
 def test_price_effect_brings_money_back_and_the_income_effect_costs_money(group):
     """The signs, by hand: a cheaper marginal hour raises hours (offset > 0); a richer family works less (< 0)."""
     base, ref = _base(), _ref(tfc_rate=0.1, gain=5_000.0)
-    r = hr.hours_response(_FakeSim(base), 2029, base, ref, 1.0, group)
+    r = hr.hours_response(_FakeSim(base), 2029, base, ref, 1.0)
+    g = r[group]
     worker = 0 if group == "at_or_below_limit" else 1
     emp = base["employment_income"][worker]
     price_earn = emp * config.HOURS_PRICE_ELASTICITY * -0.1
-    assert r["price_earnings"] == pytest.approx(price_earn)
-    assert r["price_offset"] == pytest.approx(0.4 * price_earn) and r["price_offset"] > 0
-    assert r["income_offset"] < 0
-    assert r["offset"] == pytest.approx(r["price_offset"] + r["income_offset"])
+    assert g["price_earnings"] == pytest.approx(price_earn)
+    assert g["price_offset"] == pytest.approx(0.4 * price_earn) and g["price_offset"] > 0
+    assert g["income_offset"] < 0
+    assert g["offset"] == pytest.approx(g["price_offset"] + g["income_offset"])
+    assert r["total"]["offset"] == pytest.approx(sum(r[k]["offset"] for k in hr.GROUPS))
     # Funded hours that leave paid care to buy are a lump sum: no price effect, only the income effect.
-    lump = hr.hours_response(_FakeSim(base), 2029, base, _ref(free=4_000.0, gain=4_000.0), 1.0, group)
+    lump = hr.hours_response(_FakeSim(base), 2029, base, _ref(free=4_000.0), 1.0)[group]
     assert lump["price_offset"] == 0 and lump["income_offset"] < 0
 
 
-def _prep(pct, elasticity, emp, eligible=None, over_limit=None):
+def _prep(pct, elasticity, emp, eligible=None, over_limit=None, cells=None):
     n = len(pct)
     return {
+        "cells": np.zeros((n, len(ls.ENTRY_CELL_LEVELS)), int) if cells is None else np.asarray(cells, int),
         "pct": np.asarray(pct, float),
         "elasticity": np.asarray(elasticity, float),
         "reform_gain": np.full(n, 15_000.0),
@@ -185,7 +191,7 @@ def test_gain_to_work_elasticity_uses_the_gain_actually_used():
         "elasticity_wrt_income": np.array([0.5]),
         "not_excluded": np.ones(n, bool), "eligible": np.ones(n, bool), "over_limit": np.zeros(n, bool),
         "weights": np.ones(n), "employment_income": np.array([40_000.0]), "weekly_hours": np.array([30.0]),
-        "entrant_earnings": np.zeros(n),
+        "entrant_earnings": np.zeros(n), "cells": np.zeros((n, 4), int),
     }
     ref = {"gtw_gain_to_work": np.array([11_000.0]), "gtw_in_work_income": np.array([151_000.0]),
            "gtw_out_of_work_income": np.array([130_000.0]), "gtw_entrant_subsidy": np.zeros(n)}
@@ -370,8 +376,143 @@ def test_income_effect_is_a_share_of_disposable_income():
     base = _base(hh_net_income=np.full(4, 1_000.0))
     ref = _ref(gain=5_000.0)
     ref["hh_net_income"] = base["hh_net_income"] + 5_000.0
+    ref["hh_disposable_income"] = base["hh_disposable_income"] + 5_000.0
     respond, change = hr.income_change(base, ref, "at_or_below_limit")
     np.testing.assert_allclose(change[respond], 0.05)
     # No disposable income: no percentage change, rather than a clipped 100%.
     base["hh_disposable_income"] = np.zeros(4)
     np.testing.assert_allclose(hr.income_change(base, ref, "at_or_below_limit")[1], 0.0)
+
+
+# ── The rereview of #6: A1-A4, S1 ─────────────────────────────────────────────────
+
+
+def test_funded_value_exactly_equal_to_the_spend_does_not_make_the_next_hour_free():
+    """S1: funded hours worth exactly the paid care cover the hours bought, not the next one."""
+    base = _base(actual_cost=np.full(4, 100.0))
+    exact = hr.marginal_price_change(base, _ref(free=100.0), displacement=1.0)
+    assert not exact[0].any()
+    np.testing.assert_allclose(exact[1], 0.0)
+    above = hr.marginal_price_change(base, _ref(free=100.01), displacement=1.0)
+    assert above[0].all()
+    np.testing.assert_allclose(above[1], -1.0)
+
+
+def test_income_gain_counts_paid_care_saved_and_cash_not_the_funding_value():
+    """A4: £4,000 of newly funded hours displace £3,620 (90.5%) of paid care, capped at what the family spends."""
+    base = _base(actual_cost=np.array([10_000.0, 2_000.0, 0.0, 8_000.0]))
+    ref = _ref(free=4_000.0, gain=500.0)
+    displaced = 4_000.0 * config.FREE_HOURS_DISPLACEMENT
+    np.testing.assert_allclose(hr.income_gain(base, ref), [500 + displaced, 500 + 2_000, 500, 500 + displaced])
+    # The sensitivity counts the funded hours at what the government pays for them.
+    np.testing.assert_allclose(hr.income_gain(base, ref, basis="government_cost"), 4_500.0)
+    # Two benefit units in one household: the household's saving is both units' savings.
+    two = _base(actual_cost=np.array([10_000.0, 10_000.0, 1_000.0, 1_000.0]),
+                benunit_id=np.array([1, 1, 2, 2]), household_id=np.array([7, 7, 7, 7]))
+    np.testing.assert_allclose(hr.paid_care_saving(two, _ref(free=4_000.0)), displaced + 1_000.0)
+
+
+def test_disabled_workers_keep_the_hours_response():
+    """A2: OBR Table A4 excludes disabled people from participation; Table A3 does not exclude them from hours."""
+    from policyengine_uk import Simulation
+
+    situation = _paying_couple(5_000)
+    situation["people"]["b"]["dla_sc_category"] = {2027: "MIDDLE"}
+    situation["people"]["b"]["is_disabled_for_benefits"] = {2027: True}
+    sim = Simulation(situation=situation)
+    assert ls.excluded(sim, 2027).tolist() == [False, True, True]
+    assert ls.excluded_from_hours(sim, 2027).tolist() == [False, False, True]
+    base = {**_base(), "hours_eligible": np.array([True, True, False, False]),
+            "eligible": np.array([True, False, False, False])}
+    # Adult 1 (over the limit) is outside the participation screen but responds on hours.
+    respond, _ = hr.income_change(base, _ref(gain=1_000.0), "over_limit")
+    assert respond.tolist() == [False, True, False, False]
+
+
+def test_implied_entrants_go_to_non_workers_like_the_workers_who_imply_them():
+    """A3: workers in cell 1 imply entry for cell 1's non-worker, not cell 2's, whatever the pull."""
+    # Records: a cell-1 worker, a cell-1 non-worker, a cell-2 non-worker with a large pull.
+    cells = [[1, 1, 1, 0], [1, 1, 1, 0], [2, 2, 2, 0]]
+    prep = _prep(pct=[0.2, 0.1, 0.5], elasticity=[0.1] * 3, emp=[40_000, 0, 0], cells=cells)
+    prep["entrant_earnings"] = np.array([0.0, 10_000.0, 30_000.0])
+    r = ls.participation_response(prep, 1.0)
+    assert r["entrants"] == pytest.approx(10 * 0.02)
+    assert r["earnings"] == pytest.approx(10 * 0.02 * 10_000)  # all to the cell-1 non-worker
+    assert r["allocated_sex_couple_child_quintile"] == pytest.approx(10 * 0.02)
+    assert r["allocated_everyone"] == 0 and r["allocated_unallocated"] == 0
+
+
+def test_a_cell_with_no_responding_non_worker_falls_back_to_a_coarser_cell():
+    # A quintile-5 worker whose cell has no non-worker; the same sex, couple and child band has one in quintile 2.
+    cells = [[15, 10, 1, 0], [12, 10, 1, 0], [22, 20, 2, 0]]
+    prep = _prep(pct=[0.2, 0.1, 0.5], elasticity=[0.1] * 3, emp=[40_000, 0, 0], cells=cells)
+    prep["entrant_earnings"] = np.array([0.0, 10_000.0, 30_000.0])
+    r = ls.participation_response(prep, 1.0)
+    assert r["allocated_sex_couple_child_quintile"] == 0
+    assert r["allocated_sex_couple_child"] == pytest.approx(10 * 0.02)
+    assert r["earnings"] == pytest.approx(10 * 0.02 * 10_000)
+    # No like non-worker at any level but the last: everyone shares it, in proportion to their pull.
+    alone = _prep(pct=[0.2, 0.5], elasticity=[0.1] * 2, emp=[40_000, 0], cells=[[1, 1, 1, 0], [2, 2, 2, 0]])
+    assert ls.participation_response(alone, 1.0)["allocated_everyone"] == pytest.approx(10 * 0.02)
+
+
+def _two_earner_couple(year=2027):
+    """María's A1 household: a £120,000 and a £99,900 earner, a three-year-old, £5,000 of paid care."""
+    situation = _couple(120_000, year)
+    situation["people"]["b"]["employment_income"] = {year: 99_900}
+    situation["people"]["b"]["hours_worked"] = {year: 1_950}
+    situation["people"]["child"]["childcare_expenses"] = {year: 5_000}
+    return situation
+
+
+def _corrected(situation, reform, year=2027):
+    from policyengine_uk import Simulation
+    from policyengine_uk.utils.scenario import Scenario
+
+    from childcare_100k import corrections
+
+    scenario = Scenario(parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS) if reform else None,
+                        simulation_modifier=corrections.apply_corrections, applied_before_data_load=True)
+    sim = Simulation(situation=situation, scenario=scenario)
+    sim.default_calculation_period = year
+    return sim
+
+
+@pytest.fixture(scope="module")
+def two_earner_runs():
+    base_sim = _corrected(_two_earner_couple(), False)
+    base = ls.baseline_side(base_sim, 2027)
+    sim = _corrected(_two_earner_couple(), True)
+    return sim, base, ls.reform_side(sim, 2027, base)
+
+
+def test_hours_offset_is_recomputed_once_on_the_combined_earnings_change(two_earner_runs):
+    """A1: the £99,900 parent crosses the personal-allowance taper. Recomputing the price (+£839.16) and income
+    changes separately and adding them gave £432.87 for that parent; once, on the combined change, £400.84.
+    (Her case uses the funded hours at government cost, the A4 sensitivity.)"""
+    sim, base, ref = two_earner_runs
+    r = hr.hours_response(sim, 2027, base, ref, 1.0, basis="government_cost")
+    below, total = r["at_or_below_limit"], r["total"]
+    assert below["price_earnings"] == pytest.approx(839.16, abs=0.01)
+    assert below["offset"] == pytest.approx(400.84, abs=0.01)
+    assert total["offset"] == pytest.approx(906.29, abs=0.01)
+    # The parts are an attribution that adds up to the net exactly.
+    for g in (*hr.GROUPS, "total"):
+        assert r[g]["price_offset"] + r[g]["income_offset"] == pytest.approx(r[g]["offset"], abs=1e-6)
+    # The net is one recompute on everyone's combined change.
+    shares = [hr.earnings_shares(base, ref, 1.0, g, basis="government_cost") for g in hr.GROUPS]
+    extra = base["employment_income"] * sum(s["price"] + s["income"] for s in shares)
+    assert total["offset"] == pytest.approx(extra.sum() - hr._net_income_rise(sim, 2027, extra), abs=1e-6)
+
+
+def test_hours_response_on_the_paid_care_basis(two_earner_runs):
+    """A4 on her household: the gain counts the paid care the funded hours displace (capped at £5,000), not their cost."""
+    sim, base, ref = two_earner_runs
+    saving = hr.paid_care_saving(base, ref)
+    newly_funded = hr.newly_funded_value(base, ref)
+    assert saving[0] == pytest.approx(min(newly_funded[0] * config.FREE_HOURS_DISPLACEMENT, 5_000.0))
+    paid = hr.income_gain(base, ref)
+    cost = hr.income_gain(base, ref, basis="government_cost")
+    assert paid[0] == pytest.approx(cost[0] - newly_funded[0] + saving[0], abs=0.1)  # float32 sums
+    r = hr.hours_response(sim, 2027, base, ref, 1.0)
+    assert r["total"]["price_offset"] + r["total"]["income_offset"] == pytest.approx(r["total"]["offset"], abs=1e-6)

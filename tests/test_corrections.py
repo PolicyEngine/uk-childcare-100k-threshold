@@ -1,4 +1,4 @@
-"""The model corrections (corrections.py): the 2029 salary-sacrifice fix and the three entitlement fixes."""
+"""The model corrections (corrections.py): the 2029 salary-sacrifice fix, the three 30-hours entitlement fixes and Tax-Free Childcare reg 13."""
 
 import pytest
 
@@ -150,3 +150,73 @@ def test_extended_hours_above_the_universal_are_added_once():
     raw = _funded(_family(120_000, 40_000, 3, usage=30, reform=True, corrected=False))
     assert reform["universal"] > 0
     assert sum(reform.values()) == pytest.approx(sum(raw.values()))
+
+
+# ── Tax-Free Childcare: reg 13 (C1 of the rereview of #6) ────────────────────────
+
+
+def _tfc_family(b_extra, a_income=120_000, b_income=0, reform=True, corrected=True, couple=True):
+    """A 2027 England family: a £120,000 earner, a partner with ``b_extra``, a three-year-old in £10,000 of paid care."""
+    from policyengine_uk import Simulation
+    from policyengine_uk.utils.scenario import Scenario
+
+    from childcare_100k import config
+
+    people = {"a": {"age": {Y: 35}, "employment_income": {Y: a_income}, "is_parent": {Y: True}}}
+    if couple:
+        people["b"] = {"age": {Y: 34}, "employment_income": {Y: b_income}, "is_parent": {Y: True}, **b_extra}
+    people["c"] = {"age": {Y: 3}, "childcare_expenses": {Y: 10_000}}
+    situation = {
+        "people": people,
+        "benunits": {"bu": {"members": list(people), "would_claim_tfc": {Y: True},
+                            "would_claim_extended_childcare": {Y: True},
+                            "maximum_extended_childcare_hours_usage": {Y: 30}}},
+        "households": {"hh": {"members": list(people), "region": {Y: "SOUTH_EAST"}}},
+    }
+    scenario = Scenario(
+        parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS) if reform else None,
+        simulation_modifier=corrections.apply_corrections if corrected else None,
+        applied_before_data_load=True,
+    )
+    return Simulation(situation=situation, scenario=scenario)
+
+
+def _tfc(sim):
+    return float(sim.calculate("tax_free_childcare", Y).sum())
+
+
+ESA = {"esa_contrib_reported": {Y: 5_000}}
+CARERS_ALLOWANCE = {"carers_allowance": {Y: 4_000}}
+
+
+@pytest.mark.parametrize("benefit", [ESA, CARERS_ALLOWANCE], ids=["contributory ESA", "carer's allowance"])
+def test_partner_on_a_caring_or_incapacity_benefit_is_regarded_as_in_paid_work(benefit):
+    """SI 2015/448 reg 13(1)-(2): the reform pays the £2,000 cap on £10,000 of care; the uncorrected model pays nothing."""
+    assert _tfc(_tfc_family(benefit, reform=False)) == 0  # over £100,000 today
+    assert _tfc(_tfc_family(benefit)) == pytest.approx(2_000)
+    assert _tfc(_tfc_family(benefit, corrected=False)) == 0
+    # Below the limit the same family qualifies today, too.
+    assert _tfc(_tfc_family(benefit, a_income=40_000, reform=False)) == pytest.approx(2_000)
+
+
+def test_disability_benefits_are_not_a_reg_13_benefit():
+    """DLA is not on the reg 13(1)(b) list (the old Pension Credit route is gone, as upstream)."""
+    assert _tfc(_tfc_family({"dla": {Y: 4_000}}, a_income=40_000, reform=False)) == 0
+
+
+def test_reg_13_needs_a_partner_in_qualifying_paid_work():
+    """A lone parent on Carer's Allowance; and a couple whose worker is also paid a reg 13(1)(b) benefit (reg 13(3))."""
+    lone = _tfc_family({}, a_income=0, reform=False, couple=False)
+    lone.set_input("carers_allowance", Y, [4_000, 0])
+    assert not lone.calculate("tax_free_childcare_work_condition", Y).any() and _tfc(lone) == 0
+    assert _tfc(_tfc_family(ESA, a_income=40_000, reform=False)) == pytest.approx(2_000)
+    worker_on_esa = _tfc_family(ESA, a_income=40_000, reform=False)
+    worker_on_esa.set_input("esa_contrib", Y, [5_000, 5_000, 0])
+    assert _tfc(worker_on_esa) == 0
+
+
+def test_the_limit_still_applies_to_a_partner_regarded_as_in_paid_work():
+    """Reg 13 deems work and the minimum income only; reg 15's £100,000 limit is the reform's to remove."""
+    rich_carer = {"carers_allowance": {Y: 4_000}, "savings_interest_income": {Y: 110_000}}
+    assert _tfc(_tfc_family(rich_carer, a_income=40_000, reform=False)) == 0
+    assert _tfc(_tfc_family(rich_carer, a_income=40_000)) == pytest.approx(2_000)

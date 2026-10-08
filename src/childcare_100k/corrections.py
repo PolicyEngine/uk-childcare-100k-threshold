@@ -1,12 +1,15 @@
 """Model corrections applied to every run, baseline and reform alike.
 
-Four corrections, each pending an upstream fix in policyengine-uk (2.102.3 is the
-certified version; policyengine-uk#2079, merged after it, fixes the first two):
+Five corrections, each pending an upstream fix in policyengine-uk (2.102.3 is the
+certified version; policyengine-uk#2079, merged after it, fixes the first two and the
+fifth):
 
 1. Exactly £100,000 qualifies for the 30 hours (C3).
 2. A partner with a specified benefit need not pass the minimum earnings test (C1).
 3. The universal and targeted 15 hours survive eligibility for the extended hours (C2).
 4. Salary sacrifice returned to pay from April 2029 is not income for the limits.
+5. Tax-Free Childcare regards a partner on a caring or incapacity benefit as in
+   qualifying paid work (SI 2015/448 reg 13).
 
 1. Exactly £100,000 qualifies for the 30 hours
 -----------------------------------------------
@@ -81,6 +84,45 @@ amount twice and understate income tax. The minimum-income tests are unchanged.
 
 It is a no-op before 2029-30, while the cap is unset.
 
+5. Tax-Free Childcare: a partner on a caring or incapacity benefit (reg 13)
+-------------------------------------------------------------------------
+SI 2015/448 reg 13(1) regards a person whose partner is in qualifying paid work as in
+qualifying paid work themselves while they are paid or entitled to a benefit, allowance
+or credit in reg 13(1)(b): incapacity benefit, severe disablement allowance, carer's
+allowance, contributory ESA, credits for incapacity or limited capability for work and
+(from 1 December 2022) Scottish carer's assistance. Reg 13(2)(b) regards them as having
+the minimum income; reg 15's £100,000 limit still applies to them. Reg 13(3) does not
+count a partner as in qualifying paid work while that partner is *paid* a reg 13(1)(b)
+benefit or allowance. policyengine-uk 2.102.3 tests the Pension Credit disability list
+(DLA, PIP) and incapacity benefit in the work condition and never deems the minimum
+income, so no such couple was ever eligible: a £120,000 earner whose partner receives
+contributory ESA or Carer's Allowance got no Tax-Free Childcare even with the limit
+removed. policyengine-uk#2079 rewrote both formulas; the replacements mirror it:
+
+- ``tfc_regarded_as_in_paid_work`` is upstream's
+  ``tax_free_childcare_regarded_as_in_paid_work``: a claimant or partner on a reg
+  13(1)(b) benefit whose partner is ``tax_free_childcare_treated_as_in_work`` and not
+  paid a reg 13(1)(b) benefit.
+- The work condition is upstream's: every claimant and partner is 16 or over and in, or
+  regarded as in, qualifying paid work. DLA and PIP are not on the list, so the
+  Pension Credit route is gone, as upstream.
+- The Tax-Free Childcare income test (section 4's replacement) also accepts reg
+  13(2)(b)'s deemed minimum income.
+
+Mapped to 2.102.3's variables (the costed years are all after December 2022):
+entitlement is ``incapacity_benefit``, ``sda``, ``carers_allowance``,
+``receives_carers_allowance``, ``carer_support_payment`` and ``esa_contrib``; payment
+(reg 13(3)) is the same list. 2.102.3 has no overlapping-benefits rule for Carer's
+Allowance, so its ``carers_allowance`` is both the entitlement and the payment
+(upstream's ``carers_allowance_pre_overlap`` and ``is_entitled_to_carer_benefit`` do
+not exist yet). Not mapped: NI credits for incapacity (upstream's
+``receives_limited_capability_for_work_credits``, an input not in the data) and carer's
+leave (reg 13(1)(c), upstream's ``tax_free_childcare_on_carers_leave``, likewise an
+input). Upstream's ``is_claimant_or_partner`` does not exist in 2.102.3; the stand-in
+(``claimant_or_partner``) is the members flagged ``is_parent`` where the benefit unit
+flags any (the people ``tax_free_childcare_eligible`` already income-tests), otherwise
+its two eldest adults.
+
 Each replacement reproduces the model's formula with only the stated change. The
 model's formulas are fingerprinted: if policyengine-uk changes any of them, the
 correction refuses to apply, rather than silently replacing new logic with old.
@@ -96,6 +138,7 @@ from policyengine_uk.model_api import add
 RETURNED_SALARY_SACRIFICE = "salary_sacrifice_returned_to_income"
 THIRTY_HOURS_INCOME_TEST = "extended_childcare_entitlement_meets_income_requirements"
 TFC_INCOME_TEST = "tax_free_childcare_meets_income_requirements"
+TFC_WORK_CONDITION = "tax_free_childcare_work_condition"
 THIRTY_HOURS_ELIGIBLE = "extended_childcare_entitlement_eligible"
 THIRTY_HOURS_VALUE = "extended_childcare_entitlement"
 UNIVERSAL_ELIGIBLE = "universal_childcare_entitlement_eligible"
@@ -108,7 +151,20 @@ EXPECTED_FORMULA_SHA256 = {
     THIRTY_HOURS_VALUE: "4f7fa84421f58cd67d27c6610aee3d1c532c0d4b780a1cf76519f820f98666a8",
     UNIVERSAL_ELIGIBLE: "322527b7a86eea6e066574f2126f6ad7f47af6caeb7aab7ab64968ab4e6758c5",
     TARGETED_ELIGIBLE: "d4a98f6ca5d5a82eb92e2c3f9796f9a76b8952b1bb5834409a30b6a5f160a88a",
+    TFC_WORK_CONDITION: "079ae1c2eafb745a7c97c3b08600049abad4a1d5728cf520cd49d49e4e049c7a",
 }
+# SI 2015/448 reg 13(1)(b) as amended from 1 December 2022 (section 5), in 2.102.3's variables:
+# "paid or entitled to" ...
+TFC_CARING_OR_INCAPACITY_BENEFITS = [
+    "incapacity_benefit",  # 13(1)(b)(i) and (iii)
+    "sda",  # 13(1)(b)(ii)
+    "carers_allowance",  # 13(1)(b)(iv); 2.102.3 has no overlapping-benefits rule, so paid = entitled
+    "receives_carers_allowance",  # 13(1)(b)(iv), where supplied as received
+    "esa_contrib",  # 13(1)(b)(v)
+    "carer_support_payment",  # 13(1)(b)(vii): Scottish carer's assistance
+]
+# ... and reg 13(3)'s "paid" (the same variables in 2.102.3).
+TFC_CARING_OR_INCAPACITY_BENEFITS_IN_PAYMENT = TFC_CARING_OR_INCAPACITY_BENEFITS
 MARK = "_childcare_100k_corrected"
 
 
@@ -131,8 +187,51 @@ def thirty_hours_income_test(person, period, parameters):
     )
 
 
+def claimant_or_partner(person, period):
+    """Stand-in for upstream's ``is_claimant_or_partner`` (section 5): flagged parents, else the two eldest adults."""
+    is_parent = person("is_parent", period)
+    adult = person("is_adult", period)
+    eldest_two = adult & (
+        person.get_rank(person.benunit, -person("age", period), condition=adult) < 2
+    )
+    return np.where(person.benunit.any(is_parent), is_parent, eldest_two)
+
+
+def tfc_regarded_as_in_paid_work(person, period):
+    """Upstream's ``tax_free_childcare_regarded_as_in_paid_work`` (reg 13(1)(a)-(b), (3)), without carer's leave."""
+    member = claimant_or_partner(person, period)
+    caring_or_incapacity_benefit = (
+        add(person, period, TFC_CARING_OR_INCAPACITY_BENEFITS) > 0
+    )
+    paid_caring_or_incapacity_benefit = (
+        add(person, period, TFC_CARING_OR_INCAPACITY_BENEFITS_IN_PAYMENT) > 0
+    )
+    in_work_without_caring_or_incapacity_benefit = (
+        member
+        & person("tax_free_childcare_treated_as_in_work", period)
+        & ~paid_caring_or_incapacity_benefit
+    )
+    partner_in_qualifying_paid_work = (
+        person.benunit.sum(in_work_without_caring_or_incapacity_benefit)
+        - in_work_without_caring_or_incapacity_benefit
+    ) > 0
+    return member & caring_or_incapacity_benefit & partner_in_qualifying_paid_work
+
+
+def tfc_work_condition(person, period, parameters):
+    """Upstream's (policyengine-uk#2079) formula: every claimant and partner is 16+ and in, or regarded as in, paid work."""
+    benunit = person.benunit
+    member = claimant_or_partner(person, period)
+    in_qualifying_paid_work = person(
+        "tax_free_childcare_treated_as_in_work", period
+    ) | tfc_regarded_as_in_paid_work(person, period)
+    meets_condition = person("over_16", period) & in_qualifying_paid_work
+    # Reported on the applicant and partner; their children play no part.
+    return member & benunit.all(meets_condition | ~member)
+
+
 def tfc_income_test(person, period, parameters):
-    """policyengine-uk's formula with ``income_for_limit`` in place of adjusted net income."""
+    """policyengine-uk's formula with ``income_for_limit`` in place of adjusted net income, and reg 13(2)(b)'s deemed minimum income."""
     p = parameters(period).gov.hmrc.tax_free_childcare
     expected_income = person(
         "tax_free_childcare_expected_declaration_period_income", period
@@ -145,7 +244,10 @@ def tfc_income_test(person, period, parameters):
     in_start_up_period = person(
         "tax_free_childcare_self_employment_start_up_period", period
     )
-    return (meets_minimum_income | in_start_up_period) & (
+    # Reg 13(2)(b): a person regarded as in paid work through caring or incapacity
+    # has expected income equal to the minimum (section 5).
+    regarded_as_in_paid_work = tfc_regarded_as_in_paid_work(person, period)
+    return (meets_minimum_income | in_start_up_period | regarded_as_in_paid_work) & (
         income_for_limit(person, period) <= p.income.income_limit
     )
 
@@ -237,6 +339,7 @@ REPLACEMENTS = {
     THIRTY_HOURS_VALUE: thirty_hours_value,
     UNIVERSAL_ELIGIBLE: universal_eligible,
     TARGETED_ELIGIBLE: targeted_eligible,
+    TFC_WORK_CONDITION: tfc_work_condition,
 }
 
 

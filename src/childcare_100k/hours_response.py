@@ -3,19 +3,24 @@
 policyengine-uk's intensive-margin machinery is driven by changes in marginal tax rates
 and net income; it does not see a change in the price of childcare, an input to
 working. The reform changes two things for an adult in work in the responding
-population (``labour_supply.responding``, after the OBR exclusions), whatever their own
-income, so the hours response has two parts, computed separately for the adults at or
-below £100,000 and the adults over it (``GROUPS``):
+population (``labour_supply.responding``, after the OBR progression model's exclusions,
+Table A3, which unlike the participation model's do not include disabled people),
+whatever their own income, so the hours response has two parts, reported for the adults
+at or below £100,000 and the adults over it (``GROUPS``):
 
     price effect:   earnings change = earnings x HOURS_PRICE_ELASTICITY x change in the
                     marginal price of paid childcare (%)
     income effect:  earnings change = earnings x OBR income elasticity
-                    x change in household net income (% of disposable income)
+                    x the household's gain (% of disposable income)
 
-Hours and earnings move together at a constant hourly wage. Each part's exchequer effect
-is the model's: the reform simulation is recomputed with that part's changed earnings,
-and the offset is the extra earnings less the rise in household net income (positive is
-money back). The net hours offset is the sum of the two parts.
+Hours and earnings move together at a constant hourly wage. The exchequer effect is the
+model's: the reform simulation is recomputed once with every responding adult's combined
+change in earnings (both parts, both groups), and the net offset is the extra earnings
+less the rise in household net income (positive is money back). Taxes and benefits are
+not additive (a parent near £100,000 crosses the personal-allowance taper), so the parts
+are an attribution that adds up to the net exactly: the first group's combined change
+recomputed on its own, the second group the remainder; within a group, the price change
+recomputed on its own, the income effect the remainder (:func:`hours_response`).
 
 The price effect: what counts as a price change
 ===============================================
@@ -40,7 +45,8 @@ many hours the family buys is a lump sum, which enters through the income effect
   Brewer et al. estimate the elasticity: a move from part-time to full-time free care).
   ``childcare_expenses`` is an annual spend, not hours, so the test is on value: the
   family is fully covered if newly funded hours, displacing paid care at
-  ``FREE_HOURS_DISPLACEMENT`` (90.5%) of their value, are worth at least its spend.
+  ``FREE_HOURS_DISPLACEMENT`` (90.5%) of their value, are worth more than its spend
+  (exactly its spend covers the hours bought, not the next one).
   The 90.5% is an assumption (IFS BN189: 570 more funded hours raised subsidisable care
   by 163 hours and all non-family care by 54; 1 - 54/570 counts every displaced hour of
   non-family care as paid); 71.4% (1 - 163/570) and 100% are published as a sensitivity
@@ -62,13 +68,23 @@ The OBR's income elasticities (Table A2 of the note; policyengine-uk's
 whose youngest child is 0-2, -0.05 for a man in a couple; a couple is married or
 cohabiting, ``labour_supply.CoupleView``) applied as policyengine-uk's
 ``apply_progression_responses`` does: earnings change = earnings x elasticity x
-(reform - baseline household net income) / baseline household income, the relative
-change clipped to +/-100%. The change is the model's ``household_net_income``, static
-(before any response), which counts the funded hours at their funding value and
-Tax-Free Childcare. Unlike upstream, the base is disposable income
-(``hbai_household_net_income``), not ``household_net_income``, which also deducts
-policyengine-uk's expected stamp duty (``income_change``). Responding: every adult in
-work in the responding population.
+(the household's gain) / its baseline income, the relative change clipped to +/-100%.
+Responding: every adult in work in the responding population.
+
+The OBR applies the elasticities to a change in cash income. The funded hours are not
+cash: what they put in a family's pocket is the paid childcare they replace. So the gain
+(:func:`income_gain`) is, on one resource definition throughout, the change in
+disposable income (``hbai_household_net_income``, static, before any response: cash
+benefits and taxes, Tax-Free Childcare included, funded hours not) plus the paid care
+the newly funded hours displace (:func:`paid_care_saving`: their funding value x
+``FREE_HOURS_DISPLACEMENT``, the price rule's assumption, capped at what the family
+spends today), as a percentage of baseline disposable income. Childcare spending is
+held fixed in the model, so the Tax-Free Childcare top-up on the displaced spend is not
+withdrawn. Published as a sensitivity (``INCOME_BASIS_SENSITIVITY``): the change in
+``household_net_income``, which values the funded hours at what the government pays for
+them, over the same base. The base is disposable income rather than
+``household_net_income``, which also deducts policyengine-uk's expected stamp duty
+(``income_change``).
 
 The elasticity, -0.042, is an extrapolated scenario assumption, not an estimated price
 elasticity. Brewer et al. (IFS WP20/09) estimate +0.600 weekly hours (on a mean of
@@ -86,9 +102,10 @@ reform and families with a parent over £100,000 receive essentially no Universa
 from __future__ import annotations
 
 import numpy as np
+import pandas as pd
 from microdf import MicroSeries
 
-from .config import FREE_HOURS_DISPLACEMENT, FULL_TIME_HOURS, HOURS_PRICE_ELASTICITY
+from .config import FREE_HOURS_DISPLACEMENT, FULL_TIME_HOURS, HOURS_PRICE_ELASTICITY, INCOME_BASIS
 from .labour_supply import values
 
 # Who responds, split by their own income as the limits test it. Both groups use the same rules.
@@ -125,22 +142,49 @@ def marginal_price_change(base, ref, displacement=FREE_HOURS_DISPLACEMENT):
     """Proportional change in the price of the family's marginal hour of paid care, and who is fully covered.
 
     Baseline marginal price: 1 less the baseline Tax-Free Childcare rate. Reform: zero if
-    newly funded hours (at ``displacement`` of their value) cover all the family's paid
-    care, otherwise 1 less the reform's Tax-Free Childcare rate.
+    newly funded hours (at ``displacement`` of their value) more than cover all the
+    family's paid care, otherwise 1 less the reform's Tax-Free Childcare rate. Funded
+    value exactly equal to the spend covers the hours the family buys and no more: the
+    next hour lies beyond the fixed entitlement and is bought at the full price, so the
+    test is strict.
     """
     expenses = base["actual_cost"]
-    new_free = np.maximum(ref["bu_free"] - base["bu_free"], 0.0)
-    covered = (expenses > 0) & (new_free * displacement >= expenses)
+    covered = (expenses > 0) & (newly_funded_value(base, ref) * displacement > expenses)
     before = 1.0 - base["tfc_rate"]
     after = np.where(covered, 0.0, 1.0 - ref["tfc_rate"])
     change = np.divide(after - before, before, out=np.zeros_like(before), where=before > 0)
     return covered, np.clip(change, -1.0, 1.0)
 
 
+def newly_funded_value(base, ref):
+    """The family's newly funded hours at their funding value (on each member)."""
+    return np.maximum(ref["bu_free"] - base["bu_free"], 0.0)
+
+
+def _household_total(base, benunit_values):
+    """A benefit-unit value summed over the benefit units of each person's household, on each person."""
+    n = len(benunit_values)
+    benunit_id = base.get("benunit_id", np.arange(n))
+    household_id = base.get("household_id", np.arange(n))
+    frame = pd.DataFrame({"hh": household_id, "bu": benunit_id, "v": np.asarray(benunit_values, float)})
+    per_household = frame.drop_duplicates("bu").groupby("hh")["v"].sum()
+    return per_household.reindex(household_id).to_numpy()
+
+
+def paid_care_saving(base, ref, displacement=FREE_HOURS_DISPLACEMENT):
+    """Paid childcare the newly funded hours displace, capped at the family's spend, summed over the household.
+
+    The same displacement as the price rule: newly funded value x ``displacement``, but
+    no more than what the family pays for care today.
+    """
+    saving = np.minimum(newly_funded_value(base, ref) * displacement, base["actual_cost"])
+    return _household_total(base, saving)
+
+
 def _members(base, group):
-    """Responding adults in work in the group."""
+    """Adults in work in the group who respond on the hours margin (OBR Table A3 screen)."""
     in_group = base["over_limit"] if group == "over_limit" else ~base["over_limit"]
-    return base["eligible"] & in_group & (base["employment_income"] > 0) & (base["weekly_hours"] > 0)
+    return base["hours_eligible"] & in_group & (base["employment_income"] > 0) & (base["weekly_hours"] > 0)
 
 
 def price_change(base, ref, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT):
@@ -150,28 +194,43 @@ def price_change(base, ref, group="at_or_below_limit", displacement=FREE_HOURS_D
     return respond, np.where(respond, change, 0.0), respond & covered
 
 
-def income_change(base, ref, group="at_or_below_limit"):
-    """Who responds to income (in work) and the relative change in their household's net income.
+def income_gain(base, ref, displacement=FREE_HOURS_DISPLACEMENT, basis=INCOME_BASIS):
+    """The household's gain from the reform that the income effect responds to (module docstring).
 
-    The change is the reform's change in ``household_net_income`` (which values the
-    funded hours); the base it is a percentage of is the household's disposable income,
-    ``hbai_household_net_income``. ``household_net_income`` also nets off taxes that
-    are not paid out of the year's income, chiefly policyengine-uk's expected stamp
-    duty (an annualised expectation of a property purchase): for a few high-income
-    households that leaves it near zero or negative, which made their percentage
-    change, and the income effect, jump from year to year.
+    ``paid_care`` (the central basis): the change in disposable income
+    (``hbai_household_net_income``: cash, Tax-Free Childcare included, funded hours not)
+    plus the paid childcare the newly funded hours displace (:func:`paid_care_saving`).
+    ``government_cost`` (a sensitivity): the change in ``household_net_income``, which
+    counts the funded hours at what the government pays for them.
+    """
+    if basis == "paid_care":
+        return ref["hh_disposable_income"] - base["hh_disposable_income"] + paid_care_saving(base, ref, displacement)
+    if basis == "government_cost":
+        return ref["hh_net_income"] - base["hh_net_income"]
+    raise ValueError(basis)
+
+
+def income_change(base, ref, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT, basis=INCOME_BASIS):
+    """Who responds to income (in work) and the relative change in their household's income.
+
+    The gain is :func:`income_gain`; the base it is a percentage of is the household's
+    disposable income, ``hbai_household_net_income``. (``household_net_income`` also
+    nets off taxes that are not paid out of the year's income, chiefly policyengine-uk's
+    expected stamp duty: for a few high-income households that leaves it near zero or
+    negative, which made their percentage change jump from year to year.)
     """
     respond = _members(base, group)
-    gain = ref["hh_net_income"] - base["hh_net_income"]
+    gain = income_gain(base, ref, displacement, basis)
     income = base["hh_disposable_income"]
     rel = np.divide(gain, income, out=np.zeros_like(income), where=income > 0)
     return respond, np.where(respond, np.clip(rel, -1.0, 1.0), 0.0)
 
 
-def earnings_shares(base, ref, scale, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT):
+def earnings_shares(base, ref, scale, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT,
+                    basis=INCOME_BASIS):
     """Each part's proportional change in earnings (and hours) for every person, at one elasticity scale."""
     respond_p, d_price, covered = price_change(base, ref, group, displacement)
-    respond_i, d_income = income_change(base, ref, group)
+    respond_i, d_income = income_change(base, ref, group, displacement, basis)
     return {
         "price": np.where(respond_p, HOURS_PRICE_ELASTICITY * scale * d_price, 0.0),
         "income": np.where(respond_i, base["income_elasticity"] * scale * d_income, 0.0),
@@ -198,38 +257,63 @@ def _net_income_rise(sim, year, extra):
     return float(MicroSeries(after - before, weights=hh_weights).sum())
 
 
-def hours_response(sim, year, base, ref, scale, group="at_or_below_limit", displacement=FREE_HOURS_DISPLACEMENT):
-    """Each part's extra hours, earnings and exchequer offset at one elasticity scale, and the net.
+def _offset(sim, year, extra, weights):
+    """Exchequer offset of a change in earnings: the extra earnings less the rise in household net income."""
+    if not np.any(extra):
+        return 0.0
+    return float(MicroSeries(extra, weights=weights).sum()) - _net_income_rise(sim, year, extra)
 
-    Keys: ``{price,income}_{earnings,ftes,offset}``, the net ``earnings``, ``ftes`` and
-    ``offset`` (price + income), and diagnostics. Offsets are positive when money comes
-    back to the Exchequer: the price effect's is positive or zero, the income effect's
-    negative or zero.
+
+def hours_response(sim, year, base, ref, scale, displacement=FREE_HOURS_DISPLACEMENT, basis=INCOME_BASIS):
+    """The hours response of every responding adult in work at one elasticity scale, by group and in total.
+
+    Returns ``{group: {...} for group in GROUPS}`` and ``"total"``. Each holds
+    ``{price,income}_{earnings,ftes,offset}``, the net ``earnings``, ``ftes`` and
+    ``offset``, and diagnostics. Offsets are positive when money comes back to the
+    Exchequer.
+
+    The net offset is the model's on the combined change in earnings: the reform
+    simulation is recomputed once with every responding adult's price and income
+    changes together, so the taxes and benefits are those of the hours actually worked
+    (computing the parts separately and adding them overstated it where a parent
+    crosses a taper, such as the personal allowance's at £100,000). The parts are an
+    attribution that adds up to the net exactly: the first group's combined change is
+    recomputed on its own, the second group is the remainder, and within each group the
+    price effect is its price change recomputed on its own and the income effect is the
+    remainder.
     """
-    if group not in GROUPS:
-        raise ValueError(group)
-    s = earnings_shares(base, ref, scale, group, displacement)
     emp, w = base["employment_income"], base["weights"]
 
     def total(x):
         return float(MicroSeries(x, weights=w).sum())
 
+    shares = {g: earnings_shares(base, ref, scale, g, displacement, basis) for g in GROUPS}
+    extra = {g: {part: emp * shares[g][part] for part in COMPONENTS} for g in GROUPS}
+    combined = {g: extra[g]["price"] + extra[g]["income"] for g in GROUPS}
+    net = _offset(sim, year, sum(combined.values()), w)
+    group_net = {GROUPS[0]: _offset(sim, year, combined[GROUPS[0]], w)}
+    group_net[GROUPS[1]] = net - group_net[GROUPS[0]]
+
     out = {}
-    for part in COMPONENTS:
-        extra = emp * s[part]
-        earnings = total(extra)
-        out[f"{part}_earnings"] = earnings
-        out[f"{part}_ftes"] = total(base["weekly_hours"] * s[part]) / FULL_TIME_HOURS
-        out[f"{part}_offset"] = earnings - _net_income_rise(sim, year, extra) if np.any(extra) else 0.0
-    for k in ("earnings", "ftes", "offset"):
-        out[k] = out[f"price_{k}"] + out[f"income_{k}"]
-    rp, ri = s["respond_price"], s["respond_income"]
-    out.update({
-        "workers": total(ri.astype(float)),
-        "workers_paying": total(rp.astype(float)),
-        "workers_price_falls": total((rp & (s["d_price"] < 0)).astype(float)),
-        "workers_fully_covered": total(s["covered"].astype(float)),
-        "mean_price_change": float(MicroSeries(s["d_price"][rp], weights=w[rp]).mean()) if rp.any() else 0.0,
-        "mean_income_change": float(MicroSeries(s["d_income"][ri], weights=w[ri]).mean()) if ri.any() else 0.0,
-    })
+    for g in GROUPS:
+        s, o = shares[g], {}
+        for part in COMPONENTS:
+            o[f"{part}_earnings"] = total(extra[g][part])
+            o[f"{part}_ftes"] = total(base["weekly_hours"] * s[part]) / FULL_TIME_HOURS
+        o["price_offset"] = _offset(sim, year, extra[g]["price"], w)
+        o["income_offset"] = group_net[g] - o["price_offset"]
+        o["offset"] = group_net[g]
+        o["earnings"] = o["price_earnings"] + o["income_earnings"]
+        o["ftes"] = o["price_ftes"] + o["income_ftes"]
+        rp, ri = s["respond_price"], s["respond_income"]
+        o.update({
+            "workers": total(ri.astype(float)),
+            "workers_paying": total(rp.astype(float)),
+            "workers_price_falls": total((rp & (s["d_price"] < 0)).astype(float)),
+            "workers_fully_covered": total(s["covered"].astype(float)),
+            "mean_price_change": float(MicroSeries(s["d_price"][rp], weights=w[rp]).mean()) if rp.any() else 0.0,
+            "mean_income_change": float(MicroSeries(s["d_income"][ri], weights=w[ri]).mean()) if ri.any() else 0.0,
+        })
+        out[g] = o
+    out["total"] = {k: sum(out[g][k] for g in GROUPS) for k in out[GROUPS[0]] if not k.startswith("mean_")}
     return out

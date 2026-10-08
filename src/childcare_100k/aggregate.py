@@ -20,6 +20,7 @@ from .config import (
     FREE_HOURS_DISPLACEMENT_RANGE,
     FREE_HOURS_VARIABLES,
     GAIN_THRESHOLD,
+    INCOME_BASIS_SENSITIVITY,
     MIN_CELL_RECORDS,
     REGIONS,
     UNDER_ONE_WEEKLY_HOURS,
@@ -373,6 +374,7 @@ def labour_supply(static_total, years=YEARS):
     Offsets are £bn a year, positive = money back to the Exchequer.
     """
     from .engine import LABOUR_SUPPLY_JOB
+    from .labour_supply import ENTRY_CELL_LEVELS
 
     load_meta(LABOUR_SUPPLY_JOB)  # raises on a provenance mismatch
     z = np.load(run_path(LABOUR_SUPPLY_JOB))
@@ -396,6 +398,10 @@ def labour_supply(static_total, years=YEARS):
         "implied_by_over_limit": by_year("extensive", "implied_by_over_limit", lambda x: _round_to(x, 100)),
         "non_worker_rule_entrants": by_year("extensive", "non_worker_rule_entrants", lambda x: _round_to(x, 100)),
         "entry_capped": by_year("extensive", "entry_capped", lambda x: _round_to(x, 100)),
+        # Where the implied entrants were placed (labour_supply.allocate_entrants): among non-workers in the
+        # same OBR cell, or, where it has none, in a coarser one.
+        "allocated_by_cell_level": {level: by_year("extensive", f"allocated_{level}", lambda x: _round_to(x, 100))
+                                    for level in ENTRY_CELL_LEVELS},
     }
     # Hours response (hours_response.py) of every responding adult in work, split by their own income: a price
     # effect (positive: money back) and an income effect (negative: money out), and the net of the two.
@@ -439,21 +445,34 @@ def labour_supply(static_total, years=YEARS):
                                    for y in years} for side in FREE_HOURS_DISPLACEMENT_RANGE},
         "displacement": {side: round(v, 4) for side, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
     }
+    # Sensitivity, not in the dynamic cost: the income effect's gain with the funded hours at government cost
+    # (hours_response.income_gain), central elasticities, both groups.
+    basis = INCOME_BASIS_SENSITIVITY
+    intensive_income_basis = {
+        "basis": basis,
+        **{f"{k}_bn": {str(y): _bn(float(z[f"{y}/intensive_income_basis/{basis}/{k}"])) for y in years}
+           for k in ("offset", "price_offset", "income_offset")},
+    }
     total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
                  for y in years} for b in BOUNDS}
     dynamic = {b: {str(y): round(static_total[str(y)] - total[b][str(y)], 3) for y in years} for b in BOUNDS}
     checks = {}
     for y in years:
+        unallocated = max(float(z[f"{y}/extensive/{b}/allocated_unallocated"]) for b in BOUNDS)
+        if unallocated > 0:
+            raise RuntimeError(f"{y}: {unallocated:,.0f} implied entrants found no non-worker to enter")
         moved = float(z[f"{y}/moved_outside_weighted"])
         if moved > 0.001 * float(z[f"{y}/responding_adults"]):
             raise RuntimeError(f"{y}: the reform moves the gain to work of {moved:,.0f} adults outside the "
                                "responding population; the population filter misses someone")
         checks[str(y)] = {"responding_adults": _k(z[f"{y}/responding_adults"]),
+                          "hours_responding_adults": _k(z[f"{y}/hours_responding_adults"]),
                           "adults_moved_outside_population": _round_to(moved, 100)}
     return {
         "extensive": extensive,
         "intensive": intensive,
         "intensive_displacement": intensive_displacement,
+        "intensive_income_basis": intensive_income_basis,
         "total_offset_bn": total,
         "dynamic_cost_bn": dynamic,
         "population": checks,
