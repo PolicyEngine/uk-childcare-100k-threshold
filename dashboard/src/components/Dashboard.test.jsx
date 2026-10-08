@@ -16,7 +16,7 @@ import { CENTAX } from "./Comparison";
 import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
-import { formatMoneyBn, formatThousands } from "../lib/formatters";
+import { formatBn, formatMoneyBn, formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
 const years = data.meta.years;
@@ -249,6 +249,19 @@ describe("methodology", () => {
     render(<MethodTab data={data} />);
     expect(document.body.textContent).not.toMatch(/the same above and below £100,000/);
     expect(document.body.textContent).toMatch(/held fixed/);
+  });
+
+  it("reports the entry and income-basis sensitivities of the labour supply response", () => {
+    render(<MethodTab data={data} />);
+    const text = screen.getByTestId("labour-supply-method").textContent;
+    const ls = data.labour_supply;
+    const y = String(Object.keys(ls.extensive.offset_bn.central).at(-1));
+    const b3 = (x) => formatBn(x, 3);
+    expect(text).toContain(b3(ls.extensive.entry_sensitivity.same_cell_only.offset_bn[y]));
+    expect(text).toContain(b3(ls.extensive.entry_sensitivity.worker_profile.offset_bn[y]));
+    expect(text).toContain(b3(ls.intensive_income_basis.paid_care_fixed_spend.offset_bn[y]));
+    expect(text).toContain(b3(ls.intensive_income_basis.government_cost.offset_bn[y]));
+    expect(text).toMatch(/top-up the family no longer gets/);
   });
 
   it("pins the model package and the dataset release, revision and checksum", () => {

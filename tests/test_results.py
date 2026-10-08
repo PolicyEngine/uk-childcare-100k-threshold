@@ -311,11 +311,19 @@ def test_labour_supply_block():
         for bound in ("central", "low", "high"):
             placed = sum(v[bound][y] for v in ls["extensive"]["allocated_by_cell_level"].values())
             assert placed == pytest.approx(ls["extensive"]["entrants"][bound][y], abs=300)
-        # The income-basis sensitivity shares the price effect and nets to its own parts.
-        sens = ls["intensive_income_basis"]
-        assert sens["basis"] == "government_cost"
-        assert sens["price_offset_bn"][y] == pytest.approx(ls["intensive"]["price_offset_bn"]["central"][y], abs=0.0015)
-        assert sens["offset_bn"][y] == pytest.approx(sens["price_offset_bn"][y] + sens["income_offset_bn"][y], abs=0.0015)
+        # The entry sensitivities (A3): dropping the coarser-cell entrants leaves the same-cell ones.
+        sens = ls["extensive"]["entry_sensitivity"]
+        same_cell = ls["extensive"]["allocated_by_cell_level"]["sex_couple_child_quintile"]["central"][y]
+        assert sens["same_cell_only"]["entrants"][y] == pytest.approx(same_cell, abs=300)
+        assert sens["worker_profile"]["entrants"][y] == pytest.approx(ls["extensive"]["entrants"]["central"][y], abs=300)
+        # The income-basis sensitivities share the price effect and net to their own parts.
+        assert set(ls["intensive_income_basis"]) == {"paid_care_fixed_spend", "government_cost"}
+        for sens in ls["intensive_income_basis"].values():
+            assert sens["price_offset_bn"][y] == pytest.approx(ls["intensive"]["price_offset_bn"]["central"][y], abs=0.0015)
+            assert sens["offset_bn"][y] == pytest.approx(sens["price_offset_bn"][y] + sens["income_offset_bn"][y], abs=0.0015)
+        # Keeping the top-up on the displaced spend makes the gain, and so the income effect's cost, no smaller.
+        assert (ls["intensive_income_basis"]["paid_care_fixed_spend"]["income_offset_bn"][y]
+                <= ls["intensive"]["income_offset_bn"]["central"][y] + 0.0015)
     assert "bunching" in ls["not_modelled"].lower()
 
 

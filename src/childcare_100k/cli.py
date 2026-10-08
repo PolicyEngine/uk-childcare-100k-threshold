@@ -418,7 +418,11 @@ def build(metas):
                 "earnings quintile), in proportion to their own response, or, where the cell has no responding "
                 "non-worker, in the nearest coarser cell (allocated_by_cell_level). The offset is entrants' earnings less the rise in their "
                 "household's net income (tax and National Insurance paid, less the childcare support the family "
-                "now receives) and less the Tax-Free Childcare top-up on the care they start buying.",
+                "now receives) and less the Tax-Free Childcare top-up on the care they start buying. Entrants placed "
+                "in a coarser cell take the non-workers' earnings, gain and subsidy from other earnings quintiles; "
+                "entry_sensitivity reports the offset with them dropped (same_cell_only) and with them given the "
+                "weighted median hourly wage of the workers who imply them, gain and subsidy recomputed "
+                "(worker_profile), at central elasticities.",
                 "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, "
                 "in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; "
                 "the parts are an attribution that adds up to it (the price change recomputed alone, the income "
@@ -439,8 +443,11 @@ def build(metas):
                 "apply_progression_responses applies them except for the income measure. The gain is on the same "
                 "disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid "
                 "childcare the newly funded hours displace (their value at the displacement rate below, capped at "
-                "what the family pays), not the funded hours at government cost (that version is published as "
-                "intensive_income_basis). Neither elasticity is measured on parents over £100,000.",
+                "what the family pays), less the Tax-Free Childcare top-up on that displaced spend (recomputed by "
+                "the model on the care the family still buys), not the funded hours at government cost. "
+                "intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend: the "
+                "top-up on displaced spend kept) and at government cost (government_cost). Neither elasticity is "
+                "measured on parents over £100,000.",
                 "Whether newly funded hours cover a family's paid care, and how much paid care they save it, is "
                 "judged on value, with funded hours "
                 f"assumed to displace paid care at {FREE_HOURS_DISPLACEMENT:.1%} of their value (1 - 54/570, IFS "

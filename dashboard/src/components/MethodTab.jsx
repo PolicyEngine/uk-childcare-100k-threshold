@@ -247,6 +247,7 @@ function LabourSupplySection({ data }) {
         .reduce((t, [, v]) => t + (v.central?.[yKey] ?? 0), 0)
     : null;
   const incomeBasis = raw.intensive_income_basis;
+  const entrySens = raw.extensive.entry_sensitivity;
   const covered = groupSum("workers_fully_covered");
   const paying = groupSum("workers_paying_for_childcare");
   const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
@@ -276,6 +277,9 @@ function LabourSupplySection({ data }) {
           couple, age of the youngest child and earnings quintile), in proportion to their own response, or, where
           that group has no responding non-worker, the nearest broader group
           {isNum(fellBack) ? ` (about ${formatCount(fellBack)} of the entrants in ${year})` : ""}.
+          {entrySens
+            ? ` Those take the earnings and support of non-workers in other earnings quintiles; dropping them, the ${year} offset would be ${formatBn(entrySens.same_cell_only.offset_bn[yKey], 3)}, and giving them the hourly wage of the workers who imply them, ${formatBn(entrySens.worker_profile.offset_bn[yKey], 3)}.`
+            : ""}
           {isNum(oldRule) ? ` Applying the elasticity to each non-worker instead would give about ${formatCount(oldRule)} entrants in ${year}.` : ""}{" "}
           Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random draws.
         </li>
@@ -310,8 +314,9 @@ function LabourSupplySection({ data }) {
           ({a.income_elasticities}) times the family&apos;s gain from the reform, before any response, as a percentage
           of its disposable income: a family made better off works slightly less. The gain is measured like that
           income: the change in cash income, Tax-Free Childcare included, plus the paid childcare the newly funded
-          hours replace (at the same displacement rate, capped at what the family pays), not what the funded hours
-          cost the government. In {year}, at central elasticities, the price effect
+          hours replace (at the same displacement rate, capped at what the family pays), less the Tax-Free Childcare
+          top-up the family no longer gets on the care it stops buying; not what the funded hours cost the
+          government. In {year}, at central elasticities, the price effect
           brings back {formatMoneyBn(ls.intensive.price.central[li])} (
           {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} from adults at or below £100,000,{" "}
           {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it) and the income effect costs{" "}
@@ -322,8 +327,11 @@ function LabourSupplySection({ data }) {
           {disp
             ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatBn(disp.offset_bn.low[yKey], 3)} or ${formatBn(disp.offset_bn.high[yKey], 3)} rather than ${formatBn(ls.intensive.offset.central[li], 3)}`
             : ""}
-          {incomeBasis
-            ? `; counting the funded hours at their cost to government in the income effect, it would be ${formatBn(incomeBasis.offset_bn[yKey], 3)}`
+          {incomeBasis?.paid_care_fixed_spend
+            ? `; keeping the top-up on the care the funded hours replace (spending held fixed), it would be ${formatBn(incomeBasis.paid_care_fixed_spend.offset_bn[yKey], 3)}`
+            : ""}
+          {incomeBasis?.government_cost
+            ? `; counting the funded hours at their cost to government in the income effect, ${formatBn(incomeBasis.government_cost.offset_bn[yKey], 3)}`
             : ""}
           .
         </li>
