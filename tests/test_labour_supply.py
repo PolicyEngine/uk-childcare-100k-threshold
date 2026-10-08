@@ -21,6 +21,7 @@ def _base(**overrides):
         "bu_free": np.zeros(n),
         "tfc_rate": np.zeros(n),
         "hh_net_income": np.full(n, 100_000.0),
+        "hh_disposable_income": np.full(n, 100_000.0),
         "income_elasticity": np.array([-0.185, -0.05, -0.05, -0.185]),
         "employment_income": np.array([40_000.0, 120_000.0, 30_000.0, 0.0]),
         "weekly_hours": np.array([30.0, 40.0, 30.0, 0.0]),
@@ -297,3 +298,80 @@ def test_income_elasticities_are_the_obrs_for_the_costed_year():
     # A man in a couple, and a woman in a couple whose youngest child is 3-4 (OBR Table A2).
     assert e[0] == pytest.approx(-0.05)
     assert e[1] == pytest.approx(-0.173)
+
+
+class _FamiliesSim:
+    """Two couples with a child of 3, both parents in work: one married, one cohabiting (no engine)."""
+
+    default_calculation_period = 2027
+
+    def __init__(self):
+        n = lambda *v: np.array(v)  # noqa: E731
+        self.person = {
+            "gender": n("MALE", "FEMALE", "MALE", "MALE", "FEMALE", "MALE"),
+            "is_married": n(True, True, True, False, False, False),
+            "is_couple": n(True, True, True, True, True, True),
+            "benunit_count_children": n(1, 1, 1, 1, 1, 1),
+            "youngest_child_age": n(3, 3, 3, 3, 3, 3),
+            "is_household_head": n(True, False, False, True, False, False),
+            "benunit_count_adults": n(2, 2, 2, 2, 2, 2),
+            "employment_income": n(60_000.0, 40_000.0, 0.0, 60_000.0, 40_000.0, 0.0),
+            "benunit_id": n(1, 1, 1, 2, 2, 2),
+            "adult_index": n(1, 2, 0, 1, 2, 0),
+            "age": n(40, 38, 3, 40, 38, 3),
+        }
+
+    def calculate(self, variable, period=None, map_to=None, **kwargs):
+        return self.person[variable]
+
+
+def test_cohabiting_parents_get_the_couple_income_elasticities():
+    """OBR Table A2: a man in a couple -0.05, a woman in a couple whose youngest child is 3-4 -0.173."""
+    e = ls.income_elasticities(_FamiliesSim(), 2027)
+    np.testing.assert_allclose(e[[0, 1]], [-0.05, -0.173])
+    np.testing.assert_allclose(e[[3, 4]], e[[0, 1]])
+    # Why the view is needed: upstream reads legal marriage, so the cohabiting father gets nothing
+    # (a "lone father") and the cohabiting mother the lone-parent rate. Drop the view when this fails.
+    from policyengine_uk.dynamics.progression import calculate_labour_net_income_elasticities
+    upstream = calculate_labour_net_income_elasticities(_FamiliesSim())
+    np.testing.assert_allclose(upstream[[3, 4]], [0.0, -0.037])
+
+
+def test_cohabiting_parents_get_the_couple_participation_elasticities():
+    """OBR Table A1: the same row for a cohabiting as for a married parent (men; women with a working partner, 3-5)."""
+    from policyengine_uk.dynamics.participation import calculate_participation_elasticities
+
+    quintile = np.array([3, 3, 1, 3, 3, 1])
+    e = calculate_participation_elasticities(ls.CoupleView(_FamiliesSim()), quintile)
+    np.testing.assert_allclose(e[[0, 1]], [0.136, 0.589])
+    np.testing.assert_allclose(e[[3, 4]], e[[0, 1]])
+    upstream = calculate_participation_elasticities(_FamiliesSim(), quintile)
+    np.testing.assert_allclose(upstream[[3, 4]], [0.0, 0.932])
+
+
+def test_couple_elasticities_leave_marriage_in_the_simulation_alone():
+    """A cohabiting couple in policyengine-uk: couple elasticities, while is_married (and so tax) is unchanged."""
+    from policyengine_uk import Simulation
+
+    situation = _paying_couple(5_000)
+    situation["people"]["a"]["gender"] = {2027: "MALE"}
+    situation["people"]["b"]["gender"] = {2027: "FEMALE"}
+    situation["benunits"]["bu"]["is_married"] = {2027: False}
+    sim = Simulation(situation=situation)
+    tax = sim.calculate("income_tax", 2027).sum()
+    e = ls.income_elasticities(sim, 2027)
+    assert e[0] == pytest.approx(-0.05) and e[1] == pytest.approx(-0.173)
+    assert not sim.calculate("is_married", 2027).any()
+    assert sim.calculate("income_tax", 2027).sum() == pytest.approx(tax)
+
+
+def test_income_effect_is_a_share_of_disposable_income():
+    """A household whose net income is near zero after expected stamp duty still has a bounded percentage change."""
+    base = _base(hh_net_income=np.full(4, 1_000.0))
+    ref = _ref(gain=5_000.0)
+    ref["hh_net_income"] = base["hh_net_income"] + 5_000.0
+    respond, change = hr.income_change(base, ref, "at_or_below_limit")
+    np.testing.assert_allclose(change[respond], 0.05)
+    # No disposable income: no percentage change, rather than a clipped 100%.
+    base["hh_disposable_income"] = np.zeros(4)
+    np.testing.assert_allclose(hr.income_change(base, ref, "at_or_below_limit")[1], 0.0)

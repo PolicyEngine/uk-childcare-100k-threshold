@@ -10,7 +10,7 @@ below £100,000 and the adults over it (``GROUPS``):
     price effect:   earnings change = earnings x HOURS_PRICE_ELASTICITY x change in the
                     marginal price of paid childcare (%)
     income effect:  earnings change = earnings x OBR income elasticity
-                    x change in household net income (%)
+                    x change in household net income (% of disposable income)
 
 Hours and earnings move together at a constant hourly wage. Each part's exchequer effect
 is the model's: the reform simulation is recomputed with that part's changed earnings,
@@ -59,12 +59,16 @@ The income effect
 
 The OBR's income elasticities (Table A2 of the note; policyengine-uk's
 ``calculate_labour_net_income_elasticities``: for example -0.185 for a woman in a couple
-whose youngest child is 0-2, -0.05 for a man in a couple) applied as policyengine-uk's
+whose youngest child is 0-2, -0.05 for a man in a couple; a couple is married or
+cohabiting, ``labour_supply.CoupleView``) applied as policyengine-uk's
 ``apply_progression_responses`` does: earnings change = earnings x elasticity x
-(reform - baseline household net income) / baseline household net income, the relative
-change clipped to +/-100%. Household net income is the model's ``household_net_income``,
-static (before any response), which counts the funded hours at their funding value and
-Tax-Free Childcare. Responding: every adult in work in the responding population.
+(reform - baseline household net income) / baseline household income, the relative
+change clipped to +/-100%. The change is the model's ``household_net_income``, static
+(before any response), which counts the funded hours at their funding value and
+Tax-Free Childcare. Unlike upstream, the base is disposable income
+(``hbai_household_net_income``), not ``household_net_income``, which also deducts
+policyengine-uk's expected stamp duty (``income_change``). Responding: every adult in
+work in the responding population.
 
 The elasticity, -0.042, is an extrapolated scenario assumption, not an estimated price
 elasticity. Brewer et al. (IFS WP20/09) estimate +0.600 weekly hours (on a mean of
@@ -147,10 +151,20 @@ def price_change(base, ref, group="at_or_below_limit", displacement=FREE_HOURS_D
 
 
 def income_change(base, ref, group="at_or_below_limit"):
-    """Who responds to income (in work) and the relative change in their household's net income."""
+    """Who responds to income (in work) and the relative change in their household's net income.
+
+    The change is the reform's change in ``household_net_income`` (which values the
+    funded hours); the base it is a percentage of is the household's disposable income,
+    ``hbai_household_net_income``. ``household_net_income`` also nets off taxes that
+    are not paid out of the year's income, chiefly policyengine-uk's expected stamp
+    duty (an annualised expectation of a property purchase): for a few high-income
+    households that leaves it near zero or negative, which made their percentage
+    change, and the income effect, jump from year to year.
+    """
     respond = _members(base, group)
-    before, after = base["hh_net_income"], ref["hh_net_income"]
-    rel = np.divide(after - before, before, out=np.zeros_like(before), where=before > 0)
+    gain = ref["hh_net_income"] - base["hh_net_income"]
+    income = base["hh_disposable_income"]
+    rel = np.divide(gain, income, out=np.zeros_like(income), where=income > 0)
     return respond, np.where(respond, np.clip(rel, -1.0, 1.0), 0.0)
 
 

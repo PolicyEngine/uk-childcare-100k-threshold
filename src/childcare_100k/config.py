@@ -222,6 +222,8 @@ BREWER_HOURS_URL = (
     "WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41"
 )
 OBR_PARTICIPATION_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf"
+# policyengine-uk assigns the OBR groups by legal marriage; labour_supply.CoupleView assigns them by couple.
+UPSTREAM_COUPLE_ISSUE_URL = "https://github.com/PolicyEngine/policyengine-uk/issues/2190"
 AKGUNDUZ_PLANTENGA_URL = "https://www.uu.nl/sites/default/files/rebo_use_dp_2015_15-14.pdf"
 # An assumption, not a measured figure: of the free hours a family is newly offered, the
 # share assumed to displace care it was already paying for. The hours margin uses it to

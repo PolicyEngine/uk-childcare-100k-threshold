@@ -170,17 +170,46 @@ def responding(sim, year):
     return np.isfinite(youngest) & (youngest <= YOUNGEST_CHILD_MAX_AGE) & family_over
 
 
+class CoupleView:
+    """A read-only view of a simulation in which ``is_married`` means "in a couple".
+
+    The OBR groups (Tables A1 and A2 of the note: "married or cohabiting" women, lone
+    parents, men except lone fathers) turn on whether a person has a partner, not on
+    legal marriage. policyengine-uk 2.102.3's ``calculate_participation_elasticities``
+    and ``calculate_labour_net_income_elasticities`` test ``is_married``, which
+    Microcosm UK 2024-25 supplies as legal marriage or civil partnership: a cohabiting
+    father would get no elasticity (as a lone father) and a cohabiting mother the
+    lone-parent rates. Through this view the upstream functions read the model's own
+    couple indicator, ``is_couple`` (a benefit unit with more than one adult; a third
+    adult, a grown-up child counted in the unit, is excluded from the response
+    anyway). The simulation itself is untouched, so ``is_married`` keeps its meaning
+    for tax (the marriage allowance). Reported upstream: ``config.UPSTREAM_COUPLE_ISSUE_URL``.
+    """
+
+    def __init__(self, sim):
+        self._sim = sim
+
+    def calculate(self, variable, *args, **kwargs):
+        if variable == "is_married":
+            variable = "is_couple"
+        return self._sim.calculate(variable, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._sim, name)
+
+
 def elasticities(sim, year):
     """OBR Table A1 participation elasticities (upstream), placed on upstream's earnings quintiles.
 
     ``calculate_participation_elasticities`` reads the simulation's default period, so
-    it is moved to the costed year for the call and restored.
+    it is moved to the costed year for the call and restored. Its groups are assigned
+    by whether a person is in a couple, married or not (:class:`CoupleView`).
     """
     previous = sim.default_calculation_period
     sim.default_calculation_period = year
     try:
         quintile = calculate_earnings_quintile(sim, year, HOURS_FOR_NEW_ENTRANTS)
-        return np.asarray(calculate_participation_elasticities(sim, quintile), float)
+        return np.asarray(calculate_participation_elasticities(CoupleView(sim), quintile), float)
     finally:
         sim.default_calculation_period = previous
 
@@ -189,12 +218,13 @@ def income_elasticities(sim, year):
     """OBR Table A2 income elasticities of hours (upstream), for the costed year.
 
     ``calculate_labour_net_income_elasticities`` reads the simulation's default period,
-    so it is moved to the costed year for the call and restored.
+    so it is moved to the costed year for the call and restored. Its groups are
+    assigned by whether a person is in a couple, married or not (:class:`CoupleView`).
     """
     previous = sim.default_calculation_period
     sim.default_calculation_period = year
     try:
-        return np.asarray(calculate_labour_net_income_elasticities(sim), float)
+        return np.asarray(calculate_labour_net_income_elasticities(CoupleView(sim)), float)
     finally:
         sim.default_calculation_period = previous
 
@@ -314,6 +344,8 @@ def hours_inputs(sim, year):
                       "targeted_childcare_entitlement"))),
         "tfc_rate": tfc_marginal_rate(sim, year),
         "hh_net_income": values(sim, "household_net_income", year, "person").astype(float),
+        # The base of the income effect's percentage change (hours_response.income_change).
+        "hh_disposable_income": values(sim, "hbai_household_net_income", year, "person").astype(float),
     }
 
 

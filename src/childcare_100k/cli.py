@@ -25,6 +25,7 @@ from .config import (
     HOURS_FOR_NEW_ENTRANTS,
     HOURS_PRICE_ELASTICITY,
     OBR_PARTICIPATION_URL,
+    UPSTREAM_COUPLE_ISSUE_URL,
     PRICE_ELASTICITY_CENTRAL,
     PRICE_ELASTICITY_HIGH,
     PRICE_ELASTICITY_LOW,
@@ -379,6 +380,11 @@ def build(metas):
                 "income_elasticities": "Table A2, by sex, whether in a couple and age of youngest child: from "
                                        "-0.185 (a woman in a couple, youngest child 0-2) to -0.037 (a lone "
                                        "mother, youngest 0-4); -0.05 for a man in a couple",
+                "couples": "The OBR groups (Tables A1 and A2) apply to married and cohabiting couples alike. "
+                           "policyengine-uk assigns them by legal marriage, which would give a cohabiting father no "
+                           "elasticity and a cohabiting mother the lone-parent rates (about a fifth of couples with "
+                           "children are not married); we assign them by whether the adult is in a couple.",
+                "couples_issue_url": UPSTREAM_COUPLE_ISSUE_URL,
                 "hours_for_new_entrants": HOURS_FOR_NEW_ENTRANTS,
                 "free_hours_displacement": round(FREE_HOURS_DISPLACEMENT, 4),
                 "free_hours_displacement_range": {k: round(v, 4) for k, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
@@ -419,10 +425,12 @@ def build(metas):
                 "amount, conditional only on both parents meeting the minimum earnings test, so for a family that "
                 "still buys paid care on top of them they do not change what an extra hour costs; they lower the "
                 "marginal price (to zero) only where they cover all the paid care the family buys. Income effect: "
-                "the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities) "
-                "times the static percentage change in household net income (which counts the funded hours at their "
-                "funding value and Tax-Free Childcare), as policyengine-uk's apply_progression_responses applies "
-                "them. Neither elasticity is measured on parents over £100,000.",
+                "the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities, "
+                "assigned to married and cohabiting couples alike) times the static change in household net income "
+                "(which counts the funded hours at their funding value and Tax-Free Childcare) as a percentage of "
+                "household disposable income, as policyengine-uk's apply_progression_responses applies them except "
+                "for that base (household net income also deducts expected stamp duty, which leaves a few "
+                "high-income households near zero). Neither elasticity is measured on parents over £100,000.",
                 "Whether newly funded hours cover a family's paid care is judged on value, with funded hours "
                 f"assumed to displace paid care at {FREE_HOURS_DISPLACEMENT:.1%} of their value (1 - 54/570, IFS "
                 "BN189, which counts all displaced non-family care as paid). It is an assumption, published at "
