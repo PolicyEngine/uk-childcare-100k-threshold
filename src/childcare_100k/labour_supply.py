@@ -678,16 +678,16 @@ def run(build_simulation, log=print):
         for bound, scale in ELASTICITY_SCALES.items():
             for k, v in participation_response(prep, scale).items():
                 arrays[f"{y}/extensive/{bound}/{k}"] = v
-        # Where the entrants placed in a coarser cell come from (A3), central elasticities.
-        prep.update(worker_profile(sim, y, base[y], prep))
-        for sensitivity in ENTRY_SENSITIVITIES:
-            for k, v in participation_response(prep, 1.0, sensitivity).items():
-                arrays[f"{y}/extensive_sensitivity/{sensitivity}/{k}"] = v
             hours = hours_response(sim, y, base[y], ref, scale)
             for k, v in hours["at_or_below_limit"].items():
                 arrays[f"{y}/intensive/{bound}/{k}"] = v
             for k, v in hours["over_limit"].items():
                 arrays[f"{y}/intensive_over_limit/{bound}/{k}"] = v
+        # Where the entrants placed in a coarser cell come from (A3), central elasticities.
+        prep.update(worker_profile(sim, y, base[y], prep))
+        for sensitivity in ENTRY_SENSITIVITIES:
+            for k, v in participation_response(prep, 1.0, sensitivity).items():
+                arrays[f"{y}/extensive_sensitivity/{sensitivity}/{k}"] = v
         arrays[f"{y}/hours_responding_adults"] = float(
             MicroSeries(base[y]["hours_eligible"].astype(float), weights=prep["weights"]).sum())
         # The displacement assumption varied on its own, at central elasticities, both groups
