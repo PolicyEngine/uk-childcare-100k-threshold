@@ -37,6 +37,7 @@ def _base(**overrides):
 def _ref(free=0.0, tfc_rate=0.0, gain=0.0, n=4):
     """The reform: newly funded hours worth ``free``, a Tax-Free Childcare rate, and a cash gain ``gain``."""
     return {"bu_free": np.full(n, free), "bu_tfc": np.zeros(n), "tfc_rate": np.full(n, tfc_rate),
+            "bu_tfc_displaced": {hr.displacement_key(d): np.zeros(n) for d in hr.DISPLACEMENTS},
             "hh_net_income": np.full(n, 100_000.0 + gain + free),
             "hh_disposable_income": np.full(n, 100_000.0 + gain)}
 
@@ -412,6 +413,40 @@ def test_income_gain_counts_paid_care_saved_and_cash_not_the_funding_value():
     np.testing.assert_allclose(hr.paid_care_saving(two, _ref(free=4_000.0)), displaced + 1_000.0)
 
 
+def test_income_gain_withdraws_the_top_up_on_the_displaced_spend():
+    """A5: the top-up the family no longer gets on care it no longer buys comes off the central gain only."""
+    base = _base()
+    ref = _ref(free=4_000.0, gain=500.0)
+    ref["bu_tfc"] = np.full(4, 1_000.0)
+    ref["bu_tfc_displaced"][hr.displacement_key(config.FREE_HOURS_DISPLACEMENT)] = np.full(4, 300.0)
+    fixed = hr.income_gain(base, ref, basis="paid_care_fixed_spend")
+    np.testing.assert_allclose(hr.income_gain(base, ref), fixed - 700.0)
+
+
+def _paying_two_earner_couple(year=2027):
+    """María's A5 household: £120,000 and £40,000 earners, a three-year-old, £5,000 of paid care."""
+    situation = _couple(120_000, year)
+    situation["people"]["b"]["employment_income"] = {year: 40_000}
+    situation["people"]["b"]["hours_worked"] = {year: 1_950}
+    situation["people"]["child"]["childcare_expenses"] = {year: 5_000}
+    return situation
+
+
+def test_income_gain_on_her_household_is_consistent_with_the_displaced_spend():
+    """A5: newly funded hours displace £3,289.62 of the £5,000; the reform's top-up on what is left is £342.08, not
+    the £1,000 on the full £5,000, so the gain is £3,631.70, not £4,289.62 (now the fixed-spend sensitivity)."""
+    base = ls.baseline_side(_corrected(_paying_two_earner_couple(), False), 2027)
+    sim = _corrected(_paying_two_earner_couple(), True)
+    ref = ls.reform_side(sim, 2027, base)
+    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(3_289.62, abs=0.01)
+    assert ref["bu_tfc"][0] == pytest.approx(1_000.0)
+    assert ref["bu_tfc_displaced"][hr.displacement_key(config.FREE_HOURS_DISPLACEMENT)][0] == pytest.approx(342.08, abs=0.01)
+    assert hr.income_gain(base, ref)[0] == pytest.approx(3_631.70, abs=0.01)
+    assert hr.income_gain(base, ref, basis="paid_care_fixed_spend")[0] == pytest.approx(4_289.62, abs=0.01)
+    # The recompute leaves the simulation's spend as it was.
+    assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(5_000.0)
+
+
 def test_disabled_workers_keep_the_hours_response():
     """A2: OBR Table A4 excludes disabled people from participation; Table A3 does not exclude them from hours."""
     from policyengine_uk import Simulation
@@ -511,7 +546,7 @@ def test_hours_response_on_the_paid_care_basis(two_earner_runs):
     saving = hr.paid_care_saving(base, ref)
     newly_funded = hr.newly_funded_value(base, ref)
     assert saving[0] == pytest.approx(min(newly_funded[0] * config.FREE_HOURS_DISPLACEMENT, 5_000.0))
-    paid = hr.income_gain(base, ref)
+    paid = hr.income_gain(base, ref, basis="paid_care_fixed_spend")
     cost = hr.income_gain(base, ref, basis="government_cost")
     assert paid[0] == pytest.approx(cost[0] - newly_funded[0] + saving[0], abs=0.1)  # float32 sums
     r = hr.hours_response(sim, 2027, base, ref, 1.0)

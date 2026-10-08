@@ -20,7 +20,7 @@ from .config import (
     FREE_HOURS_DISPLACEMENT_RANGE,
     FREE_HOURS_VARIABLES,
     GAIN_THRESHOLD,
-    INCOME_BASIS_SENSITIVITY,
+    INCOME_BASIS_SENSITIVITIES,
     MIN_CELL_RECORDS,
     REGIONS,
     UNDER_ONE_WEEKLY_HOURS,
@@ -445,13 +445,13 @@ def labour_supply(static_total, years=YEARS):
                                    for y in years} for side in FREE_HOURS_DISPLACEMENT_RANGE},
         "displacement": {side: round(v, 4) for side, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
     }
-    # Sensitivity, not in the dynamic cost: the income effect's gain with the funded hours at government cost
-    # (hours_response.income_gain), central elasticities, both groups.
-    basis = INCOME_BASIS_SENSITIVITY
+    # Sensitivities, not in the dynamic cost: the income effect's gain with spending held fixed (the top-up on the
+    # displaced spend kept) and with the funded hours at government cost (hours_response.income_gain), central
+    # elasticities, both groups.
     intensive_income_basis = {
-        "basis": basis,
-        **{f"{k}_bn": {str(y): _bn(float(z[f"{y}/intensive_income_basis/{basis}/{k}"])) for y in years}
-           for k in ("offset", "price_offset", "income_offset")},
+        basis: {f"{k}_bn": {str(y): _bn(float(z[f"{y}/intensive_income_basis/{basis}/{k}"])) for y in years}
+                for k in ("offset", "price_offset", "income_offset")}
+        for basis in INCOME_BASIS_SENSITIVITIES
     }
     total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
                  for y in years} for b in BOUNDS}

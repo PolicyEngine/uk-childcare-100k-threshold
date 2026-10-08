@@ -102,7 +102,7 @@ from .config import (
     HOURS_FOR_NEW_ENTRANTS,
     LSR_WEEKS_PER_YEAR,
     PARTICIPATION_CHANGE_BOUND,
-    INCOME_BASIS_SENSITIVITY,
+    INCOME_BASIS_SENSITIVITIES,
     YEARS,
     YOUNGEST_CHILD_BANDS,
     YOUNGEST_CHILD_MAX_AGE,
@@ -428,10 +428,19 @@ def baseline_side(sim, year):
 
 
 def reform_side(sim, year, base):
-    """The reform's gain to work, on the baseline's imputed earnings and childcare."""
+    """The reform's gain to work, on the baseline's imputed earnings and childcare.
+
+    Also the reform's Tax-Free Childcare once the paid care the newly funded hours
+    displace is no longer bought, at each displacement rate the hours margin uses
+    (``hours_response.tfc_at_displaced_spend``).
+    """
+    from .hours_response import DISPLACEMENTS, displacement_key, tfc_at_displaced_spend
+
     out = {f"gtw_{k}": v for k, v in gain_to_work(
         sim, year, base["entrant_earnings"], base["actual_cost"], base["imputed_cost"]).items()}
     out.update(hours_inputs(sim, year))
+    out["bu_tfc_displaced"] = {displacement_key(d): tfc_at_displaced_spend(sim, year, base, out, d)
+                               for d in DISPLACEMENTS}
     return out
 
 
@@ -603,9 +612,11 @@ def run(build_simulation, log=print):
         for side, displacement in FREE_HOURS_DISPLACEMENT_RANGE.items():
             for k, v in hours_response(sim, y, base[y], ref, 1.0, displacement)["total"].items():
                 arrays[f"{y}/intensive_displacement/{side}/{k}"] = v
-        # The income effect's gain with the funded hours at government cost, central elasticities.
-        for k, v in hours_response(sim, y, base[y], ref, 1.0, basis=INCOME_BASIS_SENSITIVITY)["total"].items():
-            arrays[f"{y}/intensive_income_basis/{INCOME_BASIS_SENSITIVITY}/{k}"] = v
+        # The income effect's gain on other bases (spending held fixed; the funded hours at government cost),
+        # central elasticities.
+        for basis in INCOME_BASIS_SENSITIVITIES:
+            for k, v in hours_response(sim, y, base[y], ref, 1.0, basis=basis)["total"].items():
+                arrays[f"{y}/intensive_income_basis/{basis}/{k}"] = v
     del sim
     gc.collect()
     return arrays

@@ -239,10 +239,13 @@ FREE_HOURS_DISPLACEMENT_RANGE = {"low": 1 - 163 / 570, "high": 1.0}
 # The income effect's gain (hours_response.income_gain): "paid_care" counts the paid
 # childcare the newly funded hours displace plus cash (disposable income, Tax-Free
 # Childcare included), the same resource definition as its HBAI disposable-income base;
-# "government_cost" counts the funded hours at their funding value, published as a
-# sensitivity (``intensive_income_basis``).
+# The Tax-Free Childcare top-up on the displaced spend is withdrawn, since the family no
+# longer pays for that care. Published as sensitivities (``intensive_income_basis``):
+# "paid_care_fixed_spend", the same gain with the top-up kept on the displaced spend
+# (spending held fixed), and "government_cost", which counts the funded hours at their
+# funding value.
 INCOME_BASIS = "paid_care"
-INCOME_BASIS_SENSITIVITY = "government_cost"
+INCOME_BASIS_SENSITIVITIES = ("paid_care_fixed_spend", "government_cost")
 # Cells within which implied entrants are allocated to non-workers (labour_supply.entry_cells):
 # the OBR Table A1 groups' youngest-child bands.
 YOUNGEST_CHILD_BANDS = (0, 3, 6, 11)
