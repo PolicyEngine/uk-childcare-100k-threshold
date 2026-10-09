@@ -18,7 +18,7 @@
    "dataset_sha256": "aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af",
    "policyengine": "6.2.1",
    "policyengine_uk": "2.102.3",
-   "run_definition_sha256": "f10310e96261b49f7eae2eb5a7625801404ec831f4168d85aa70fedeb9663ac7"
+   "run_definition_sha256": "f5981ee191e32c6e5e8f5923010327790b78ee44de772d7a47351c0451d6a4d1"
   },
   "years": [
    2026,
@@ -26,21 +26,21 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-08T16:15:16+00:00",
-  "git_revision": "d812fccbc86a014b2f41b97f6deb9c7330b89abe",
-  "aggregation_sha256": "db20f2ee854b23b14f93693a83075316636a7ed8c5f9d59e53e0f1e4c15b7b6b",
+  "generated_at": "2026-10-09T11:08:43+00:00",
+  "git_revision": "7ed8ecf9f3eac30f4c42a43bffc51a0770b9c9a1",
+  "aggregation_sha256": "0eff04ef88fa47e3f8a7ff0351ecab80d639ed233d5dd8336ca123dd9fb1291b",
   "min_cell_size": 10,
   "run_seconds": {
-   "microcosm_uk_2024_25/baseline": 14.0,
-   "microcosm_uk_2024_25/reform": 12.6,
+   "microcosm_uk_2024_25/baseline": 15.0,
+   "microcosm_uk_2024_25/reform": 13.2,
    "microcosm_uk_2024_25/baseline_hours30": 12.5,
-   "microcosm_uk_2024_25/reform_hours30": 12.7,
-   "microcosm_uk_2024_25/baseline_routed": 12.2,
-   "microcosm_uk_2024_25/reform_routed": 12.5,
-   "microcosm_uk_2024_25/labour_supply": 335.9
+   "microcosm_uk_2024_25/reform_hours30": 12.4,
+   "microcosm_uk_2024_25/baseline_routed": 12.5,
+   "microcosm_uk_2024_25/reform_routed": 12.6,
+   "microcosm_uk_2024_25/labour_supply": 382.0
   },
   "peak_rss_gb": {
-   "microcosm_uk_2024_25/baseline": 6.5,
+   "microcosm_uk_2024_25/baseline": 6.6,
    "microcosm_uk_2024_25/reform": 5.8,
    "microcosm_uk_2024_25/baseline_hours30": 6.3,
    "microcosm_uk_2024_25/reform_hours30": 5.8,
@@ -25964,6 +25964,26 @@
      "2028": -0.027,
      "2029": -0.028
     }
+   },
+   "tfc_only": {
+    "offset_bn": {
+     "2026": 0.109,
+     "2027": 0.116,
+     "2028": 0.121,
+     "2029": 0.125
+    },
+    "price_offset_bn": {
+     "2026": 0.131,
+     "2027": 0.139,
+     "2028": 0.148,
+     "2029": 0.153
+    },
+    "income_offset_bn": {
+     "2026": -0.022,
+     "2027": -0.023,
+     "2028": -0.027,
+     "2029": -0.028
+    }
    }
   },
   "total_offset_bn": {
@@ -26056,7 +26076,7 @@
   "notes": [
    "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the two offsets (moving into work and hours), at the same bound; the hours offset is its price effect (money back) plus its income effect (money out). They apply to the total: they are not split by scheme.",
    "Moving into work (extensive margin): the OBR elasticities are the percentage change in the probability of working for a percentage change in the gain to work (net of the childcare a parent would buy), converted from in-work income by the gain over in-work income. As in Adam and Phillips (Appendix E) they apply to the employed share: new employment is the sum over working adults of their own response, and it is shared among the non-working adults like them (who are the ones entering): those in the same OBR cell (sex, couple, age band of the youngest child, earnings quintile), in proportion to their own response, or, where the cell has no responding non-worker, in the nearest coarser cell (allocated_by_cell_level). The offset is entrants' earnings less the rise in their household's net income (tax and National Insurance paid, less the childcare support the family now receives) and less the Tax-Free Childcare top-up on the care they start buying. Entrants placed in a coarser cell take the non-workers' earnings, gain and subsidy from other earnings quintiles; entry_sensitivity reports the offset with them dropped (same_cell_only) and with them given the weighted median hourly wage of the workers who imply them, gain and subsidy recomputed (worker_profile), at central elasticities.",
-   "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; the parts are an attribution that adds up to it (the price change recomputed alone, the income effect the remainder; the at-or-below group alone, the over group the remainder). Price effect: -0.042 times the change in the price of the family's marginal hour of paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive margin. Tax-Free Childcare lowers the marginal price where the reform newly pays it and the cap does not bind (the model's own rate on the next pound of spend, at the spend the family still makes once the funded hours displace paid care; intensive_price_basis publishes it at today's spend). The 30 funded hours are a fixed amount, conditional only on both parents meeting the minimum earnings test, so for a family that still buys paid care on top of them they do not change what an extra hour costs; they lower the marginal price (to zero) only where they are worth more than all the paid care the family buys. Income effect: the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities, assigned to married and cohabiting couples alike) times the household's static gain as a percentage of its disposable income, as policyengine-uk's apply_progression_responses applies them except for the income measure. The gain is on the same disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid childcare the newly funded hours displace (their value at the displacement rate below, capped at what the family pays), with the reform's cash income recomputed by the model on the care the family still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither elasticity is measured on parents over £100,000.",
+   "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; the parts are an attribution that adds up to it (the price change recomputed alone, the income effect the remainder; the at-or-below group alone, the over group the remainder). Price effect: -0.042 times the change in the price of the family's marginal hour of paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive margin. The marginal price is net of all the childcare-linked cash support on the next pound of spend, the model's own (Tax-Free Childcare, the Universal Credit childcare element and the other payments tied to childcare_expenses), today and, under the reform, at the spend the family still makes once the funded hours displace paid care; intensive_price_basis publishes it at today's spend (original_spend) and with Tax-Free Childcare alone (tfc_only). The 30 funded hours are a fixed amount, conditional only on both parents meeting the minimum earnings test, so for a family that still buys paid care on top of them they do not change what an extra hour costs; they lower the marginal price (to zero) only where they are worth more than all the paid care the family buys. Income effect: the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities, assigned to married and cohabiting couples alike) times the household's static gain as a percentage of its disposable income, as policyengine-uk's apply_progression_responses applies them except for the income measure. The gain is on the same disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid childcare the newly funded hours displace (their value at the displacement rate below, capped at what the family pays), with the reform's cash income recomputed by the model on the care the family still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither elasticity is measured on parents over £100,000.",
    "Whether newly funded hours cover a family's paid care, and how much paid care they save it, is judged on value, with funded hours assumed to displace paid care at 90.5% of their value (1 - 54/570, IFS BN189, which counts all displaced non-family care as paid). It is an assumption, published at 71.4% (only subsidisable care displaced, 1 - 163/570) and 100% (intensive_displacement), at central elasticities.",
    "Low and high scale every elasticity (participation, price and income) by 1/3 and 2. The range is illustrative, not a sourced uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
    "The income and family-type breakdowns, who gains and the household calculator are static."

@@ -304,8 +304,11 @@ function LabourSupplySection({ data }) {
           estimate +0.6 weekly hours for mothers whose youngest child becomes eligible for full-time rather than
           part-time free care, which we treat as a 100% price fall; it is not measured on parents over £100,000).
           It applies to the change in the price of the family&apos;s next hour of paid childcare, for adults whose
-          family pays for childcare. Tax-Free Childcare lowers that price where the reform newly pays it and the cap
-          does not bind on the paid care the family still buys once the funded hours replace some of it. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
+          family pays for childcare. That price is net of all the cash support tied to the next pound of care (Tax-Free
+          Childcare, the Universal Credit childcare element), read today and, under the reform, on the paid care the
+          family still buys once the funded hours replace some of it: Tax-Free Childcare lowers it where the reform
+          newly pays it below the cap, and the Universal Credit childcare element (85p per pound) where the replaced care
+          takes a family below its cap. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
           test, so for a family that still buys paid care on top of them an extra hour costs what it did; they make it
           free only where they are worth more than all the paid care the family buys, judged on value with funded hours assumed to
           replace {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care (an assumption; IFS BN189
@@ -332,7 +335,10 @@ function LabourSupplySection({ data }) {
             ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatBn(disp.offset_bn.low[yKey], 3)} or ${formatBn(disp.offset_bn.high[yKey], 3)} rather than ${formatBn(ls.intensive.offset.central[li], 3)}`
             : ""}
           {priceBasis?.original_spend
-            ? `; reading the Tax-Free Childcare price change at today's spend, ${formatBn(priceBasis.original_spend.offset_bn[yKey], 3)}`
+            ? `; reading the reform's price at today's spend, ${formatBn(priceBasis.original_spend.offset_bn[yKey], 3)}`
+            : ""}
+          {priceBasis?.tfc_only
+            ? `; counting only Tax-Free Childcare in the price, ${formatBn(priceBasis.tfc_only.offset_bn[yKey], 3)}`
             : ""}
           {incomeBasis?.paid_care_fixed_spend
             ? `; keeping the cash support on the care the funded hours replace (spending held fixed), ${formatBn(incomeBasis.paid_care_fixed_spend.offset_bn[yKey], 3)}`

@@ -263,6 +263,7 @@ describe("methodology", () => {
     expect(text).toContain(b3(ls.intensive_income_basis.paid_care_fixed_spend.offset_bn[y]));
     expect(text).toContain(b3(ls.intensive_income_basis.government_cost.offset_bn[y]));
     expect(text).toContain(b3(ls.intensive_price_basis.original_spend.offset_bn[y]));
+    expect(text).toContain(b3(ls.intensive_price_basis.tfc_only.offset_bn[y]));
     expect(text).toMatch(/Universal Credit childcare element it no longer gets/);
   });
 
