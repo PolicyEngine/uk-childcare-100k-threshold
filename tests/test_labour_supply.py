@@ -558,25 +558,56 @@ def test_price_change_on_her_household_counts_the_uc_childcare_element():
     assert float(sim.calculate("tax_free_childcare", 2027).sum()) == 0
     assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(22_033.92, abs=0.01)
     assert hr.displaced(ref)["bu_tfc"][0] == 0
-    # The model's support on the next £1: none at the cap (baseline, today's spend), 85p below it.
+    # The model's support on the next £1: none at the cap (baseline, today's spend), 85p below it. C3: a £1 step on
+    # float32 benefit levels reads a rate to within about 1.2e-7 x the support level (0.3p on a £22,000 element).
     np.testing.assert_allclose(base["support_rate"][:2], 0.0, atol=1e-3)
     np.testing.assert_allclose(ref["support_rate"][:2], 0.0, atol=1e-3)
-    np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.85, atol=1e-3)
+    np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.85, atol=5e-3)
     np.testing.assert_allclose(hr.displaced(ref)["tfc_rate"][:2], 0.0, atol=1e-3)
     covered, central = hr.marginal_price_change(base, ref)
     assert not covered[:2].any()
-    np.testing.assert_allclose(central[:2], -0.85, atol=1e-3)
+    np.testing.assert_allclose(central[:2], -0.85, atol=5e-3)
     np.testing.assert_allclose(hr.marginal_price_change(base, ref, price_basis="tfc_only")[1][:2], 0.0, atol=1e-3)
     np.testing.assert_allclose(hr.marginal_price_change(base, ref, price_basis="original_spend")[1][:2], 0.0,
                                atol=1e-3)
     # Both parents work: the price change reaches each adult in work whose family pays for care.
     respond, change, _ = hr.price_change(base, ref, "over_limit")
-    assert respond[0] and change[0] == pytest.approx(-0.85, abs=1e-3)
+    assert respond[0] and change[0] == pytest.approx(-0.85, abs=5e-3)
     # The UC childcare element at the displaced spend, recomputed alone; the simulation's spend is restored.
     assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(27_000.0)
     sim.reset_calculations()
     sim.set_input("childcare_expenses", 2027, np.array([0, 0, 27_000 - saving, 0, 0, 0], np.float32))
     assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(20_153.82, abs=0.01)
+
+
+def _her_c3_household(paid_care):
+    situation = _london_uc_family()
+    situation["people"]["c3"]["childcare_expenses"] = {2027: paid_care}
+    base = ls.baseline_side(_corrected(situation, False), 2027)
+    sim = _corrected(situation, True)
+    return base, sim, ls.reform_side(sim, 2027, base)
+
+
+def test_price_change_on_the_next_pound_just_below_the_uc_cap():
+    """C3 of the rereview at f4dcedf: the London family with £29,211 of paid care. The funded hours displace
+    £3,289.62, leaving £25,921.38, about 88p below the spend at which the UC childcare element reaches its cap. The
+    next £1 raises UC by about 85% of 88p, £0.748, so its net price falls about 75%. The 1% step (£259.21) crossed
+    the cap and divided that £0.75 by £259.21, a 0.289% fall."""
+    base, sim, ref = _her_c3_household(29_211)
+    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(3_289.62, abs=0.01)
+    np.testing.assert_allclose(base["support_rate"][:2], 0.0, atol=1e-3)
+    np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.748, atol=0.01)
+    _, central = hr.marginal_price_change(base, ref)
+    np.testing.assert_allclose(central[:2], -0.748, atol=0.01)
+    assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(29_211.0)
+
+
+def test_price_change_on_the_next_pound_just_above_the_uc_cap():
+    """C3: £10 more paid care leaves the family about £9 above the UC cap's spending boundary once the funded hours
+    displace care, so its next £1 attracts no UC and the price does not change."""
+    base, _, ref = _her_c3_household(29_221)
+    np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.0, atol=1e-3)
+    np.testing.assert_allclose(hr.marginal_price_change(base, ref)[1][:2], 0.0, atol=1e-3)
 
 
 def test_tfc_only_price_basis_leaves_out_other_support():
@@ -696,9 +727,11 @@ def test_hours_offset_is_recomputed_once_on_the_combined_earnings_change(two_ear
     sim, base, ref = two_earner_runs
     r = hr.hours_response(sim, 2027, base, ref, 1.0, basis="government_cost")
     below, total = r["at_or_below_limit"], r["total"]
-    assert below["price_earnings"] == pytest.approx(839.16, abs=0.01)
-    assert below["offset"] == pytest.approx(400.84, abs=0.01)
-    assert total["offset"] == pytest.approx(906.29, abs=0.01)
+    # C3: the support rate is read on a £1 step from float32 benefit levels, so it carries up to about 0.3p of
+    # rounding per £1; the pounds below are pinned to within 50p rather than the penny.
+    assert below["price_earnings"] == pytest.approx(839.16, abs=0.5)
+    assert below["offset"] == pytest.approx(400.84, abs=0.5)
+    assert total["offset"] == pytest.approx(906.29, abs=0.5)
     # The parts are an attribution that adds up to the net exactly.
     for g in (*hr.GROUPS, "total"):
         assert r[g]["price_offset"] + r[g]["income_offset"] == pytest.approx(r[g]["offset"], abs=1e-6)

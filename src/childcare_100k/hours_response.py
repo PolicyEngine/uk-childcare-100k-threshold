@@ -32,7 +32,7 @@ many hours the family buys is a lump sum, which enters through the income effect
 * The marginal net price of paid care is £1 less the cash support the family gets on its
   next £1 of spend, from every payment the model ties to ``childcare_expenses``
   (``CHILDCARE_SUPPORT``). The rate is the model's own: the change in that support when
-  the family's childcare spend rises by 1% (:func:`marginal_support_rates`), which
+  the family's childcare spend rises by £1 (:func:`marginal_support_rates`), which
   carries each payment's rules, caps, the eligible part of the year and the take-up draw.
   Tax-Free Childcare pays 20% of each £1 of routed spend (59.3% of spend in this data, so
   about 11.9p per £1) until the child's cap; the Universal Credit childcare element pays
@@ -137,8 +137,9 @@ from .labour_supply import values
 # Who responds, split by their own income as the limits test it. Both groups use the same rules.
 GROUPS = ("at_or_below_limit", "over_limit")
 COMPONENTS = ("price", "income")
-# The proportional rise in childcare spend used to read the model's marginal childcare support rates.
-PRICE_STEP = 0.01
+# The family's extra childcare spend (£, split across its children in proportion to their spend) used to read
+# the model's marginal childcare support rates: the next £1, the claimed marginal unit (C3).
+PRICE_STEP = 1.0
 # The cash payments policyengine-uk ties to ``childcare_expenses`` (each summed to the family): Tax-Free
 # Childcare, Universal Credit (its childcare element, 85% of charges up to the reg 36 cap), the legacy
 # Working Tax Credit childcare element (and Child Tax Credit, tapered jointly with it), Housing Benefit's
@@ -161,8 +162,8 @@ def _support(sim, year):
 
 
 def _rates(before, after, bu_spend):
-    """Marginal support per £1 from the support before and after spend rises by ``PRICE_STEP``, clipped to [0, 1]."""
-    rate = np.divide(after - before, bu_spend * PRICE_STEP, out=np.zeros_like(bu_spend), where=bu_spend > 0)
+    """Marginal support per £1: the support after spend rises by ``PRICE_STEP`` less before, clipped to [0, 1]."""
+    rate = np.divide(after - before, PRICE_STEP, out=np.zeros_like(bu_spend), where=bu_spend > 0)
     return np.clip(rate, 0.0, 1.0)
 
 
@@ -171,24 +172,34 @@ def marginal_support_rates(sim, year, kept=None):
 
     The support paid on the family's next £1 of childcare spend, the model's own: every
     person's ``childcare_expenses`` (scaled by ``kept``, the share of spend the family still
-    makes, if given) is raised by ``PRICE_STEP`` and the family's cash support recomputed;
-    each rate is the change over the change in spend (0 where the family spends nothing).
-    ``tfc_rate`` counts Tax-Free Childcare alone; ``support_rate`` every payment in
+    makes, if given) is raised by that person's share of the family's spend times
+    ``PRICE_STEP`` (£1), so the family buys £1 more care, split across its children in
+    proportion to what each already costs, and the family's cash support recomputed; each
+    rate is the change in support per £1 (0 where the family spends nothing). An absolute
+    £1 step, not a proportional one, so near a cap (the Universal Credit childcare
+    element's, reg 36, or a child's Tax-Free Childcare cap) the rate is the one on the
+    marginal pound, not an average over spending mostly beyond the cap. ``tfc_rate``
+    counts Tax-Free Childcare alone; ``support_rate`` every payment in
     ``CHILDCARE_SUPPORT``, so a Universal Credit family below its childcare-element cap
-    gets 85p per £1, one at the cap none. Returns ``(rates, support at the spend)``; the
-    simulation is restored afterwards.
+    gets 85p per £1, one at the cap none. policyengine-uk computes in float32, so a £1
+    step reads each rate to within about 1.2e-7 x the support level (under 0.3p per £1 for a
+    £22,000 Universal Credit childcare element, under 0.03p for Tax-Free Childcare), against
+    rates of 12p to 85p; zero support is exact. Returns ``(rates, support at the spend)``;
+    the simulation is restored afterwards.
     """
-    spend = values(sim, "childcare_expenses", year).astype(float)
-    kept = np.ones_like(spend) if kept is None else kept
+    spend = values(sim, "childcare_expenses", year).astype(np.float64)
+    kept = np.ones_like(spend) if kept is None else np.asarray(kept, np.float64)
+    at = spend * kept
     try:
         sim.reset_calculations()
-        sim.set_input("childcare_expenses", year, (spend * kept).astype(np.float32))
+        sim.set_input("childcare_expenses", year, at)
         bu_spend = _family(sim, year, "childcare_expenses")
         tfc, support = _support(sim, year)
         at_spend = {"bu_tfc": tfc, "hh_disposable_income": values(
             sim, "hbai_household_net_income", year, "person").astype(float)}
+        share = np.divide(at, bu_spend, out=np.zeros_like(at), where=bu_spend > 0)
         sim.reset_calculations()
-        sim.set_input("childcare_expenses", year, (spend * kept * (1 + PRICE_STEP)).astype(np.float32))
+        sim.set_input("childcare_expenses", year, at + share * PRICE_STEP)
         tfc_up, support_up = _support(sim, year)
     finally:
         sim.reset_calculations()

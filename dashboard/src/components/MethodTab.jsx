@@ -305,7 +305,8 @@ function LabourSupplySection({ data }) {
           part-time free care, which we treat as a 100% price fall; it is not measured on parents over £100,000).
           It applies to the change in the price of the family&apos;s next hour of paid childcare, for adults whose
           family pays for childcare. That price is net of all the cash support tied to the next pound of care (Tax-Free
-          Childcare, the Universal Credit childcare element), read today and, under the reform, on the paid care the
+          Childcare, the Universal Credit childcare element), measured on one more pound of spending so that near a
+          cap it is the support on that pound, read today and, under the reform, on the paid care the
           family still buys once the funded hours replace some of it: Tax-Free Childcare lowers it where the reform
           newly pays it below the cap, and the Universal Credit childcare element (85p per pound) where the replaced care
           takes a family below its cap. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
