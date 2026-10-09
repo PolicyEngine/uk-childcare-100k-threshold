@@ -246,12 +246,13 @@ FREE_HOURS_DISPLACEMENT_RANGE = {"low": 1 - 163 / 570, "high": 1.0}
 # fixed, and "government_cost", which counts the funded hours at their funding value.
 INCOME_BASIS = "paid_care"
 INCOME_BASIS_SENSITIVITIES = ("paid_care_fixed_spend", "government_cost")
-# The price effect's reform Tax-Free Childcare rate (hours_response.marginal_price_change):
-# "remaining_spend" reads it at the spend left after displacement, the income effect's
-# spending; published as a sensitivity (``intensive_price_basis``), "original_spend", at
-# the family's spend today.
+# The price effect's marginal net price of paid care, 1 less every childcare-linked cash support's
+# rate on the next £1 (hours_response.marginal_price_change): "remaining_spend" reads the reform's
+# at the spend left after displacement, the income effect's spending; published as sensitivities
+# (``intensive_price_basis``): "original_spend", at the family's spend today, and "tfc_only",
+# Tax-Free Childcare alone (the Universal Credit childcare element left out).
 PRICE_BASIS = "remaining_spend"
-PRICE_BASIS_SENSITIVITIES = ("original_spend",)
+PRICE_BASIS_SENSITIVITIES = ("original_spend", "tfc_only")
 # Cells within which implied entrants are allocated to non-workers (labour_supply.entry_cells):
 # the OBR Table A1 groups' youngest-child bands.
 YOUNGEST_CHILD_BANDS = (0, 3, 6, 11)

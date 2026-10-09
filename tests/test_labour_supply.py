@@ -20,6 +20,7 @@ def _base(**overrides):
         "bu_tfc": np.zeros(n),
         "bu_free": np.zeros(n),
         "tfc_rate": np.zeros(n),
+        "support_rate": np.zeros(n),
         "hh_net_income": np.full(n, 100_000.0),
         "hh_disposable_income": np.full(n, 100_000.0),
         "income_elasticity": np.array([-0.185, -0.05, -0.05, -0.185]),
@@ -34,11 +35,15 @@ def _base(**overrides):
     return base
 
 
-def _ref(free=0.0, tfc_rate=0.0, gain=0.0, n=4):
-    """The reform: newly funded hours worth ``free``, a Tax-Free Childcare rate, and a cash gain ``gain``, the same
-    at the spend left after displacement unless a test changes ``displaced``."""
+def _ref(free=0.0, tfc_rate=0.0, gain=0.0, n=4, support_rate=None):
+    """The reform: newly funded hours worth ``free``, a Tax-Free Childcare rate, a childcare support rate (by default
+    the Tax-Free Childcare rate alone) and a cash gain ``gain``, the same at the spend left after displacement unless
+    a test changes ``displaced``."""
+    support_rate = tfc_rate if support_rate is None else support_rate
     return {"bu_free": np.full(n, free), "bu_tfc": np.zeros(n), "tfc_rate": np.full(n, tfc_rate),
+            "support_rate": np.full(n, support_rate),
             "displaced": {hr.displacement_key(d): {"bu_tfc": np.zeros(n), "tfc_rate": np.full(n, tfc_rate),
+                                                   "support_rate": np.full(n, support_rate),
                                                    "hh_disposable_income": np.full(n, 100_000.0 + gain)}
                           for d in hr.DISPLACEMENTS},
             "hh_net_income": np.full(n, 100_000.0 + gain + free),
@@ -434,6 +439,7 @@ def test_price_change_reads_the_reform_rate_at_the_remaining_spend():
     the original-spend sensitivity, at today's spend."""
     ref = _ref(free=4_000.0, tfc_rate=0.0)
     hr.displaced(ref)["tfc_rate"] = np.full(4, 0.2)
+    hr.displaced(ref)["support_rate"] = np.full(4, 0.2)
     _, central = hr.marginal_price_change(_base(), ref)
     _, original = hr.marginal_price_change(_base(), ref, price_basis="original_spend")
     np.testing.assert_allclose(central, -0.2)
@@ -532,6 +538,52 @@ def test_income_gain_on_her_household_withdraws_the_uc_childcare_element():
     sim.reset_calculations()
     sim.set_input("childcare_expenses", 2027, np.array([0, 0, 11_000 - saving, 0, 0, 0], np.float32))
     assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(6_553.82, abs=0.01)
+
+
+def test_price_change_on_her_household_counts_the_uc_childcare_element():
+    """A8 of the rereview at 44217d0: the London family with four children and £27,000 of paid care. Before
+    displacement its UC childcare element is at the £22,033.92 cap, so its next £1 attracts no UC; on the
+    £23,710.38 left once the funded hours displace £3,289.62 the element is £20,153.82, below the cap, so the next
+    £1 attracts 85p. No Tax-Free Childcare in either state. The marginal net price falls from £1 to 15p, an 85%
+    fall, which the Tax-Free-Childcare-only rule (``tfc_only``) reported as no change."""
+    situation = _london_uc_family()
+    situation["people"]["c3"]["childcare_expenses"] = {2027: 27_000}
+    base_sim = _corrected(situation, False)
+    base = ls.baseline_side(base_sim, 2027)
+    sim = _corrected(situation, True)
+    ref = ls.reform_side(sim, 2027, base)
+    saving = hr.paid_care_saving(base, ref)[0]
+    assert saving == pytest.approx(3_289.62, abs=0.01)
+    assert float(sim.calculate("universal_credit", 2027).sum()) > 0
+    assert float(sim.calculate("tax_free_childcare", 2027).sum()) == 0
+    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(22_033.92, abs=0.01)
+    assert hr.displaced(ref)["bu_tfc"][0] == 0
+    # The model's support on the next £1: none at the cap (baseline, today's spend), 85p below it.
+    np.testing.assert_allclose(base["support_rate"][:2], 0.0, atol=1e-3)
+    np.testing.assert_allclose(ref["support_rate"][:2], 0.0, atol=1e-3)
+    np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.85, atol=1e-3)
+    np.testing.assert_allclose(hr.displaced(ref)["tfc_rate"][:2], 0.0, atol=1e-3)
+    covered, central = hr.marginal_price_change(base, ref)
+    assert not covered[:2].any()
+    np.testing.assert_allclose(central[:2], -0.85, atol=1e-3)
+    np.testing.assert_allclose(hr.marginal_price_change(base, ref, price_basis="tfc_only")[1][:2], 0.0, atol=1e-3)
+    np.testing.assert_allclose(hr.marginal_price_change(base, ref, price_basis="original_spend")[1][:2], 0.0,
+                               atol=1e-3)
+    # Both parents work: the price change reaches each adult in work whose family pays for care.
+    respond, change, _ = hr.price_change(base, ref, "over_limit")
+    assert respond[0] and change[0] == pytest.approx(-0.85, abs=1e-3)
+    # The UC childcare element at the displaced spend, recomputed alone; the simulation's spend is restored.
+    assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(27_000.0)
+    sim.reset_calculations()
+    sim.set_input("childcare_expenses", 2027, np.array([0, 0, 27_000 - saving, 0, 0, 0], np.float32))
+    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(20_153.82, abs=0.01)
+
+
+def test_tfc_only_price_basis_leaves_out_other_support():
+    """A8: the ``tfc_only`` sensitivity reads the Tax-Free Childcare rate alone; the central rule, every payment."""
+    ref = _ref(free=4_000.0, tfc_rate=0.0, support_rate=0.85)
+    np.testing.assert_allclose(hr.marginal_price_change(_base(), ref)[1], -0.85)
+    np.testing.assert_allclose(hr.marginal_price_change(_base(), ref, price_basis="tfc_only")[1], 0.0)
 
 
 def test_disabled_workers_keep_the_hours_response():

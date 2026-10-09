@@ -387,7 +387,7 @@ def gain_to_work(sim, year, entrant_earnings, actual_cost, imputed_cost):
 
 def hours_inputs(sim, year):
     """What the hours margin reads from one scenario (hours_response.py), on each person."""
-    from .hours_response import tfc_marginal_rate
+    from .hours_response import marginal_support_rates
 
     return {
         "bu_tfc": per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float)),
@@ -395,7 +395,7 @@ def hours_inputs(sim, year):
             values(sim, v, year, "benunit").astype(float)
             for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
                       "targeted_childcare_entitlement"))),
-        "tfc_rate": tfc_marginal_rate(sim, year),
+        **marginal_support_rates(sim, year)[0],
         "hh_net_income": values(sim, "household_net_income", year, "person").astype(float),
         # The base of the income effect's percentage change (hours_response.income_change).
         "hh_disposable_income": values(sim, "hbai_household_net_income", year, "person").astype(float),

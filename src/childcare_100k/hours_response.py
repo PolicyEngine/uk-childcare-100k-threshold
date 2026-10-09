@@ -29,19 +29,25 @@ An extra hour of work needs an extra hour of paid childcare. Only a change in wh
 *marginal* hour costs the family is a price change; support that does not depend on how
 many hours the family buys is a lump sum, which enters through the income effect.
 
-* Tax-Free Childcare pays 20% of each £1 of routed spend until the child's cap is
-  reached, so where the reform newly pays it and the cap does not bind, the marginal
-  price falls. The marginal rate is the model's own: the change in the family's
-  ``tax_free_childcare`` when its childcare spend rises by 1% (``tfc_marginal_rate``),
-  which carries the routed share (59.3% of spend in this data, so about 11.9p per £1),
-  each child's cap, the eligible part of the year and the take-up draw. A family at the
-  cap gets no price change from Tax-Free Childcare. The reform's rate is read at the
-  spend the family still makes once the newly funded hours displace paid care (below),
-  the spending the income effect assumes (:func:`at_displaced_spend`): a family whose
-  £11,000 of care puts it at the £2,000 cap today, but which buys £7,710.38 once the
-  funded hours displace £3,289.62, faces a 20% marginal rate, not zero. The rate at
-  today's spend is published as a sensitivity (``PRICE_BASIS_SENSITIVITIES``,
-  ``original_spend``).
+* The marginal net price of paid care is £1 less the cash support the family gets on its
+  next £1 of spend, from every payment the model ties to ``childcare_expenses``
+  (``CHILDCARE_SUPPORT``). The rate is the model's own: the change in that support when
+  the family's childcare spend rises by 1% (:func:`marginal_support_rates`), which
+  carries each payment's rules, caps, the eligible part of the year and the take-up draw.
+  Tax-Free Childcare pays 20% of each £1 of routed spend (59.3% of spend in this data, so
+  about 11.9p per £1) until the child's cap; the Universal Credit childcare element pays
+  85% of charges (SI 2013/376 reg 34) up to its cap (reg 36), withdrawn only through the
+  taper, so a claimant below the cap gets 85p on its next £1 and one at the cap none.
+  The baseline rate is read at today's spend; the reform's at the spend the family still
+  makes once the newly funded hours displace paid care (below), the spending the income
+  effect assumes (:func:`at_displaced_spend`). So a family whose £11,000 of care puts it at
+  the £2,000 Tax-Free Childcare cap today, but which buys £7,710.38 once the funded hours
+  displace £3,289.62, faces a 20% marginal rate, not zero; and a London Universal Credit
+  family with £27,000 of care, its childcare element capped at £22,033.92 today, is
+  £20,153.82 on the £23,710.38 left, below the cap, so its next £1 costs 15p rather than
+  £1. Published as sensitivities (``PRICE_BASIS_SENSITIVITIES``): ``original_spend``, the
+  reform's rate at today's spend, and ``tfc_only``, Tax-Free Childcare alone (the rule
+  before A8).
 * The 30 funded hours are a fixed number of hours, conditional only on both parents
   passing the minimum earnings test. For a family that still buys paid care on top of
   the newly funded hours, the funded hours do not change the price of the marginal hour
@@ -106,9 +112,10 @@ interventions, parents and child ages it was not estimated on. It is a total-hou
 effect, so it also overlaps with the extensive margin. The low and high bounds scale
 both elasticities (``ELASTICITY_SCALES``).
 
-The Universal Credit childcare element is not a price change: the reform does not change
-it at a given spend. It enters the income effect through the recomputed disposable income
-at displaced spend, like the Tax-Free Childcare top-up.
+The Universal Credit childcare element, like the Tax-Free Childcare top-up, enters both
+parts: the income effect through the recomputed disposable income at displaced spend, and
+the price effect where the reform's lower spend changes its rate on the next £1 (below its
+cap rather than at it).
 """
 
 from __future__ import annotations
@@ -130,55 +137,99 @@ from .labour_supply import values
 # Who responds, split by their own income as the limits test it. Both groups use the same rules.
 GROUPS = ("at_or_below_limit", "over_limit")
 COMPONENTS = ("price", "income")
-# The proportional rise in childcare spend used to read the model's marginal Tax-Free Childcare rate.
-TFC_STEP = 0.01
+# The proportional rise in childcare spend used to read the model's marginal childcare support rates.
+PRICE_STEP = 0.01
+# The cash payments policyengine-uk ties to ``childcare_expenses`` (each summed to the family): Tax-Free
+# Childcare, Universal Credit (its childcare element, 85% of charges up to the reg 36 cap), the legacy
+# Working Tax Credit childcare element (and Child Tax Credit, tapered jointly with it), Housing Benefit's
+# childcare disregard and the student Childcare Grant. Their change when spend rises is the support on the
+# family's next £1 of paid care.
+CHILDCARE_SUPPORT = ("tax_free_childcare", "universal_credit", "working_tax_credit", "child_tax_credit",
+                     "housing_benefit", "childcare_grant")
 
 
-def tfc_marginal_rate(sim, year):
-    """Tax-Free Childcare paid on the family's next £1 of childcare spend (on each member), the model's own.
-
-    Every person's ``childcare_expenses`` is raised by ``TFC_STEP`` and the family's
-    ``tax_free_childcare`` recomputed; the rate is the change over the change in spend
-    (0 where the family spends nothing). The simulation is restored afterwards.
-    """
+def _family(sim, year, variable):
     from .labour_supply import per_person
 
-    spend = values(sim, "childcare_expenses", year).astype(float)
-    bu_spend = per_person(sim, year, values(sim, "childcare_expenses", year, "benunit").astype(float))
-    before = per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float))
-    try:
-        sim.reset_calculations()
-        sim.set_input("childcare_expenses", year, (spend * (1 + TFC_STEP)).astype(np.float32))
-        after = per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float))
-    finally:
-        sim.reset_calculations()
-        sim.set_input("childcare_expenses", year, spend.astype(np.float32))
-    rate = np.divide(after - before, bu_spend * TFC_STEP, out=np.zeros_like(bu_spend), where=bu_spend > 0)
+    return per_person(sim, year, values(sim, variable, year, "benunit").astype(float))
+
+
+def _support(sim, year):
+    """(the family's Tax-Free Childcare, its childcare-linked cash support in all), on each member."""
+    tfc = _family(sim, year, "tax_free_childcare")
+    return tfc, tfc + sum(_family(sim, year, v) for v in CHILDCARE_SUPPORT if v != "tax_free_childcare")
+
+
+def _rates(before, after, bu_spend):
+    """Marginal support per £1 from the support before and after spend rises by ``PRICE_STEP``, clipped to [0, 1]."""
+    rate = np.divide(after - before, bu_spend * PRICE_STEP, out=np.zeros_like(bu_spend), where=bu_spend > 0)
     return np.clip(rate, 0.0, 1.0)
 
 
-def marginal_price_change(base, ref, displacement=FREE_HOURS_DISPLACEMENT, price_basis=PRICE_BASIS):
-    """Proportional change in the price of the family's marginal hour of paid care, and who is fully covered.
+def marginal_support_rates(sim, year, kept=None):
+    """The family's marginal Tax-Free Childcare rate and its marginal childcare support rate (on each member).
 
-    Baseline marginal price: 1 less the baseline Tax-Free Childcare rate. Reform: zero if
+    The support paid on the family's next £1 of childcare spend, the model's own: every
+    person's ``childcare_expenses`` (scaled by ``kept``, the share of spend the family still
+    makes, if given) is raised by ``PRICE_STEP`` and the family's cash support recomputed;
+    each rate is the change over the change in spend (0 where the family spends nothing).
+    ``tfc_rate`` counts Tax-Free Childcare alone; ``support_rate`` every payment in
+    ``CHILDCARE_SUPPORT``, so a Universal Credit family below its childcare-element cap
+    gets 85p per £1, one at the cap none. Returns ``(rates, support at the spend)``; the
+    simulation is restored afterwards.
+    """
+    spend = values(sim, "childcare_expenses", year).astype(float)
+    kept = np.ones_like(spend) if kept is None else kept
+    try:
+        sim.reset_calculations()
+        sim.set_input("childcare_expenses", year, (spend * kept).astype(np.float32))
+        bu_spend = _family(sim, year, "childcare_expenses")
+        tfc, support = _support(sim, year)
+        at_spend = {"bu_tfc": tfc, "hh_disposable_income": values(
+            sim, "hbai_household_net_income", year, "person").astype(float)}
+        sim.reset_calculations()
+        sim.set_input("childcare_expenses", year, (spend * kept * (1 + PRICE_STEP)).astype(np.float32))
+        tfc_up, support_up = _support(sim, year)
+    finally:
+        sim.reset_calculations()
+        sim.set_input("childcare_expenses", year, spend.astype(np.float32))
+    rates = {"tfc_rate": _rates(tfc, tfc_up, bu_spend), "support_rate": _rates(support, support_up, bu_spend)}
+    return rates, at_spend
+
+
+def tfc_marginal_rate(sim, year):
+    """Tax-Free Childcare paid on the family's next £1 of childcare spend (on each member), the model's own."""
+    return marginal_support_rates(sim, year)[0]["tfc_rate"]
+
+
+def marginal_price_change(base, ref, displacement=FREE_HOURS_DISPLACEMENT, price_basis=PRICE_BASIS):
+    """Proportional change in the net price of the family's marginal £1 of paid care, and who is fully covered.
+
+    The net price of the next £1 is 1 less the childcare-linked cash support it attracts
+    (``support_rate``: Tax-Free Childcare, the Universal Credit childcare element and the
+    rest of ``CHILDCARE_SUPPORT``). Baseline: at the family's spend today. Reform: zero if
     newly funded hours (at ``displacement`` of their value) more than cover all the
-    family's paid care, otherwise 1 less the reform's Tax-Free Childcare rate:
-    ``remaining_spend`` (central), the rate on the paid care the family still buys once the
-    funded hours displace some of it, the spending the central income gain assumes;
-    ``original_spend`` (a sensitivity), the rate at the family's spend today. Funded
-    value exactly equal to the spend covers the hours the family buys and no more: the
-    next hour lies beyond the fixed entitlement and is bought at the full price, so the
-    test is strict.
+    family's paid care, otherwise 1 less the reform's support rate:
+    ``remaining_spend`` (central), at the paid care the family still buys once the funded
+    hours displace some of it, the spending the central income gain assumes (so a
+    Universal Credit family that the displacement moves below its childcare-element cap
+    gets 85p off its next £1); ``original_spend`` (a sensitivity), at the family's spend
+    today; ``tfc_only`` (a sensitivity), Tax-Free Childcare alone at both states, the
+    reform's at the remaining spend (the rule before A8). Funded value exactly equal to the
+    spend covers the hours the family buys and no more: the next hour lies beyond the fixed
+    entitlement and is bought at the full price, so the test is strict.
     """
     expenses = base["actual_cost"]
     covered = (expenses > 0) & (newly_funded_value(base, ref) * displacement > expenses)
-    before = 1.0 - base["tfc_rate"]
     if price_basis == "remaining_spend":
-        reform_rate = displaced(ref, displacement)["tfc_rate"]
+        key, reform_rate = "support_rate", displaced(ref, displacement)["support_rate"]
     elif price_basis == "original_spend":
-        reform_rate = ref["tfc_rate"]
+        key, reform_rate = "support_rate", ref["support_rate"]
+    elif price_basis == "tfc_only":
+        key, reform_rate = "tfc_rate", displaced(ref, displacement)["tfc_rate"]
     else:
         raise ValueError(price_basis)
+    before = 1.0 - base[key]
     after = np.where(covered, 0.0, 1.0 - reform_rate)
     change = np.divide(after - before, before, out=np.zeros_like(before), where=before > 0)
     return covered, np.clip(change, -1.0, 1.0)
@@ -231,38 +282,20 @@ def at_displaced_spend(sim, year, base, ref, displacement=FREE_HOURS_DISPLACEMEN
       to childcare spending respond together): the central income gain's
       (:func:`income_gain`);
     * ``bu_tfc``: the family's ``tax_free_childcare``;
-    * ``tfc_rate``: the family's marginal Tax-Free Childcare rate at that remaining spend
-      (as :func:`tfc_marginal_rate`, the spend raised by ``TFC_STEP``): the central price
-      rule's (:func:`marginal_price_change`).
+    * ``support_rate`` and ``tfc_rate``: the family's marginal childcare support and
+      Tax-Free Childcare rates at that remaining spend (:func:`marginal_support_rates`):
+      the central price rule's and the ``tfc_only`` sensitivity's
+      (:func:`marginal_price_change`).
 
     The simulation is restored afterwards.
     """
-    from .labour_supply import per_person
-
-    spend = values(sim, "childcare_expenses", year).astype(float)
     bu_spend = base["actual_cost"]
     remaining = bu_spend - np.minimum(newly_funded_value(base, ref) * displacement, bu_spend)
     # The baseline's person arrays and the reform's share one person order: a benefit-unit
     # share on each member.
     kept = np.divide(remaining, bu_spend, out=np.ones_like(bu_spend), where=bu_spend > 0)
-
-    def tfc():
-        return per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float))
-
-    try:
-        sim.reset_calculations()
-        sim.set_input("childcare_expenses", year, (spend * kept).astype(np.float32))
-        out = {"bu_tfc": tfc(),
-               "hh_disposable_income": values(sim, "hbai_household_net_income", year, "person").astype(float)}
-        sim.reset_calculations()
-        sim.set_input("childcare_expenses", year, (spend * kept * (1 + TFC_STEP)).astype(np.float32))
-        after = tfc()
-    finally:
-        sim.reset_calculations()
-        sim.set_input("childcare_expenses", year, spend.astype(np.float32))
-    rate = np.divide(after - out["bu_tfc"], remaining * TFC_STEP, out=np.zeros_like(remaining), where=remaining > 0)
-    out["tfc_rate"] = np.clip(rate, 0.0, 1.0)
-    return out
+    rates, out = marginal_support_rates(sim, year, kept)
+    return {**out, **rates}
 
 
 def displaced(ref, displacement=FREE_HOURS_DISPLACEMENT):
