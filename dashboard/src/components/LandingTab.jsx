@@ -19,10 +19,10 @@ import {
   SCHEMES,
   yearHeading,
 } from "../lib/dataHelpers";
-import { formatBn, formatCurrency, formatPct, formatThousands } from "../lib/formatters";
+import { formatBn, formatCurrency, formatMoneyBn, formatPct, formatThousands } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, Section } from "./ui";
+import { Expandable, AXIS_STYLE, CustomTooltip, Section } from "./ui";
 
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
@@ -165,27 +165,50 @@ function BarList({ items, selected, onSelect, format }) {
   );
 }
 
-const OFFSET_KEY = "labour_supply";
-const OFFSET_LABEL = "Back from parents working more";
+export const OFFSET_KEY = "labour_supply";
 
-function CostChart({ rows, withOffset }) {
-  const series = withOffset ? [...SCHEMES, OFFSET_KEY] : SCHEMES;
+/**
+ * The labour supply series' name, by its sign: money back when the response lowers the cost in every year, an
+ * extra cost when it raises it in every year (moving into work alone does), and neutral wording when the sign varies.
+ */
+export function offsetLabel(offsets) {
+  if (offsets.every((v) => v >= 0)) return "Back from parents working more";
+  if (offsets.every((v) => v <= 0)) return "Added by the labour supply response";
+  return "Labour supply response";
+}
+
+/**
+ * The yearly chart's rows and series. With a margin on, the chart carries the labour supply response as a signed
+ * series (below zero when it brings money back), so each year's series add up to the cost after the response.
+ */
+export function costChartData(budget, offsets, dynamic) {
+  const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), [OFFSET_KEY]: -offsets[i] }));
+  return { rows, series: dynamic ? [...SCHEMES, OFFSET_KEY] : [...SCHEMES], offsetName: offsetLabel(offsets) };
+}
+
+/** What the tooltip's total adds up for one row: every series the chart draws. */
+export function chartRowTotal(row, series) {
+  return series.reduce((t, s) => t + row[s], 0);
+}
+
+function CostChart({ rows, series, offsetName }) {
+  const withOffset = series.includes(OFFSET_KEY);
   const fills = { ...schemeColors, [OFFSET_KEY]: colors.gray[400] };
-  const names = { ...SCHEME_LABELS, [OFFSET_KEY]: OFFSET_LABEL };
-  const values = rows.flatMap((r) => [r.thirty_hours + r.tax_free_childcare, ...(withOffset ? [r[OFFSET_KEY]] : [])]);
+  const names = { ...SCHEME_LABELS, [OFFSET_KEY]: offsetName };
+  const values = rows.flatMap((r) => [r.thirty_hours + r.tax_free_childcare, ...(withOffset ? [r[OFFSET_KEY], chartRowTotal(r, series)] : [])]);
   const digits = axisDigits(values);
   const axis = niceAxis(values);
   return (
     <>
       <div style={{ height: 340 }} data-testid="cost-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
+          <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 0 }} stackOffset="sign">
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
             <XAxis dataKey="label" tick={AXIS_STYLE} />
             <YAxis tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, digits)} {...axis} />
             <Tooltip
               cursor={{ fill: colors.gray[100] }}
-              content={<CustomTooltip formatter={(v) => formatBn(v, 2)} totalLabel="Total" />}
+              content={<CustomTooltip formatter={(v) => formatMoneyBn(v)} totalLabel={withOffset ? "Cost after the response" : "Total"} />}
             />
             {SCHEMES.map((s) => (
               <Bar
@@ -202,12 +225,24 @@ function CostChart({ rows, withOffset }) {
                 maxBarSize={80}
               />
             ))}
+            {withOffset ? (
+              <Bar
+                dataKey={OFFSET_KEY}
+                name={offsetName}
+                stackId="cost"
+                fill={fills[OFFSET_KEY]}
+                stroke="#fff"
+                strokeWidth={1}
+                isAnimationActive={false}
+                maxBarSize={80}
+              />
+            ) : null}
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-600">
         {series.map((s) => (
-          <span key={s} className="flex items-center gap-2">
+          <span key={s} className="flex items-center gap-2" data-testid={`legend-${s}`}>
             <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: fills[s] }} />
             {names[s]}
           </span>
@@ -218,8 +253,51 @@ function CostChart({ rows, withOffset }) {
   );
 }
 
-/** True when two series match to within rounding in every year. */
-const same = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 0.0015);
+/** The largest gap between the net and gross cost in any year, £m. */
+export function netGrossGapM(net, gross) {
+  return Math.max(...net.map((v, i) => Math.round(Math.abs(v - gross[i]) * 1000)));
+}
+
+/** Each scheme side by side: where it applies, what it gives, who qualifies today and what the reform changes. */
+function SchemesTable() {
+  const rows = [
+    ["Where", "England", "UK-wide"],
+    ["What it is", "Free childcare hours (for 3- and 4-year-olds, 15 on top of the universal 15)", "20% top-up on childcare bills (£2 for every £8)"],
+    ["Children's ages", "9 months to school age", "Up to 11 (16 if disabled)"],
+    ["Most per child", "30 hours a week, 38 weeks a year", "£2,000 a year (£4,000 if disabled)"],
+    ["Earnings floor", "Each parent earns at least 16 hours a week at the minimum wage", "Same"],
+    ["Income limit today", "Neither parent over £100,000", "Same"],
+    ["After the reform", "No income limit; everything else unchanged", "Same"],
+  ];
+  return (
+    <div className="overflow-x-auto">
+      <table className="data-table" data-testid="schemes-table">
+        <thead>
+          <tr>
+            <th />
+            <th>
+              <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: schemeColors.thirty_hours }} />
+              {SCHEME_LABELS.thirty_hours}
+            </th>
+            <th>
+              <span className="mr-2 inline-block h-2.5 w-2.5 rounded-full" style={{ backgroundColor: schemeColors.tax_free_childcare }} />
+              {SCHEME_LABELS.tax_free_childcare}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, a, b]) => (
+            <tr key={label}>
+              <td className="min-w-[140px] font-medium text-slate-800">{label}</td>
+              <td className="min-w-[220px]">{a}</td>
+              <td className="min-w-[220px]">{b}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 export default function LandingTab({ data, setting = STATIC_SETTING }) {
   const budget = getBudget(data);
@@ -231,7 +309,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
   const lead = budget.rows[li];
   const recipients = getRecipients(data, lead.year);
   const cmp = getBudgetComparisons(data);
-  const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), [OFFSET_KEY]: -offsets[i] }));
+  const chart = costChartData(budget, offsets, dynamic);
+  const gapM = netGrossGapM(cmp.net, budget.rows.map((r) => r.total));
   const fy = nb(lead.year);
 
   return (
@@ -239,7 +318,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`Today a family loses the 30 funded hours (England) and Tax-Free Childcare (UK-wide) as soon as either parent's adjusted net income goes over £100,000. The reform removes that limit from both schemes, so families keep the support however much a parent earns; every other condition, including the minimum earnings test, stays. These cards show what that adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
+        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -248,7 +327,9 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
             value={formatBn(cost[li], 2)}
             detail={
               dynamic
-                ? `After the labour supply response (${labourSupplyLabel(setting)}): ${formatBn(lead.total, 2)} static, ${formatBn(Math.abs(offsets[li]), 2)} ${offsets[li] >= 0 ? "back" : "more"}`
+                ? `After the labour supply response (${labourSupplyLabel(setting)}): ${formatBn(lead.total, 2)} static, ${
+                    offsets[li] >= 0 ? `${formatMoneyBn(offsets[li])} back from parents working more` : `${formatMoneyBn(-offsets[li])} more, as the response raises the cost`
+                  }`
                 : "Extra government spending on both schemes"
             }
             testId="card-cost"
@@ -290,6 +371,16 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       </Section>
 
       <Section
+        id="schemes"
+        title="What changes for each scheme?"
+        lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
+      >
+        <Expandable title="Show the table" testId="schemes-expandable">
+          <SchemesTable />
+        </Expandable>
+      </Section>
+
+      <Section
         id="each-year"
         title="How much does it cost each year?"
         lead="Extra government spending in each fiscal year from removing the limit, split between the 30 funded hours and Tax-Free Childcare. The £100,000 limit is not uprated, so as pay rises more parents pass it each year and the cost of removing it grows. Hover over a bar for its figures. The assumptions behind these figures, and what each one changes, are on the Methodology tab."
@@ -301,19 +392,29 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
               Childcare is withdrawn above £100,000 of adjusted net income, with the policy in force for the whole
               year. {fyLabel(budget.years[0])} is more than half over, so its full-year cost is illustrative.
             </p>
-            {same(cmp.net, budget.rows.map((r) => r.total)) ? (
-              <p data-testid="net-note">The cost is the same net of other taxes and benefits: nothing else changes for these families.</p>
+            {!dynamic && gapM <= 2 ? (
+              <p data-testid="net-note">
+                {gapM === 0
+                  ? "The static cost is the same net of other taxes and benefits."
+                  : `Net of other taxes and benefits, the static cost is within £${gapM}m of these figures in every year: no other tax or benefit in the model depends on the limits, so the gap is rounding.`}
+              </p>
             ) : null}
           </>
         }
       >
         {dynamic ? (
           <p className="mb-3 text-sm text-slate-600" data-testid="chart-setting">
-            Labour supply on ({labourSupplyLabel(setting)}): the grey bars below zero are the money back, which is not
-            split by scheme; hover for the cost after the response.
+            Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see
+            Methodology):{" "}
+            {offsets.every((v) => v >= 0)
+              ? "the grey bars below zero are the money back from parents working more"
+              : offsets.every((v) => v <= 0)
+                ? "the grey bars on top are the extra cost the response adds"
+                : "the grey bars are the labour supply response, below zero where it brings money back and on top where it adds to the cost"}
+            , not split by scheme; hover for the cost after the response.
           </p>
         ) : null}
-        <CostChart rows={rows} withOffset={dynamic} />
+        <CostChart rows={chart.rows} series={chart.series} offsetName={chart.offsetName} />
       </Section>
 
     </div>

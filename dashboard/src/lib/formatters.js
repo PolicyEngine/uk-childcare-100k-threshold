@@ -38,3 +38,11 @@ export function formatThousands(value) {
   check(value, "formatThousands");
   return (Math.round(value / 1000) * 1000).toLocaleString("en-GB");
 }
+
+/** £bn shown in £m below £0.1bn, so a small change is not rounded away: 0.003 -> "£3m", 0.55 -> "£0.55bn". */
+export function formatMoneyBn(value) {
+  check(value, "formatMoneyBn");
+  if (Math.abs(value) >= 0.1) return formatBn(value, 2);
+  const m = Math.round(value * 1000);
+  return `${m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`;
+}

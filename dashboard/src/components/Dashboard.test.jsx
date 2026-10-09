@@ -13,10 +13,10 @@ vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: ()
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
 import LandingTab from "./LandingTab";
 import { CENTAX } from "./Comparison";
-import WhoGainsTab, { DECILE_MEASURES, listOf, sortGroups, SUPPRESSED } from "./WhoGainsTab";
+import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
-import { formatThousands } from "../lib/formatters";
+import { formatBn, formatMoneyBn, formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
 const years = data.meta.years;
@@ -251,6 +251,22 @@ describe("methodology", () => {
     expect(document.body.textContent).toMatch(/held fixed/);
   });
 
+  it("reports the entry and income-basis sensitivities of the labour supply response", () => {
+    render(<MethodTab data={data} />);
+    const text = screen.getByTestId("labour-supply-method").textContent;
+    const ls = data.labour_supply;
+    const y = String(Object.keys(ls.extensive.offset_bn.central).at(-1));
+    const b3 = (x) => formatBn(x, 3);
+    const m = (x) => `£${Math.abs(x).toFixed(1)}m`;
+    expect(text).toContain(m(ls.extensive.entry_sensitivity.same_cell_only.offset_m[y]));
+    expect(text).toContain(m(ls.extensive.entry_sensitivity.worker_profile.offset_m[y]));
+    expect(text).toContain(b3(ls.intensive_income_basis.paid_care_fixed_spend.offset_bn[y]));
+    expect(text).toContain(b3(ls.intensive_income_basis.government_cost.offset_bn[y]));
+    expect(text).toContain(b3(ls.intensive_price_basis.original_spend.offset_bn[y]));
+    expect(text).toContain(b3(ls.intensive_price_basis.tfc_only.offset_bn[y]));
+    expect(text).toMatch(/Universal Credit childcare element it no longer gets/);
+  });
+
   it("pins the model package and the dataset release, revision and checksum", () => {
     render(<MethodTab data={data} />);
     const text = screen.getByTestId("versions-table").textContent;
@@ -267,23 +283,24 @@ describe("the labour supply control", () => {
     render(<Dashboard data={data} />);
     expect(screen.getByTestId("toggle-extensive").getAttribute("aria-checked")).toBe("false");
     expect(screen.getByTestId("toggle-intensive").getAttribute("aria-checked")).toBe("false");
-    expect(screen.queryByTestId("bound-select")).toBeNull();
+    expect(screen.queryByTestId("toggle-extensive-bound")).toBeNull();
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(data.budget.gross_bn.total[lead]));
 
     fireEvent.click(screen.getByTestId("toggle-intensive"));
     const cost = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.central[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
-    expect(screen.getByTestId("card-cost").textContent).toContain("hours, central elasticities");
+    expect(screen.getByTestId("card-cost").textContent).toContain("(hours)");
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=int", { scroll: false });
 
     fireEvent.click(screen.getByTestId("toggle-extensive"));
-    fireEvent.change(screen.getByTestId("bound-select"), { target: { value: "high" } });
-    const both = data.budget.gross_bn.total[lead] - ls.total_offset_bn.high[lead];
+    fireEvent.change(screen.getByTestId("toggle-extensive-bound"), { target: { value: "high" } });
+    fireEvent.change(screen.getByTestId("toggle-intensive-bound"), { target: { value: "high" } });
+    const both = data.budget.gross_bn.total[lead] - ls.extensive.offset_bn.high[lead] - ls.intensive.offset_bn.high[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(both));
-    expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%2Cint&bound=high", { scroll: false });
+    expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%3Ahigh%2Cint%3Ahigh", { scroll: false });
   });
 
-  it("sits under the tab bar on Budget impact and Who gains, not on Methodology", () => {
+  it("sits under the tab bar on Budget impact only, the one tab it changes", () => {
     render(<Dashboard data={data} />);
     const tablist = screen.getByRole("tablist");
     const control = screen.getByTestId("labour-supply-control");
@@ -292,7 +309,7 @@ describe("the labour supply control", () => {
     expect(screen.getByTestId("intro").contains(control)).toBe(false);
 
     fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
-    expect(screen.getByTestId("labour-supply-note").textContent).toContain("always static");
+    expect(screen.queryByTestId("labour-supply-control")).toBeNull();
 
     fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
     expect(screen.queryByTestId("labour-supply-control")).toBeNull();
@@ -300,23 +317,34 @@ describe("the labour supply control", () => {
 
   it("explains labour supply on Methodology from the results file", () => {
     const text = textOf(<MethodTab data={data} />);
-    const f = String(final);
     expect(text).toContain(ls.responding_population);
     expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
     expect(text).toContain(ls.not_modelled);
-    expect(text).toContain(bn(ls.intensive_over_limit.offset_bn.central[f]));
     expect(text).toContain(bn(CENTAX.parentsBn));
     expect(text).toContain(bn(CENTAX.partnersBn));
+  });
+
+  it("states the hours response's price effect (money back) and income effect (money out) by group", () => {
+    const text = textOf(<MethodTab data={data} />);
+    const f = String(final);
+    const i = ls.intensive;
+    expect(i.price_offset_bn.central[f]).toBeGreaterThanOrEqual(0);
+    expect(i.income_offset_bn.central[f]).toBeLessThanOrEqual(0);
+    expect(text).toContain(ls.assumptions.income_elasticities);
+    expect(text).toContain(`price effect brings back ${formatMoneyBn(i.price_offset_bn.central[f])}`);
+    expect(text).toContain(`${formatMoneyBn(i.over_limit.price_offset_bn.central[f])} from those over it`);
+    expect(text).toContain(`income effect costs ${formatMoneyBn(-i.income_offset_bn.central[f])}`);
+    expect(text).toContain(`a net ${formatMoneyBn(i.offset_bn.central[f])} back`);
   });
 
   it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);
     expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])} (${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("bunching not modelled");
+    expect(off).toContain("moving into work, and hours net of the income effect; bunching not modelled");
     const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
     const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)} (moving into work, low elasticities; bunching not modelled)`);
+    expect(on).toContain(`${bn(cost)} (moving into work at the low setting)`);
   });
 
   it("shows the money back in the yearly chart only when a margin is on", () => {
@@ -326,3 +354,22 @@ describe("the labour supply control", () => {
     );
   });
 });
+
+describe("who gains: the recipients view across years", () => {
+  it("falls back to families when the chosen year has no child counts by scheme", () => {
+    const final = String(years.at(-1));
+    const partial = mutate(`recipients.${final}.children_by_scheme`, null, { remove: true });
+    expect(recipientViews(partial.recipients[final]).map((v) => v.id)).toEqual(["families"]);
+    render(<WhoGainsTab data={partial} />);
+    const section = screen.getByTestId("section-recipients");
+    fireEvent.change(within(section).getByLabelText("Show"), { target: { value: "children" } });
+    // Switching to a year without children_by_scheme must not crash, and shows families.
+    expect(() => fireEvent.change(screen.getByLabelText("Year"), { target: { value: final } })).not.toThrow();
+    expect(within(section).getByLabelText("Show").value).toBe("families");
+    expect(within(section).getByTestId("recipients-chart")).toBeTruthy();
+    // Back to a year with child counts, the reader's choice returns.
+    fireEvent.change(screen.getByLabelText("Year"), { target: { value: String(LEAD_YEAR) } });
+    expect(within(section).getByLabelText("Show").value).toBe("children");
+  });
+});
+

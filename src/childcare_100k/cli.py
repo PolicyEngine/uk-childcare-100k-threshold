@@ -6,6 +6,7 @@
 """
 
 import argparse
+import hashlib
 import json
 import subprocess
 import time
@@ -21,9 +22,11 @@ from .config import (
     BREWER_HOURS_URL,
     ELASTICITY_SCALES,
     FREE_HOURS_DISPLACEMENT,
+    FREE_HOURS_DISPLACEMENT_RANGE,
     HOURS_FOR_NEW_ENTRANTS,
     HOURS_PRICE_ELASTICITY,
     OBR_PARTICIPATION_URL,
+    UPSTREAM_COUPLE_ISSUE_URL,
     PRICE_ELASTICITY_CENTRAL,
     PRICE_ELASTICITY_HIGH,
     PRICE_ELASTICITY_LOW,
@@ -39,19 +42,35 @@ from .config import (
     YEARS,
 )
 from .datasets import MICROCOSM
-from .engine import JOBS, is_current, load_meta, run_isolated
+from .engine import JOBS, SOURCE_DIR, is_current, load_meta, run_isolated
 from .validation import DFE_FUNDING_URL
 from .household import cliff_example, household_grid
 from .validation import baseline_validation
 
 
 def _git_revision():
-    """The commit the build runs on. Raises if it cannot be read (no "unknown" placeholder)."""
+    """The commit the build runs on. Raises if it cannot be read (no "unknown" placeholder), or if the package
+    source differs from that commit: the revision must be the code that produced the results."""
     revision = subprocess.run(["git", "rev-parse", "HEAD"], cwd=REPO, capture_output=True, text=True,
                               check=True).stdout.strip()
     if len(revision) != 40:
         raise RuntimeError(f"unexpected git revision {revision!r}")
+    dirty = subprocess.run(["git", "status", "--porcelain", "--", "src"], cwd=REPO, capture_output=True, text=True,
+                           check=True).stdout.strip()
+    if dirty:
+        raise RuntimeError(f"uncommitted changes under src/; commit them before building:\n{dirty}")
     return revision
+
+
+# The code that turns the cached runs into results.json (the runs' own code is in run_definition_sha256).
+AGGREGATION_FILES = ("aggregate.py", "cli.py", "config.py", "household.py", "validation.py")
+
+
+def _aggregation_hash():
+    digest = hashlib.sha256()
+    for name in AGGREGATION_FILES:
+        digest.update((SOURCE_DIR / name).read_bytes())
+    return digest.hexdigest()
 
 
 def run_all(rerun=False, log=print):
@@ -109,12 +128,21 @@ LIMITATIONS = [
     "eligible today. CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 claimed "
     "and received some free childcare (Removing the childcare cliff-edge, September 2026, pp. 5-6 and 59-60). The "
     "net direction for the cost is not known, and it is not tested.",
-    "Four-year-olds in reception still receive funded hours in the model (compulsory school age starts at 5), so the "
-    "baseline counts more funded 3- and 4-year-olds than DfE.",
+    "Four-year-olds in reception still receive funded hours in the model (compulsory school age starts at 5), which "
+    "overstates the funded 3- and 4-year-olds slightly.",
     "Childcare spending is held fixed: a family that gains funded hours would in practice pay for fewer hours, which "
-    "would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly.",
+    "would cut its Tax-Free Childcare top-up; the combined cost is overstated slightly. The hours response's income "
+    "effect does not: it counts the paid care the funded hours displace and recomputes the family's cash income, "
+    "Tax-Free Childcare and the Universal Credit childcare element included, on the care it still buys.",
     "Funded hours are valued at the model's hourly funding rates (2024-25 rates uprated by CPI), 1-6% below DfE's "
     "2026-27 national average rates (see baseline_validation), so the 30-hours leg is slightly understated.",
+    "A partner who does not work because of caring or incapacity: for the 30 hours the model now applies SI "
+    "2022/1134 reg 14(4)/15(4) through the benefits it holds (carer's allowance, ESA, incapacity benefit, severe "
+    "disablement allowance, the Universal Credit carer element; corrections.py), but not limited capability for work "
+    "or NI credits, which the data do not hold. Tax-Free Childcare's route (SI 2015/448 reg 13: the partner is "
+    "regarded as in qualifying paid work with the minimum income) is applied the same way (corrections.py, "
+    "mirroring policyengine-uk#2079) for incapacity benefit, severe disablement allowance, carer's allowance, "
+    "Scottish carer support payment and contributory ESA, but not NI credits or carer's leave.",
     "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell "
     "would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), "
     "so no suppressed cell can be recovered from the published UK totals.",
@@ -163,7 +191,9 @@ def _src(label, url):
     return {"label": label, "url": url}
 
 
-LSR_ALTERNATIVE = "Parents respond: OBR participation elasticities and a childcare-price elasticity of hours"
+LSR_ALTERNATIVE = ("Parents respond: partners move into work (OBR participation elasticities), and parents in work "
+                   "change their hours as the price of an extra hour of childcare falls and as their family's "
+                   "income rises (a childcare-price and an OBR income elasticity)")
 
 
 def modelling_assumptions(a, effects, labour_supply_offset):
@@ -183,7 +213,7 @@ def modelling_assumptions(a, effects, labour_supply_offset):
                 _src("Our runs (engine.py)", f"{THIS_REPO}/engine.py"),
                 _src("Moving into work (labour_supply.py)", f"{THIS_REPO}/labour_supply.py"),
                 _src("Hours (hours_response.py)", f"{THIS_REPO}/hours_response.py"),
-                _src("OBR participation elasticities", OBR_PARTICIPATION_URL),
+                _src("OBR participation and income elasticities", OBR_PARTICIPATION_URL),
                 _src("Brewer et al., hours", BREWER_HOURS_URL),
             ],
             "alternative": LSR_ALTERNATIVE,
@@ -217,8 +247,10 @@ def modelling_assumptions(a, effects, labour_supply_offset):
             "modelled": "Each family's weekly extended hours come from the dataset's draw of "
                         f"{HOURS_USAGE_VARIABLE}, which averages about {a['mean_extended_hours_usage']:.0f} of the "
                         "30 hours. DfE's January 2025 census implies about 28.5; the draw is under review upstream "
-                        "(PolicyEngine/microcosm#1126). The model also switches off a 3- or 4-year-old's universal 15 "
-                        "hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930).",
+                        "(PolicyEngine/microcosm#1126). policyengine-uk switches off a 3- or 4-year-old's universal 15 "
+                        "hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930); "
+                        "we keep them, as the law does, and count only the hours above them as extended "
+                        "(corrections.py), so a family that becomes eligible never loses funded hours.",
             "sources": [
                 _src(HOURS_USAGE_VARIABLE,
                      f"{PEUK}/dfe/extended_childcare_entitlement/{HOURS_USAGE_VARIABLE}.py"),
@@ -303,6 +335,7 @@ def build(metas):
             "years": YEARS,
             "generated_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "git_revision": _git_revision(),
+            "aggregation_sha256": _aggregation_hash(),
             "min_cell_size": MIN_CELL_RECORDS,
             "run_seconds": {k: v["seconds"] for k, v in metas.items()},
             "peak_rss_gb": {k: v["peak_rss_gb"] for k, v in metas.items()},
@@ -357,45 +390,98 @@ def build(metas):
             **lsr,
             "assumptions": {
                 "participation_elasticities": "OBR Table A1, by sex, partner's work, age of youngest child and "
-                                              "earnings quintile, converted to the gain to work (Appendix E)",
+                                              "earnings quintile, converted to the gain to work and applied to the "
+                                              "employed share (Adam and Phillips, Appendix E)",
                 "price_elasticity_central": PRICE_ELASTICITY_CENTRAL,
                 "price_elasticity_low": PRICE_ELASTICITY_LOW,
                 "price_elasticity_high": PRICE_ELASTICITY_HIGH,
                 "elasticity_scales": {k: round(v, 4) for k, v in ELASTICITY_SCALES.items()},
                 "hours_price_elasticity": HOURS_PRICE_ELASTICITY,
+                "income_elasticities": "Table A2, by sex, whether in a couple and age of youngest child: from "
+                                       "-0.185 (a woman in a couple, youngest child 0-2) to -0.037 (a lone "
+                                       "mother, youngest 0-4); -0.05 for a man in a couple",
+                "couples": "The OBR groups (Tables A1 and A2) apply to married and cohabiting couples alike. "
+                           "policyengine-uk assigns them by legal marriage, which would give a cohabiting father no "
+                           "elasticity and a cohabiting mother the lone-parent rates (about a fifth of couples with "
+                           "children are not married); we assign them by whether the adult is in a couple.",
+                "couples_issue_url": UPSTREAM_COUPLE_ISSUE_URL,
                 "hours_for_new_entrants": HOURS_FOR_NEW_ENTRANTS,
                 "free_hours_displacement": round(FREE_HOURS_DISPLACEMENT, 4),
+                "free_hours_displacement_range": {k: round(v, 4) for k, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
+                "hours_price_elasticity_status": "extrapolated scenario assumption, not an estimated price elasticity",
+                "elasticity_scales_status": "illustrative, not a sourced uncertainty interval",
             },
             "responding_population": (
-                "Adults (the first two in each family; not self-employed, students or aged 60 and over) in a "
-                "family whose youngest child is under 12 and in which at least one adult's income, as the limits "
-                "test it, is over £100,000. Mechanically, the partner of a parent over the limit, who under the "
-                "reform brings the family the 30 hours and Tax-Free Childcare by working."
+                "Every adult (the first two in each family; not self-employed, students or aged 60 and over, the "
+                "OBR's exclusions) in a family whose youngest child is under 12 and in which at least one adult's "
+                "income, as the limits test it, is over £100,000: the parent over the limit as well as their "
+                "partner. Those not in work may move into work, except disabled adults (receiving DLA or PIP), "
+                "whom the OBR excludes from participation (Table A4) but not from hours (Table A3); those in work "
+                "may change their hours."
             ),
-            "not_modelled": (
-                "The response of parents over £100,000 is not in the dynamic cost: neither those who today keep "
-                "their income below the limit and would earn more without it (bunching; CenTax's +£210m intensive "
-                "margin in 2029-30), nor their hours response to cheaper childcare (published separately as "
-                "intensive_over_limit)."
-            ),
+            "not_modelled": "Bunching: parents who today keep their income at or just below "
+                            "£100,000 and would earn more without the limit.",
             "notes": [
-                "Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static "
-                "total less both offsets, at the same bound. Both apply to the total: they are not split by scheme.",
-                "Moving into work (extensive margin): the expected change in each adult's probability of working, "
-                "from the OBR elasticities and the change in their gain to work, net of the childcare they would buy. "
-                "The offset is entrants' earnings less the rise in their household's net income (tax and National "
-                "Insurance paid, less the childcare support the family now receives) and less the Tax-Free "
-                "Childcare top-up on the care they start buying.",
-                f"Hours (intensive margin): a childcare-price elasticity of hours of {HOURS_PRICE_ELASTICITY} "
-                "(Brewer et al., measured on mothers) for responding adults in work, at or below £100,000, whose "
-                "out-of-pocket childcare cost falls; the model recomputes tax and benefits on the extra earnings. It "
-                "is a total-hours estimate, so it overlaps slightly with the extensive margin.",
-                "Sensitivity, not in the dynamic cost (intensive_over_limit): the parent over £100,000 responding to "
-                "the cheaper childcare with the same elasticity. Their earnings are large and taxed at up to 62%, so "
-                f"it would add £{lsr['intensive_over_limit']['offset_bn']['central'][str(BENCHMARK_YEAR)]:.2f}bn in "
-                f"{_fy(BENCHMARK_YEAR)}; the elasticity is not measured on this group.",
-                "Low and high scale every elasticity by 1/3 and 2 (childcare-price elasticities of maternal "
-                "employment of -0.05 and -0.30 against -0.15).",
+                "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is "
+                "extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is "
+                "not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The "
+                "dynamic cost is the static total less the two offsets (moving into work and hours), at the same "
+                "bound; the hours offset is its price effect (money back) plus its income effect (money out). "
+                "They apply to the total: they are not split by scheme.",
+                "Moving into work (extensive margin): the OBR elasticities are the percentage change in the "
+                "probability of working for a percentage change in the gain to work (net of the childcare a parent "
+                "would buy), converted from in-work income by the gain over in-work income. As in Adam and "
+                "Phillips (Appendix E) they apply to the employed share: new employment is the sum over working "
+                "adults of their own response, and it is shared among the non-working adults like them (who are "
+                "the ones entering): those in the same OBR cell (sex, couple, age band of the youngest child, "
+                "earnings quintile), in proportion to their own response, or, where the cell has no responding "
+                "non-worker, in the nearest coarser cell (allocated_by_cell_level). The offset is entrants' earnings less the rise in their "
+                "household's net income (tax and National Insurance paid, less the childcare support the family "
+                "now receives) and less the Tax-Free Childcare top-up on the care they start buying. Entrants placed "
+                "in a coarser cell take the non-workers' earnings, gain and subsidy from other earnings quintiles; "
+                "entry_sensitivity reports the offset with them dropped (same_cell_only) and with them given the "
+                "weighted median hourly wage of the workers who imply them, gain and subsidy recomputed "
+                "(worker_profile), at central elasticities.",
+                "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, "
+                "in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; "
+                "the parts are an attribution that adds up to it (the price change recomputed alone, the income "
+                "effect the remainder; the at-or-below group alone, the over group the remainder). Price "
+                f"effect: {HOURS_PRICE_ELASTICITY} times the change in the price of the family's marginal hour of "
+                "paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated "
+                "scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours "
+                "for mothers whose youngest child becomes eligible for full-time rather than part-time free care, "
+                "treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive "
+                "margin. The marginal price is net of all the childcare-linked cash support on the next pound of "
+                "spend, the model's own (Tax-Free Childcare, the Universal Credit childcare element and the other "
+                "payments tied to childcare_expenses), read by raising the family's spend by £1 (not 1%, which near a "
+                "cap averages over spending beyond it), today and, under the reform, at the spend the family still makes "
+                "once the funded hours displace paid care; intensive_price_basis publishes it at today's spend "
+                "(original_spend) and with Tax-Free Childcare alone (tfc_only). The 30 "
+                "funded hours are a fixed "
+                "amount, conditional only on both parents meeting the minimum earnings test, so for a family that "
+                "still buys paid care on top of them they do not change what an extra hour costs; they lower the "
+                "marginal price (to zero) only where they are worth more than all the paid care the family buys. "
+                "Income effect: the OBR income elasticities (Table A2, policyengine-uk's "
+                "calculate_labour_net_income_elasticities, assigned to married and cohabiting couples alike) times "
+                "the household's static gain as a percentage of its disposable income, as policyengine-uk's "
+                "apply_progression_responses applies them except for the income measure. The gain is on the same "
+                "disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid "
+                "childcare the newly funded hours displace (their value at the displacement rate below, capped at "
+                "what the family pays), with the reform's cash income recomputed by the model on the care the family "
+                "still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced "
+                "spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with "
+                "spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither "
+                "elasticity is "
+                "measured on parents over £100,000.",
+                "Whether newly funded hours cover a family's paid care, and how much paid care they save it, is "
+                "judged on value, with funded hours "
+                f"assumed to displace paid care at {FREE_HOURS_DISPLACEMENT:.1%} of their value (1 - 54/570, IFS "
+                "BN189, which counts all displaced non-family care as paid). It is an assumption, published at "
+                f"{FREE_HOURS_DISPLACEMENT_RANGE['low']:.1%} (only subsidisable care displaced, 1 - 163/570) and "
+                f"{FREE_HOURS_DISPLACEMENT_RANGE['high']:.0%} (intensive_displacement), at central elasticities.",
+                "Low and high scale every elasticity (participation, price and income) by 1/3 and 2. The range is illustrative, not a sourced "
+                "uncertainty interval: the factors are ratios of childcare-price elasticities of maternal "
+                "employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
                 "The income and family-type breakdowns, who gains and the household calculator are static.",
             ],
         },

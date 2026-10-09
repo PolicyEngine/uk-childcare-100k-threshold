@@ -35,7 +35,7 @@ import {
 import { formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Select } from "./ui";
+import { Expandable, AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Select } from "./ui";
 
 export const SUPPRESSED = "too few records";
 
@@ -129,7 +129,7 @@ function SchemeTable({ recipients }) {
           </tr>
           {"families_losing" in recipients ? (
             <tr>
-              <td>Families losing (see below)</td>
+              <td>Families losing</td>
               <td className="tabular-nums">{formatCount(recipients.families_losing)}</td>
               {withKids ? <td /> : null}
             </tr>
@@ -384,6 +384,11 @@ const RECIPIENT_VIEWS = [
   { id: "ages", label: "Children, by age" },
 ];
 
+/** The "Show" options a year's recipients can fill: the children views need children_by_scheme, which is optional. */
+export function recipientViews(recipients) {
+  return RECIPIENT_VIEWS.filter((v) => v.id === "families" || recipients.children_by_scheme !== undefined);
+}
+
 function RecipientsChart({ recipients, view }) {
   const kids = recipients.children_by_scheme;
   const key = view === "families" ? "families" : "children";
@@ -486,7 +491,8 @@ function GenderSection({ data, year }) {
         <>
           <p>
             A couple gains only if both parents earn at least the minimum (16 hours a week at the National Minimum or
-            Living Wage). So a family whose other parent does not work gets nothing from the reform: the limit is not
+            Living Wage), or, for the 30 hours, the other parent gets carer&apos;s allowance or an incapacity benefit.
+            So a family whose other parent does not work otherwise gets nothing from the reform: the limit is not
             what stops them.
           </p>
           <p>
@@ -502,21 +508,23 @@ function GenderSection({ data, year }) {
         </>
       }
     >
-      <GroupChart rows={byEarner} measure="families_gaining" />
-      {!pf.suppressed && !pm.suppressed ? (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2" data-testid="partner-not-working">
-          {[pf, pm].map((p) => (
-            <div key={p.higher_earner} className="rounded-xl border border-slate-200 bg-white p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{p.higher_earner}</p>
-              <p className="mt-1 text-2xl font-semibold text-slate-900">{formatPct(p.partner_not_working_pct, 0)}</p>
-              <p className="text-sm text-slate-600">
-                of couples with a child under 12 have a {p.higher_earner.startsWith("Father") ? "mother" : "father"} who
-                does not work ({formatCount(p.families)} families, {fy})
-              </p>
-            </div>
-          ))}
-        </div>
-      ) : null}
+      <Expandable title="Show the chart" testId="gender-expandable">
+        <GroupChart rows={byEarner} measure="families_gaining" />
+        {!pf.suppressed && !pm.suppressed ? (
+          <div className="mt-6 grid gap-4 sm:grid-cols-2" data-testid="partner-not-working">
+            {[pf, pm].map((p) => (
+              <div key={p.higher_earner} className="rounded-xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{p.higher_earner}</p>
+                <p className="mt-1 text-2xl font-semibold text-slate-900">{formatPct(p.partner_not_working_pct, 0)}</p>
+                <p className="text-sm text-slate-600">
+                  of couples with a child under 12 have a {p.higher_earner.startsWith("Father") ? "mother" : "father"} who
+                  does not work ({formatCount(p.families)} families, {fy})
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : null}
+      </Expandable>
     </Section>
   );
 }
@@ -527,9 +535,11 @@ export default function WhoGainsTab({ data }) {
   const recipients = getRecipients(data, y);
   const ages = getChildrenByAge(data, y);
   const fy = fyLabel(y);
-  const [view, setView] = useState("families");
-  // The children views need children_by_scheme, which the schema leaves optional.
-  const views = RECIPIENT_VIEWS.filter((v) => v.id === "families" || recipients.children_by_scheme !== undefined);
+  const [chosenView, setView] = useState("families");
+  const views = recipientViews(recipients);
+  // A view the chosen year cannot show (no children_by_scheme) falls back to families, so switching years never
+  // leaves the chart reading a field that is absent.
+  const view = views.some((v) => v.id === chosenView) ? chosenView : "families";
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="who-gains-tab">
@@ -551,11 +561,11 @@ export default function WhoGainsTab({ data }) {
               Tax-Free Childcare covers children up to 11, so most children gaining are of school age. The 30 hours
               cover children from 9 months, but the model holds ages in whole years and gives no hours at age 0.
             </p>
-            {"families_losing" in recipients ? (
+            {recipients.families_losing > 0 ? (
               <p>
-                A few families lose in the model: once they qualify for the extended hours it switches off the
-                universal 15 hours for a 3- or 4-year-old, and the extended hours the data say they use can be fewer.
-                In law the universal hours would stay.
+                {formatCount(recipients.families_losing)} families lose in the model. Families keep the universal and
+                targeted 15 hours when they qualify for the extended hours, as in law, so these losses come from other
+                interactions in the model, not from the reform taking funded hours away.
               </p>
             ) : null}
             <SchemeTable recipients={recipients} />

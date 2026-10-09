@@ -241,10 +241,11 @@ describe("formatters", () => {
 describe("labour supply", () => {
   it("reads the setting from the URL and writes it back, static by default", async () => {
     const { parseLabourSupply, labourSupplyParams, labourSupplyOffset, getLabourSupply } = await import("./dataHelpers");
-    expect(parseLabourSupply(null, null)).toEqual({ extensive: false, intensive: false, bound: "central" });
-    expect(parseLabourSupply("ext,int", "nonsense")).toEqual({ extensive: true, intensive: true, bound: "central" });
+    expect(parseLabourSupply(null, null)).toMatchObject({ extensive: false, intensive: false });
+    expect(parseLabourSupply("ext,int", "nonsense")).toMatchObject({ extensive: true, intensive: true, bounds: { extensive: "central", intensive: "central" } });
     expect(labourSupplyParams({ extensive: false, intensive: false, bound: "high" })).toEqual([]);
-    expect(labourSupplyParams({ extensive: true, intensive: false, bound: "low" })).toEqual([["ls", "ext"], ["bound", "low"]]);
+    expect(labourSupplyParams({ extensive: true, intensive: false, bound: "low" })).toEqual([["ls", "ext:low"]]);
+    expect(parseLabourSupply("ext,int:high", null).bounds).toEqual({ extensive: "central", intensive: "high" });
     const off = labourSupplyOffset(data, { extensive: false, intensive: false, bound: "central" });
     expect(off.every((v) => v === 0)).toBe(true);
     const ls = getLabourSupply(data);
