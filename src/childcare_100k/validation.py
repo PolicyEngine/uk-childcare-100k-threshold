@@ -82,8 +82,10 @@ def rows_for(runs):
         _row("3- and 4-year-olds using the working parent entitlement", y,
              int(round(_total(ext & (age >= 3) & (age < 5), pw), -3)), OFFICIAL["wpe_3_4"], "children",
              DFE_EY_SOURCE, DFE_EY_URL, lab,
-             "The model gives 4-year-olds in reception funded hours (compulsory school age starts at 5 in the "
-             "model), so it counts more 3-4-year-olds than DfE."),
+             "Model: a 3- or 4-year-old counts once the family's working-parent hours go beyond the universal 15 "
+             "(a family drawing 15 hours or fewer keeps the universal hours; corrections.py), which lowers the "
+             "count; the model also gives 4-year-olds in reception funded hours (compulsory school age starts at 5 "
+             "in the model), which raises it."),
     ]
     for year, key in ((VALIDATION_YEAR, "taxpayers_100k_2025"), (VALIDATION_YEAR + 1, "taxpayers_100k_2026")):
         out.append(_row("People with income of £100,000 or more", year,

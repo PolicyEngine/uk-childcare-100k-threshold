@@ -8,6 +8,7 @@ from itertools import product
 from pathlib import Path
 
 from .config import CLIFF, HOUSEHOLD_GRID, REFORM_PARAMETERS, REMOVED
+from .corrections import corrected_household_simulations
 
 FREE_HOURS_VARIABLES = (
     "extended_childcare_entitlement",
@@ -51,10 +52,19 @@ def _household_total(result, variable):
     raise KeyError(f"{variable} is not in the household result")
 
 
-def _run(earnings, year, reform, family=None):
+def _corrected(**kwargs):
+    """policyengine.py's household calculator, on the corrected model (corrections.py), as the population runs are."""
     from policyengine.tax_benefit_models.uk import calculate_household
 
-    result = calculate_household(
+    with corrected_household_simulations() as systems:
+        result = calculate_household(**kwargs)
+    if not systems:
+        raise RuntimeError("the model corrections did not reach the household calculation")
+    return result
+
+
+def _run(earnings, year, reform, family=None):
+    result = _corrected(
         people=_people(earnings, **(family or {})),
         household={"region": CLIFF["region"]},
         year=year,
@@ -93,16 +103,16 @@ def cliff_example(grid):
         "net_income_reform": series["reform"],
         "notes": (
             "Computed with policyengine.py's household calculator (calculate_household), the same model "
-            "release as the population runs. Net income is household net income (after tax and benefits, "
+            "release and the same model corrections (corrections.py) as the population runs. Net income is household net income (after tax and benefits, "
             "including the value of funded hours at the local-authority funding rate and the Tax-Free "
             f"Childcare top-up) minus the family's own childcare spending of £{spend:,} a year "
             f"(£{c['childcare_spend_per_child']:,} per child), held fixed in both scenarios as in the population "
             "run. Both parents are under 40, work, pass the minimum income test and make no pension "
             "contributions, so adjusted net income equals employment income. Funded hours are valued at 30 "
             "hours x 38 weeks for each child (the model's default usage for a single household). The personal "
-            "allowance taper between £100,000 and £125,140 applies in both scenarios. At exactly £100,000 the "
-            "model already withdraws the 30 hours (it tests income < £100,000, where the law allows up to and "
-            "including £100,000) but keeps Tax-Free Childcare."
+            "allowance taper between £100,000 and £125,140 applies in both scenarios. Exactly £100,000 still "
+            "qualifies for both schemes, as in law (a parent is excluded only if income exceeds £100,000); the "
+            "support is lost from £100,001."
         ),
     }
 
@@ -117,10 +127,8 @@ def _earnings(lo, hi, step):
 
 def _sweep(args):
     """Net income after childcare spending at every grid earnings level, in one axes call for one family."""
-    from policyengine.tax_benefit_models.uk import calculate_household
-
     family, year, reform, lo, step, count = args
-    result = calculate_household(
+    result = _corrected(
         people=_people(lo, **family),
         household={"region": CLIFF["region"]},
         year=year,
@@ -136,6 +144,7 @@ def _sweep(args):
 def _grid_cache_key():
     """Everything the grid depends on: this module, the grid and cliff settings, and the model versions."""
     digest = hashlib.sha256(Path(__file__).read_bytes())
+    digest.update((Path(__file__).parent / "corrections.py").read_bytes())
     digest.update(json.dumps({"grid": HOUSEHOLD_GRID, "cliff": CLIFF, "params": REFORM_PARAMETERS,
                               "removed": repr(REMOVED)}, sort_keys=True).encode())
     for pkg in ("policyengine", "policyengine-uk"):

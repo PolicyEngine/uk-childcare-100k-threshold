@@ -39,17 +39,23 @@ year (:func:`excluded`).
 The responding population
 =========================
 
-Adults (the first two in each benefit unit, not self-employed, students or aged 60
-and over: the OBR's exclusions) in a benefit unit whose youngest child is under 12,
-and in which at least one adult's income, as the limits test it (adjusted net income
-less salary sacrifice returned to pay, ``corrections.py``), is over £100,000 in the
-baseline. Under 12 because Tax-Free Childcare runs to 11 and contains the 30 hours'
-9 months-4 years band: following Brewer et al., a parent whose *youngest* child is in
-the band is the one the support frees to work. The over-£100,000 condition is where
-the reform changes anything: mechanically, the partner of someone over the limit,
-who today gains no childcare support by working and under the reform brings the
-family the 30 hours and Tax-Free Childcare by doing so. Outside this population the
-reform leaves the gain to work unchanged, which the job checks and records.
+Every adult (the first two in each benefit unit, not self-employed, students or aged 60
+and over: the OBR's exclusions, Tables A3 and A4; for moving into work, also not disabled
+(receiving DLA or PIP), which Table A4 adds and Table A3 does not) in a
+benefit unit whose youngest child is under 12 and in which at least one adult's income,
+as the limits test it (adjusted net income less salary sacrifice returned to pay,
+``corrections.py``), is over £100,000 in the baseline: the parent over the limit as
+well as their partner. Under 12 because Tax-Free Childcare runs to 11 and contains the
+30 hours' 9 months-4 years band: following Brewer et al., a parent whose *youngest*
+child is in the band is the one the support frees to work. The over-£100,000 condition
+is where the reform changes anything. Outside this population the reform leaves the
+gain to work unchanged, which the job checks and records.
+
+Who can respond on each margin follows from the population: moving into work (this
+module) is open to its non-workers, in practice the partner of someone over the limit,
+who today gains no childcare support by working and under the reform brings the family
+the 30 hours and Tax-Free Childcare by doing so; the hours response
+(``hours_response.py``) is open to its adults in work, at or below the limit and over it.
 
 The gain to work
 ================
@@ -70,8 +76,8 @@ childcare support the family now receives), less the Tax-Free Childcare top-up o
 the care they start buying. That can be negative: under this reform an entrant's
 family typically becomes eligible for both schemes.
 
-Not modelled: parents above £100,000 who today keep their income below the limit
-(CenTax's intensive margin, bunching at £100,000).
+Not modelled: bunching, parents who today keep their income at or below £100,000 and
+would earn more without the limit.
 """
 
 from __future__ import annotations
@@ -82,21 +88,36 @@ import numpy as np
 import pandas as pd
 from microdf import MicroSeries
 from policyengine_uk.dynamics.participation import (
+    WEEKS_IN_YEAR,
     calculate_earnings_quintile,
     calculate_participation_elasticities,
+    hourly_wage,
     impute_wages_for_nonworkers,
+    weighted_median,
 )
+from policyengine_uk.dynamics.progression import calculate_labour_net_income_elasticities
 
 from .config import (
     BASELINE_LIMIT,
     ELASTICITY_SCALES,
+    FREE_HOURS_DISPLACEMENT_RANGE,
     FULL_TIME_HOURS,
     HOURS_FOR_NEW_ENTRANTS,
     LSR_WEEKS_PER_YEAR,
     PARTICIPATION_CHANGE_BOUND,
+    INCOME_BASIS_SENSITIVITIES,
+    PRICE_BASIS_SENSITIVITIES,
     YEARS,
+    YOUNGEST_CHILD_BANDS,
     YOUNGEST_CHILD_MAX_AGE,
 )
+
+# The levels of ``entry_cells``, finest first.
+ENTRY_CELL_LEVELS = ("sex_couple_child_quintile", "sex_couple_child", "sex_couple", "everyone")
+# Sensitivities for the implied entrants placed in a coarser cell than their own (A3 of the
+# rereview of #6), central elasticities: dropped ("same_cell_only"), or given the earnings
+# of the workers who imply them ("worker_profile"). Not in the dynamic cost.
+ENTRY_SENSITIVITIES = ("same_cell_only", "worker_profile")
 
 COUNT_ADULTS = 2
 # A gain to work that changes by less than this (£ a year) is treated as unchanged when
@@ -130,8 +151,13 @@ def benunit_max(sim, year, person_values):
     return s.groupby(person_ids).transform("max").to_numpy()
 
 
-def excluded(sim, year):
-    """Adults the OBR framework holds outside the response, for an explicit year."""
+def excluded_from_hours(sim, year):
+    """Adults the OBR progression model (Table A3) holds outside the hours response, for an explicit year.
+
+    Self-employed, full-time students and everyone aged 60 or over; and anyone who is not
+    one of the first two adults (children, and further adults whose gain to work is not
+    computed).
+    """
     status = values(sim, "employment_status", year).astype(str)
     age = values(sim, "age", year).astype(float)
     adult_index = values(sim, "adult_index", year).astype(float)
@@ -141,6 +167,17 @@ def excluded(sim, year):
         | (adult_index == 0)
         | (adult_index > COUNT_ADULTS)
     )
+
+
+def excluded(sim, year):
+    """Adults the OBR participation model (Table A4) holds outside the participation response.
+
+    Table A3's exclusions and, in Table A4 only, disabled people; the model's disability
+    flag is receipt of DLA or PIP (``is_disabled_for_benefits``). Table A3 does not
+    exclude disabled people, so they keep the hours response.
+    """
+    disabled = values(sim, "is_disabled_for_benefits", year).astype(bool)
+    return excluded_from_hours(sim, year) | disabled
 
 
 def limit_income(sim, year):
@@ -159,17 +196,88 @@ def responding(sim, year):
     return np.isfinite(youngest) & (youngest <= YOUNGEST_CHILD_MAX_AGE) & family_over
 
 
-def elasticities(sim, year):
+class CoupleView:
+    """A read-only view of a simulation in which ``is_married`` means "in a couple".
+
+    The OBR groups (Tables A1 and A2 of the note: "married or cohabiting" women, lone
+    parents, men except lone fathers) turn on whether a person has a partner, not on
+    legal marriage. policyengine-uk 2.102.3's ``calculate_participation_elasticities``
+    and ``calculate_labour_net_income_elasticities`` test ``is_married``, which
+    Microcosm UK 2024-25 supplies as legal marriage or civil partnership: a cohabiting
+    father would get no elasticity (as a lone father) and a cohabiting mother the
+    lone-parent rates. Through this view the upstream functions read the model's own
+    couple indicator, ``is_couple`` (a benefit unit with more than one adult; a third
+    adult, a grown-up child counted in the unit, is excluded from the response
+    anyway). The simulation itself is untouched, so ``is_married`` keeps its meaning
+    for tax (the marriage allowance). Reported upstream: ``config.UPSTREAM_COUPLE_ISSUE_URL``.
+    """
+
+    def __init__(self, sim):
+        self._sim = sim
+
+    def calculate(self, variable, *args, **kwargs):
+        if variable == "is_married":
+            variable = "is_couple"
+        return self._sim.calculate(variable, *args, **kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self._sim, name)
+
+
+def earnings_quintile(sim, year):
+    """Upstream's earnings quintile (1-5), for the costed year: workers on their earnings, non-workers on imputed."""
+    previous = sim.default_calculation_period
+    sim.default_calculation_period = year
+    try:
+        return np.asarray(calculate_earnings_quintile(sim, year, HOURS_FOR_NEW_ENTRANTS), int)
+    finally:
+        sim.default_calculation_period = previous
+
+
+def elasticities(sim, year, quintile=None):
     """OBR Table A1 participation elasticities (upstream), placed on upstream's earnings quintiles.
 
     ``calculate_participation_elasticities`` reads the simulation's default period, so
-    it is moved to the costed year for the call and restored.
+    it is moved to the costed year for the call and restored. Its groups are assigned
+    by whether a person is in a couple, married or not (:class:`CoupleView`).
+    """
+    if quintile is None:
+        quintile = earnings_quintile(sim, year)
+    previous = sim.default_calculation_period
+    sim.default_calculation_period = year
+    try:
+        return np.asarray(calculate_participation_elasticities(CoupleView(sim), quintile), float)
+    finally:
+        sim.default_calculation_period = previous
+
+
+def entry_cells(sim, year, quintile):
+    """Each person's cell for allocating implied entrants, finest first (``ENTRY_CELL_LEVELS``).
+
+    The OBR Table A1 groups: sex, whether in a couple (:class:`CoupleView`), the band of
+    the youngest child's age (``YOUNGEST_CHILD_BANDS``: 0-2, 3-5, 6-10, 11) and earnings
+    quintile. Coarser levels drop the quintile, then the child band; the last is everyone.
+    """
+    female = values(sim, "gender", year).astype(str) == "FEMALE"
+    couple = values(sim, "is_couple", year, "person").astype(bool)
+    youngest = values(sim, "youngest_child_age", year, "person").astype(float)
+    band = np.digitize(np.nan_to_num(youngest, nan=-1.0), YOUNGEST_CHILD_BANDS)
+    q = np.asarray(quintile, int)
+    group = female * 2 + couple
+    return np.stack([group * 100 + band * 10 + q, group * 100 + band * 10, group * 100, np.zeros_like(q)], axis=1)
+
+
+def income_elasticities(sim, year):
+    """OBR Table A2 income elasticities of hours (upstream), for the costed year.
+
+    ``calculate_labour_net_income_elasticities`` reads the simulation's default period,
+    so it is moved to the costed year for the call and restored. Its groups are
+    assigned by whether a person is in a couple, married or not (:class:`CoupleView`).
     """
     previous = sim.default_calculation_period
     sim.default_calculation_period = year
     try:
-        quintile = calculate_earnings_quintile(sim, year, HOURS_FOR_NEW_ENTRANTS)
-        return np.asarray(calculate_participation_elasticities(sim, quintile), float)
+        return np.asarray(calculate_labour_net_income_elasticities(CoupleView(sim)), float)
     finally:
         sim.default_calculation_period = previous
 
@@ -206,16 +314,20 @@ def _entrant_subsidy(sim, year, imputed_cost):
 
     The model's own eligibility (``tax_free_childcare_eligible``, which carries the
     take-up draw and every condition including the income limit), the dataset's routed
-    share, the 20% rate and the £2,000-a-child cap, applied to the imputed spend.
+    share, the 20% rate and the family's cap, applied to the imputed spend. The cap is
+    the model's: for each qualifying child (``tax_free_childcare_qualifying_child``,
+    which runs to 16 for a disabled child), the disabled-child amount (£4,000) for a
+    disabled or blind child and the standard amount (£2,000) otherwise, both read from
+    the model's parameters.
     """
     p = sim.tax_benefit_system.parameters(f"{year}-06-01").gov.hmrc.tax_free_childcare
     eligible = per_person(sim, year, values(sim, "tax_free_childcare_eligible", year).astype(float))
     routed = np.clip(benunit_max(sim, year, values(sim, "tax_free_childcare_spend_routed_share", year)), 0, 1)
-    is_child = values(sim, "is_child", year).astype(bool)
-    age = values(sim, "age", year).astype(float)
-    child_under_12 = pd.Series((is_child & (age < 12)).astype(float))
-    n_qualifying = child_under_12.groupby(values(sim, "benunit_id", year, "person")).transform("sum").to_numpy()
-    top_up = np.minimum(imputed_cost * routed * p.contribution.rate, p.contribution.standard_child * n_qualifying)
+    qualifying = values(sim, "tax_free_childcare_qualifying_child", year).astype(bool)
+    higher = values(sim, "is_disabled_for_benefits", year).astype(bool) | values(sim, "is_blind", year).astype(bool)
+    child_cap = pd.Series(qualifying * np.where(higher, p.contribution.disabled_child, p.contribution.standard_child))
+    family_cap = child_cap.groupby(values(sim, "benunit_id", year, "person")).transform("sum").to_numpy()
+    top_up = np.minimum(imputed_cost * routed * p.contribution.rate, family_cap)
     return eligible * top_up
 
 
@@ -273,6 +385,55 @@ def gain_to_work(sim, year, entrant_earnings, actual_cost, imputed_cost):
     }
 
 
+def hours_inputs(sim, year):
+    """What the hours margin reads from one scenario (hours_response.py), on each person."""
+    from .hours_response import marginal_support_rates
+
+    return {
+        "bu_tfc": per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float)),
+        "bu_free": per_person(sim, year, sum(
+            values(sim, v, year, "benunit").astype(float)
+            for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
+                      "targeted_childcare_entitlement"))),
+        **marginal_support_rates(sim, year)[0],
+        "hh_net_income": values(sim, "household_net_income", year, "person").astype(float),
+        # The base of the income effect's percentage change (hours_response.income_change).
+        "hh_disposable_income": values(sim, "hbai_household_net_income", year, "person").astype(float),
+    }
+
+
+def _hourly_wage(sim, year):
+    """(working, hourly wage, 0) for ``np.where``: upstream's hourly wage of each worker."""
+    _, wage, working = hourly_wage(sim, year)
+    return np.asarray(working, bool), np.asarray(wage, float), 0.0
+
+
+def worker_profile(sim, year, base, prep):
+    """The ``worker_profile`` sensitivity's entrants: the coarser-cell entry at the implying workers' wage.
+
+    The central allocation's coarser-cell entry (:func:`allocate_entrants`) is given the
+    weighted median hourly wage of the workers who imply it, at the entrants'
+    ``HOURS_FOR_NEW_ENTRANTS`` hours a week, and its gain and Tax-Free Childcare are
+    recomputed on the reform (``sim``) at those earnings (:func:`gain_to_work`). Returns the
+    ``profile_*`` arrays :func:`participation_response` reads.
+    """
+    change = np.where(prep["eligible"], prep["elasticity"] * prep["pct"], 0.0)
+    change = np.clip(change, -PARTICIPATION_CHANGE_BOUND, PARTICIPATION_CHANGE_BOUND)
+    working = prep["employment_income"] > 0
+    implied = np.where(prep["eligible"] & working, np.maximum(change, 0), 0.0)
+    pull = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
+    _, _, fallback = allocate_entrants(implied, pull, prep["cells"], prep["weights"], wage=prep["wage"])
+    moved = fallback["fallback_enter"] > 0
+    earnings = np.where(moved, fallback["fallback_wage"] * HOURS_FOR_NEW_ENTRANTS * WEEKS_IN_YEAR,
+                        base["entrant_earnings"])
+    gtw = gain_to_work(sim, year, earnings, base["actual_cost"], base["imputed_cost"])
+    return {
+        "profile_earnings": earnings,
+        "profile_gain": gtw["in_work_income"] - gtw["out_of_work_income"],
+        "profile_subsidy": gtw["entrant_subsidy"],
+    }
+
+
 def baseline_side(sim, year):
     """Everything the response needs from the baseline simulation, for one year."""
     respond = responding(sim, year)
@@ -280,38 +441,48 @@ def baseline_side(sim, year):
     actual_cost = per_person(sim, year, values(sim, "childcare_expenses", year, "benunit").astype(float))
     entrant_earnings = np.asarray(impute_wages_for_nonworkers(sim, year, HOURS_FOR_NEW_ENTRANTS), float)
     imputed_cost = imputed_childcare_cost(sim, year, eligible, actual_cost)
-    elasticity = elasticities(sim, year)
+    quintile = earnings_quintile(sim, year)
+    elasticity = elasticities(sim, year, quintile)
     out = {
+        # Participation (Table A4 screen) and hours (Table A3 screen: disabled people respond).
         "eligible": eligible,
+        "hours_eligible": respond & ~excluded_from_hours(sim, year),
+        "cells": entry_cells(sim, year, quintile),
+        "benunit_id": values(sim, "benunit_id", year, "person"),
+        "household_id": values(sim, "household_id", year, "person"),
         "over_limit": limit_income(sim, year) > BASELINE_LIMIT,
         "not_excluded": ~excluded(sim, year),
         "weights": values(sim, "household_weight", year, "person").astype(float),
         "employment_income": values(sim, "employment_income", year).astype(float),
         "weekly_hours": values(sim, "hours_worked", year).astype(float) / LSR_WEEKS_PER_YEAR,
         "entrant_earnings": entrant_earnings,
+        # Workers' hourly wage (upstream's ``hourly_wage``; zero for non-workers): the worker_profile sensitivity.
+        "hourly_wage": np.where(*_hourly_wage(sim, year)),
         "actual_cost": actual_cost,
         "imputed_cost": imputed_cost,
         "elasticity_wrt_income": elasticity,
-        # The hours margin's prices (hours_response.py).
-        "bu_tfc": per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float)),
-        "bu_free": per_person(sim, year, sum(
-            values(sim, v, year, "benunit").astype(float)
-            for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
-                      "targeted_childcare_entitlement"))),
+        # The hours margin (hours_response.py).
+        "income_elasticity": income_elasticities(sim, year),
+        **hours_inputs(sim, year),
     }
     out.update({f"gtw_{k}": v for k, v in gain_to_work(sim, year, entrant_earnings, actual_cost, imputed_cost).items()})
     return out
 
 
 def reform_side(sim, year, base):
-    """The reform's gain to work, on the baseline's imputed earnings and childcare."""
+    """The reform's gain to work, on the baseline's imputed earnings and childcare.
+
+    Also the reform once the paid care the newly funded hours displace is no longer
+    bought (its disposable income, Tax-Free Childcare and marginal Tax-Free Childcare
+    rate), at each displacement rate the hours margin uses
+    (``hours_response.at_displaced_spend``).
+    """
+    from .hours_response import DISPLACEMENTS, at_displaced_spend, displacement_key
+
     out = {f"gtw_{k}": v for k, v in gain_to_work(
         sim, year, base["entrant_earnings"], base["actual_cost"], base["imputed_cost"]).items()}
-    out["bu_tfc"] = per_person(sim, year, values(sim, "tax_free_childcare", year, "benunit").astype(float))
-    out["bu_free"] = per_person(sim, year, sum(
-        values(sim, v, year, "benunit").astype(float)
-        for v in ("extended_childcare_entitlement", "universal_childcare_entitlement",
-                  "targeted_childcare_entitlement")))
+    out.update(hours_inputs(sim, year))
+    out["displaced"] = {displacement_key(d): at_displaced_spend(sim, year, base, out, d) for d in DISPLACEMENTS}
     return out
 
 
@@ -321,12 +492,16 @@ def prepare(base, ref):
     pct = np.zeros_like(gtw_b)
     positive = gtw_b > 0
     pct[positive] = (gtw_r[positive] - gtw_b[positive]) / gtw_b[positive]
-    # OBR Appendix E: elasticity with respect to the gain to work = elasticity with
-    # respect to in-work income x (1 - replacement rate).
-    in_work, out_work = base["gtw_in_work_income"], base["gtw_out_of_work_income"]
-    rr = np.zeros_like(in_work)
-    rr[in_work > 0] = out_work[in_work > 0] / in_work[in_work > 0]
-    elasticity = base["elasticity_wrt_income"] * (1 - np.clip(rr, 0, 1))
+    # Adam and Phillips, Appendix E: an elasticity with respect to in-work income I
+    # converts to one with respect to the gain to work G as e_G = e_I x G / I (their
+    # G = I - O gives the familiar (I - O) / I = 1 - replacement rate). Our gain to work
+    # nets off childcare, G = I - C - (O - S_out), and with C and S_out held fixed a
+    # change in I moves G one for one, so the consistent factor is G / I for the gain
+    # actually used (the baseline's).
+    in_work = base["gtw_in_work_income"]
+    factor = np.zeros_like(in_work)
+    factor[in_work > 0] = gtw_b[in_work > 0] / in_work[in_work > 0]
+    elasticity = base["elasticity_wrt_income"] * np.clip(factor, 0, 1)
     reform_gain = ref["gtw_in_work_income"] - ref["gtw_out_of_work_income"]
     # Outside the responding population the reform must leave the gain to work alone.
     outside = base["not_excluded"] & ~base["eligible"]
@@ -337,40 +512,141 @@ def prepare(base, ref):
         "reform_gain": reform_gain,
         "entrant_subsidy": ref["gtw_entrant_subsidy"],
         "eligible": base["eligible"],
+        "cells": base["cells"],
+        "over_limit": base["over_limit"],
         "weights": base["weights"],
         "employment_income": base["employment_income"],
         "weekly_hours": base["weekly_hours"],
         "entrant_earnings": base["entrant_earnings"],
+        "wage": base["hourly_wage"],
         "moved_outside_weighted": float(MicroSeries(moved_outside.astype(float), weights=base["weights"]).sum()),
         "moved_outside_records": int(moved_outside.sum()),
     }
 
 
-def participation_response(prep, scale):
-    """Expected entrants, leavers, full-time equivalents, earnings and exchequer offset at one scale."""
+def allocate_entrants(implied, pull, cells, weights, levels=len(ENTRY_CELL_LEVELS), wage=None):
+    """Share each worker's implied entry among the non-workers of the same cell (Adam and Phillips, Appendix E).
+
+    ``implied`` is each worker's own positive e x dG/G (zero for everyone else), ``pull``
+    each non-worker's (zero for workers), ``cells`` the levels of :func:`entry_cells`,
+    finest first. At each level, a cell holding both unallocated implied entry and
+    non-workers who respond shares its weighted implied entry among those non-workers in
+    proportion to their own weighted pull; workers in a cell with no responding
+    non-worker pass to the next, coarser level. Returns each non-worker's probability of
+    entering (before any cap) and the weighted entrants allocated at each level, plus any
+    left unallocated (only if no non-worker responds at all, or beyond ``levels``).
+
+    With ``levels=1`` only the full cell is used (the ``same_cell_only`` sensitivity).
+    The third item describes the entry placed in a coarser cell: ``fallback_enter``, each
+    non-worker's part of it, and, given each worker's hourly ``wage``,
+    ``fallback_wage``: the weighted median hourly wage of the workers whose implied entry
+    it is (weighted by their implied entrants), for the ``worker_profile`` sensitivity.
+    """
+    enter = np.zeros_like(pull, dtype=float)
+    fallback_enter = np.zeros_like(pull, dtype=float)
+    fallback_wage_sum = np.zeros_like(pull, dtype=float)
+    remaining = implied * weights
+    by_level = {}
+    for level, name in enumerate(ENTRY_CELL_LEVELS[:levels]):
+        key = cells[:, level]
+        frame = pd.DataFrame({"cell": key, "implied": remaining, "pull": pull * weights})
+        sums = frame.groupby("cell")[["implied", "pull"]].sum()
+        ok = sums[(sums["implied"] > 0) & (sums["pull"] > 0)]
+        factor = (ok["implied"] / ok["pull"]).reindex(key).fillna(0.0).to_numpy()
+        share = pull * factor
+        enter += share
+        placed = np.isin(key, ok.index.to_numpy())
+        if level > 0:
+            fallback_enter += share
+            if wage is not None:
+                sources = placed & (remaining > 0)
+                cell_wage = {
+                    cell: weighted_median(wage[sources & (key == cell)], remaining[sources & (key == cell)])
+                    for cell in np.unique(key[sources])
+                }
+                fallback_wage_sum += share * pd.Series(cell_wage, dtype=float).reindex(key).fillna(0.0).to_numpy()
+        by_level[name] = float(remaining[placed].sum())
+        remaining = np.where(placed, 0.0, remaining)
+    by_level["unallocated"] = float(remaining.sum())
+    fallback_wage = np.divide(fallback_wage_sum, fallback_enter, out=np.zeros_like(fallback_enter),
+                              where=fallback_enter > 0)
+    return enter, by_level, {"fallback_enter": fallback_enter, "fallback_wage": fallback_wage}
+
+
+def participation_response(prep, scale, sensitivity=None):
+    """Expected entrants, leavers, full-time equivalents, earnings and exchequer offset at one scale.
+
+    The OBR elasticity (Adam and Phillips, Appendix E) is the percentage change in the
+    probability of working for a percentage change in the gain to work, so for a group
+    with employment rate P the employed share rises by P x e x dG/G. Adam and Phillips
+    apply it by reweighting the *working* records: new employment is the weighted sum,
+    over workers, of their own e x dG/G. Applying e x dG/G to each non-worker instead
+    gives (1 - P) x e x dG/G, too few for any group with more workers than non-workers.
+
+    So the number of entrants is the sum over eligible workers of their positive
+    e x dG/G (a worker whose gain falls leaves with probability e x |dG/G|, as before).
+    Who enters is a non-worker *like the workers who imply the entry*: each cell's implied
+    entrants (sex, couple, youngest child's age band, earnings quintile: the OBR groups,
+    :func:`entry_cells`) are given the earnings, gain and subsidy of the cell's eligible
+    non-workers, shared in proportion to each one's own weighted e x dG/G; a cell with no
+    such non-worker falls back to a coarser cell (:func:`allocate_entrants`, whose counts
+    by level are reported). No non-worker's probability may exceed 1; entry above that
+    is dropped, and reported (``entry_capped``).
+
+    ``sensitivity`` (``ENTRY_SENSITIVITIES``) changes only the entry placed in a coarser
+    cell: ``same_cell_only`` drops it (reported as ``allocated_unallocated``);
+    ``worker_profile`` gives it the earnings, gain and subsidy in
+    ``prep["profile_*"]`` (:func:`worker_profile`) in place of the non-worker's own.
+    """
     w = prep["weights"]
     emp = prep["employment_income"]
     change = np.where(prep["eligible"], prep["elasticity"] * scale * prep["pct"], 0.0)
     change = np.clip(change, -PARTICIPATION_CHANGE_BOUND, PARTICIPATION_CHANGE_BOUND)
     working = emp > 0
-    enter = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
-    leave = np.where(prep["eligible"] & working, np.maximum(-change, 0), 0.0)
 
     def total(x):
         return float(MicroSeries(x, weights=w).sum())
 
+    implied_each = np.where(prep["eligible"] & working, np.maximum(change, 0), 0.0)
+    implied = total(implied_each)
+    pull = np.where(prep["eligible"] & ~working, np.maximum(change, 0), 0.0)
+    levels = 1 if sensitivity == "same_cell_only" else len(ENTRY_CELL_LEVELS)
+    enter, by_level, fallback = allocate_entrants(implied_each, pull, prep["cells"], w, levels, prep.get("wage"))
+    capped = np.maximum(enter - 1.0, 0.0)
+    scale_down = np.divide(np.minimum(enter, 1.0), enter, out=np.ones_like(enter), where=enter > 0)
+    enter = np.minimum(enter, 1.0)
+    leave = np.where(prep["eligible"] & working, np.maximum(-change, 0), 0.0)
+
     earnings = prep["entrant_earnings"]
     gain = prep["reform_gain"]
+    subsidy = prep["entrant_subsidy"]
+    # Each non-worker's entry in two parts: placed in its own cell (own profile) and in a
+    # coarser one (own profile, or the implying workers' under ``worker_profile``).
+    own, other = enter, np.zeros_like(enter)
+    if sensitivity == "worker_profile":
+        other = fallback["fallback_enter"] * scale_down
+        own = enter - other
+    entrant_earnings = own * earnings + other * prep.get("profile_earnings", earnings)
+    entrant_gain = own * gain + other * prep.get("profile_gain", gain)
+    entrant_subsidy = own * subsidy + other * prep.get("profile_subsidy", subsidy)
     return {
         "entrants": total(enter),
         "leavers": total(leave),
         "ftes": total(enter) * HOURS_FOR_NEW_ENTRANTS / FULL_TIME_HOURS
         - total(leave * prep["weekly_hours"] / FULL_TIME_HOURS),
-        "earnings": total(enter * earnings) - total(leave * emp),
+        "earnings": total(entrant_earnings) - total(leave * emp),
         # Tax and NI paid and support withdrawn, less the support the family now gets.
-        "offset": total(enter * (earnings - gain - prep["entrant_subsidy"])) - total(leave * (emp - gain)),
-        "tax_and_ni": total(enter * (earnings - gain)) - total(leave * (emp - gain)),
+        "offset": total(entrant_earnings - entrant_gain - entrant_subsidy) - total(leave * (emp - gain)),
+        "tax_and_ni": total(entrant_earnings - entrant_gain) - total(leave * (emp - gain)),
         "bound_binding": total((np.abs(change) >= PARTICIPATION_CHANGE_BOUND) & prep["eligible"]),
+        # Diagnostics: the new employment implied by the workers' records, the part implied by
+        # workers over £100,000, what the old non-worker-only rule would have given, the implied
+        # entrants allocated at each cell level, and the entry dropped by the cap of 1.
+        "implied_entrants": implied,
+        "implied_by_over_limit": total(np.where(prep["eligible"] & working & prep["over_limit"], np.maximum(change, 0), 0.0)),
+        "non_worker_rule_entrants": total(pull),
+        **{f"allocated_{k}": v for k, v in by_level.items()},
+        "entry_capped": total(capped),
     }
 
 
@@ -403,10 +679,34 @@ def run(build_simulation, log=print):
         for bound, scale in ELASTICITY_SCALES.items():
             for k, v in participation_response(prep, scale).items():
                 arrays[f"{y}/extensive/{bound}/{k}"] = v
-            for k, v in hours_response(sim, y, base[y], ref, scale, "at_or_below_limit").items():
+            hours = hours_response(sim, y, base[y], ref, scale)
+            for k, v in hours["at_or_below_limit"].items():
                 arrays[f"{y}/intensive/{bound}/{k}"] = v
-            for k, v in hours_response(sim, y, base[y], ref, scale, "over_limit").items():
+            for k, v in hours["over_limit"].items():
                 arrays[f"{y}/intensive_over_limit/{bound}/{k}"] = v
+        # Where the entrants placed in a coarser cell come from (A3), central elasticities.
+        prep.update(worker_profile(sim, y, base[y], prep))
+        for sensitivity in ENTRY_SENSITIVITIES:
+            for k, v in participation_response(prep, 1.0, sensitivity).items():
+                arrays[f"{y}/extensive_sensitivity/{sensitivity}/{k}"] = v
+        arrays[f"{y}/hours_responding_adults"] = float(
+            MicroSeries(base[y]["hours_eligible"].astype(float), weights=prep["weights"]).sum())
+        # The displacement assumption varied on its own, at central elasticities, both groups
+        # (hours_response.py): it sets which families' paid care the newly funded hours fully cover
+        # and how much paid care they displace.
+        for side, displacement in FREE_HOURS_DISPLACEMENT_RANGE.items():
+            for k, v in hours_response(sim, y, base[y], ref, 1.0, displacement)["total"].items():
+                arrays[f"{y}/intensive_displacement/{side}/{k}"] = v
+        # The income effect's gain on other bases (spending held fixed; the funded hours at government cost),
+        # central elasticities.
+        for basis in INCOME_BASIS_SENSITIVITIES:
+            for k, v in hours_response(sim, y, base[y], ref, 1.0, basis=basis)["total"].items():
+                arrays[f"{y}/intensive_income_basis/{basis}/{k}"] = v
+        # The price effect's Tax-Free Childcare rate at today's spend, not the spend left after
+        # displacement, central elasticities.
+        for basis in PRICE_BASIS_SENSITIVITIES:
+            for k, v in hours_response(sim, y, base[y], ref, 1.0, price_basis=basis)["total"].items():
+                arrays[f"{y}/intensive_price_basis/{basis}/{k}"] = v
     del sim
     gc.collect()
     return arrays

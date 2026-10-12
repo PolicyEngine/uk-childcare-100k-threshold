@@ -17,9 +17,12 @@ from microdf import MicroSeries
 
 from .config import (
     FAMILY_TYPES,
+    FREE_HOURS_DISPLACEMENT_RANGE,
     FREE_HOURS_VARIABLES,
     GAIN_THRESHOLD,
+    INCOME_BASIS_SENSITIVITIES,
     MIN_CELL_RECORDS,
+    PRICE_BASIS_SENSITIVITIES,
     REGIONS,
     UNDER_ONE_WEEKLY_HOURS,
     VALIDATION_YEAR,
@@ -116,7 +119,7 @@ def budget_block(runs, years=YEARS):
 
 
 def thirty_hours_components(runs, years=YEARS):
-    """The 30-hours leg split by entitlement (£bn). The universal line is the 3-4-year-olds' switch."""
+    """The 30-hours leg split by entitlement (£bn). The universal and targeted lines stay at zero (corrections.py)."""
     b, r = runs["baseline"], runs["reform"]
     out = {}
     for v in FREE_HOURS_VARIABLES:
@@ -372,6 +375,7 @@ def labour_supply(static_total, years=YEARS):
     Offsets are £bn a year, positive = money back to the Exchequer.
     """
     from .engine import LABOUR_SUPPLY_JOB
+    from .labour_supply import ENTRY_CELL_LEVELS, ENTRY_SENSITIVITIES
 
     load_meta(LABOUR_SUPPLY_JOB)  # raises on a provenance mismatch
     z = np.load(run_path(LABOUR_SUPPLY_JOB))
@@ -389,35 +393,103 @@ def labour_supply(static_total, years=YEARS):
         "leavers": by_year("extensive", "leavers", lambda x: _round_to(x, 100)),
         "ftes": by_year("extensive", "ftes", lambda x: _round_to(x, 100)),
         "earnings_bn": by_year("extensive", "earnings", _bn),
+        # Diagnostics for the participation rule (labour_supply.participation_response): the part of the
+        # entrants implied by workers over £100,000, and the entrants the earlier rule (e x dG/G applied to
+        # each non-worker) would give.
+        "implied_by_over_limit": by_year("extensive", "implied_by_over_limit", lambda x: _round_to(x, 100)),
+        "non_worker_rule_entrants": by_year("extensive", "non_worker_rule_entrants", lambda x: _round_to(x, 100)),
+        "entry_capped": by_year("extensive", "entry_capped", lambda x: _round_to(x, 100)),
+        # Where the implied entrants were placed (labour_supply.allocate_entrants): among non-workers in the
+        # same OBR cell, or, where it has none, in a coarser one.
+        "allocated_by_cell_level": {level: by_year("extensive", f"allocated_{level}", lambda x: _round_to(x, 100))
+                                    for level in ENTRY_CELL_LEVELS},
+        # Sensitivities, not in the dynamic cost (labour_supply.ENTRY_SENSITIVITIES), central elasticities: the
+        # entrants placed in a coarser cell dropped, or given the earnings of the workers who imply them. Offsets
+        # in £m to 0.1 (they are a few £m), with the central offset at the same precision.
+        "entry_sensitivity": {
+            "central_offset_m": {str(y): round(get(y, "extensive", "central", "offset") / 1e6, 1) for y in years},
+            **{name: {
+                "offset_m": {str(y): round(float(z[f"{y}/extensive_sensitivity/{name}/offset"]) / 1e6, 1)
+                             for y in years},
+                "entrants": {str(y): _round_to(z[f"{y}/extensive_sensitivity/{name}/entrants"], 100) for y in years},
+                "earnings_bn": {str(y): _bn(float(z[f"{y}/extensive_sensitivity/{name}/earnings"])) for y in years},
+            } for name in ENTRY_SENSITIVITIES},
+        },
     }
+    # Hours response (hours_response.py) of every responding adult in work, split by their own income: a price
+    # effect (positive: money back) and an income effect (negative: money out), and the net of the two.
+    def group(margin):
+        return {
+            "offset_bn": by_year(margin, "offset", _bn),
+            "price_offset_bn": by_year(margin, "price_offset", _bn),
+            "income_offset_bn": by_year(margin, "income_offset", _bn),
+            "ftes": by_year(margin, "ftes", lambda x: _round_to(x, 100)),
+            "price_ftes": by_year(margin, "price_ftes", lambda x: _round_to(x, 100)),
+            "income_ftes": by_year(margin, "income_ftes", lambda x: _round_to(x, 100)),
+            "earnings_bn": by_year(margin, "earnings", _bn),
+            # Diagnostics (thousands of adults; mean changes in %, among those responding to each).
+            "workers": by_year(margin, "workers", _k),
+            "workers_paying_for_childcare": by_year(margin, "workers_paying", _k),
+            "workers_price_falls": by_year(margin, "workers_price_falls", _k),
+            "workers_fully_covered": by_year(margin, "workers_fully_covered", _k),
+            "mean_price_change_pct": by_year(margin, "mean_price_change", lambda x: round(100 * x, 1)),
+            "mean_income_change_pct": by_year(margin, "mean_income_change", lambda x: round(100 * x, 2)),
+        }
+
+    def both(metric, fn):
+        return {b: {str(y): fn(get(y, "intensive", b, metric) + get(y, "intensive_over_limit", b, metric))
+                    for y in years} for b in BOUNDS}
+
     intensive = {
-        "offset_bn": by_year("intensive", "offset", _bn),
-        "ftes": by_year("intensive", "ftes", lambda x: _round_to(x, 100)),
-        "earnings_bn": by_year("intensive", "earnings", _bn),
-        "workers_price_falls": by_year("intensive", "workers_price_falls", _k),
-        "mean_price_change_pct": by_year("intensive", "mean_price_change", lambda x: round(100 * x, 1)),
+        "offset_bn": both("offset", _bn),
+        "price_offset_bn": both("price_offset", _bn),
+        "income_offset_bn": both("income_offset", _bn),
+        "ftes": both("ftes", lambda x: _round_to(x, 100)),
+        "earnings_bn": both("earnings", _bn),
+        "at_or_below_limit": group("intensive"),
+        "over_limit": group("intensive_over_limit"),
     }
-    # Sensitivity, not in the dynamic cost: the parent over £100,000 responding with the same elasticity.
-    intensive_over_limit = {
-        "offset_bn": by_year("intensive_over_limit", "offset", _bn),
-        "ftes": by_year("intensive_over_limit", "ftes", lambda x: _round_to(x, 100)),
-        "earnings_bn": by_year("intensive_over_limit", "earnings", _bn),
+    # Sensitivity, not in the dynamic cost: the free-hours displacement assumption (which families' paid care the
+    # newly funded hours fully cover) varied alone, central elasticities, both groups.
+    intensive_displacement = {
+        "offset_bn": {side: {str(y): _bn(float(z[f"{y}/intensive_displacement/{side}/offset"])) for y in years}
+                      for side in FREE_HOURS_DISPLACEMENT_RANGE},
+        "price_offset_bn": {side: {str(y): _bn(float(z[f"{y}/intensive_displacement/{side}/price_offset"]))
+                                   for y in years} for side in FREE_HOURS_DISPLACEMENT_RANGE},
+        "displacement": {side: round(v, 4) for side, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
     }
+    # Sensitivities, not in the dynamic cost, central elasticities, both groups: the income effect's gain with
+    # spending held fixed (the support on the displaced spend kept) and with the funded hours at government cost
+    # (hours_response.income_gain); the price effect's Tax-Free Childcare rate at today's spend
+    # (hours_response.marginal_price_change).
+    def sensitivity(block, bases):
+        return {basis: {f"{k}_bn": {str(y): _bn(float(z[f"{y}/{block}/{basis}/{k}"])) for y in years}
+                        for k in ("offset", "price_offset", "income_offset")}
+                for basis in bases}
+
+    intensive_income_basis = sensitivity("intensive_income_basis", INCOME_BASIS_SENSITIVITIES)
+    intensive_price_basis = sensitivity("intensive_price_basis", PRICE_BASIS_SENSITIVITIES)
     total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
                  for y in years} for b in BOUNDS}
     dynamic = {b: {str(y): round(static_total[str(y)] - total[b][str(y)], 3) for y in years} for b in BOUNDS}
     checks = {}
     for y in years:
+        unallocated = max(float(z[f"{y}/extensive/{b}/allocated_unallocated"]) for b in BOUNDS)
+        if unallocated > 0:
+            raise RuntimeError(f"{y}: {unallocated:,.0f} implied entrants found no non-worker to enter")
         moved = float(z[f"{y}/moved_outside_weighted"])
         if moved > 0.001 * float(z[f"{y}/responding_adults"]):
             raise RuntimeError(f"{y}: the reform moves the gain to work of {moved:,.0f} adults outside the "
                                "responding population; the population filter misses someone")
         checks[str(y)] = {"responding_adults": _k(z[f"{y}/responding_adults"]),
+                          "hours_responding_adults": _k(z[f"{y}/hours_responding_adults"]),
                           "adults_moved_outside_population": _round_to(moved, 100)}
     return {
         "extensive": extensive,
         "intensive": intensive,
-        "intensive_over_limit": intensive_over_limit,
+        "intensive_displacement": intensive_displacement,
+        "intensive_income_basis": intensive_income_basis,
+        "intensive_price_basis": intensive_price_basis,
         "total_offset_bn": total,
         "dynamic_cost_bn": dynamic,
         "population": checks,

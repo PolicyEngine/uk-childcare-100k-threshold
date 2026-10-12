@@ -143,7 +143,7 @@ export function getSensitivities(data) {
   return { years, rows };
 }
 
-/** The 30 hours cost split into the extended hours gained and the universal hours the model switches off. */
+/** The 30 hours cost split by entitlement: the extended hours gained, and the universal and targeted hours (kept, so zero). */
 export function getThirtyHoursComponents(data) {
   const years = getYears(data);
   const c = data?.budget?.thirty_hours_components_bn;
@@ -365,8 +365,8 @@ export function getCliff(data) {
 /**
  * The cliff in the example: income just below the limit (the last point under it), the first point above it, the
  * income lost between them, and the earnings needed to get back to the income below the limit (null if never within
- * the range, which the page states). Measured from below the limit because the model may already withdraw support
- * at exactly £100,000.
+ * the range, which the page states). Measured from the last point below the limit to the first above it; exactly
+ * £100,000 still qualifies.
  */
 export function cliffSummary(cliff, limit = 100000) {
   const rows = cliff.rows;
@@ -432,7 +432,12 @@ export function householdRows(grid, choice) {
 export const LS_BOUNDS = ["central", "low", "high"];
 export const LS_BOUND_LABELS = { central: "Central", low: "Low", high: "High" };
 /** The page opens static: no margin on, central elasticities. */
-export const STATIC_SETTING = { extensive: false, intensive: false, bound: "central" };
+export const STATIC_SETTING = {
+  extensive: false,
+  intensive: false,
+  bound: "central",
+  bounds: { extensive: "central", intensive: "central" },
+};
 
 /** The labour supply block: each margin's offset (£bn by year, positive = money back) and the dynamic cost. */
 export function getLabourSupply(data) {
@@ -446,8 +451,19 @@ export function getLabourSupply(data) {
   const out = {
     years,
     extensive: { offset: read(["extensive", "offset_bn"]), entrants: read(["extensive", "entrants"]), ftes: read(["extensive", "ftes"]) },
-    intensive: { offset: read(["intensive", "offset_bn"]), ftes: read(["intensive", "ftes"]) },
-    overLimit: { offset: read(["intensive_over_limit", "offset_bn"]) },
+    intensive: {
+      offset: read(["intensive", "offset_bn"]),
+      ftes: read(["intensive", "ftes"]),
+      // Its price effect (money back) and income effect (money out), for each group and both together.
+      ...Object.fromEntries(
+        ["at_or_below_limit", "over_limit"].map((g) => [
+          g,
+          { price: read(["intensive", g, "price_offset_bn"]), income: read(["intensive", g, "income_offset_bn"]) },
+        ]),
+      ),
+      price: read(["intensive", "price_offset_bn"]),
+      income: read(["intensive", "income_offset_bn"]),
+    },
     dynamic: read(["dynamic_cost_bn"]),
     assumptions: ls.assumptions,
     notModelled: ls.not_modelled,
@@ -455,55 +471,87 @@ export function getLabourSupply(data) {
   if (!isText(ls.not_modelled)) fail("labour_supply.not_modelled", "missing");
   if (!isText(ls.responding_population)) fail("labour_supply.responding_population", "missing");
   if (!isText(ls.assumptions?.participation_elasticities)) fail("labour_supply.assumptions.participation_elasticities", "missing");
+  if (!isText(ls.assumptions?.income_elasticities)) fail("labour_supply.assumptions.income_elasticities", "missing");
+  if (!isText(ls.assumptions?.couples)) fail("labour_supply.assumptions.couples", "missing");
+  if (!isText(ls.assumptions?.couples_issue_url)) fail("labour_supply.assumptions.couples_issue_url", "missing");
   for (const k of ["hours_for_new_entrants", "free_hours_displacement"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
   for (const b of ["low", "high"]) {
     if (!isNum(ls.assumptions?.elasticity_scales?.[b])) fail(`labour_supply.assumptions.elasticity_scales.${b}`, "missing");
+    if (!isNum(ls.assumptions?.free_hours_displacement_range?.[b])) fail(`labour_supply.assumptions.free_hours_displacement_range.${b}`, "missing");
   }
   for (const k of ["hours_price_elasticity", "price_elasticity_central", "price_elasticity_low", "price_elasticity_high"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
-  // The dynamic cost must be the static total less both margins, or the page's adjusted figures would not match it.
+  // The dynamic cost must be the static total less both offsets, or the page's adjusted figures would not match it.
   const total = byYear(data?.budget?.gross_bn?.total, years, "budget.gross_bn.total");
   for (const b of LS_BOUNDS) {
     years.forEach((y, i) => {
       if (out.extensive.entrants[b][i] < 0) fail("labour_supply.extensive.entrants", `${b} ${y}: negative`);
+      const hours = out.intensive.price[b][i] + out.intensive.income[b][i];
+      if (Math.abs(out.intensive.offset[b][i] - hours) > 0.002) fail("labour_supply.intensive.offset_bn", `${b} ${y}: not price plus income`);
       const expected = total[i] - out.extensive.offset[b][i] - out.intensive.offset[b][i];
-      if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less both offsets`);
+      if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less the offsets`);
     });
   }
   return out;
 }
 
-/** The labour supply setting from the URL (`?ls=ext,int&bound=low`). Anything unknown reads as static. */
+const LS_KEYS = { extensive: "ext", intensive: "int" };
+const LS_WORDS = { extensive: "moving into work", intensive: "hours" };
+
+/** A response's own setting (low, central or high); `bound` is the shared default. */
+export const boundOf = (setting, margin) => setting.bounds?.[margin] ?? setting.bound ?? "central";
+
+/**
+ * The labour supply setting from the URL: `?ls=ext,int:high` switches responses on, each with its own
+ * setting (central when none is given); `bound` is an older shared setting, kept as the default. Anything unknown
+ * reads as static.
+ */
 export function parseLabourSupply(ls, bound) {
-  const on = new Set((ls ?? "").split(","));
-  return { extensive: on.has("ext"), intensive: on.has("int"), bound: LS_BOUNDS.includes(bound) ? bound : "central" };
+  const fallback = LS_BOUNDS.includes(bound) ? bound : "central";
+  const on = new Map(
+    (ls ?? "")
+      .split(",")
+      .filter(Boolean)
+      .map((part) => {
+        const [key, b] = part.split(":");
+        return [key, LS_BOUNDS.includes(b) ? b : fallback];
+      }),
+  );
+  const out = { bound: "central", bounds: {} };
+  for (const [margin, key] of Object.entries(LS_KEYS)) {
+    out[margin] = on.has(key);
+    out.bounds[margin] = on.get(key) ?? fallback;
+  }
+  return out;
 }
 
 /** The URL parameters for a setting: none when static, so the default URL stays clean. */
 export function labourSupplyParams(setting) {
-  const on = [setting.extensive && "ext", setting.intensive && "int"].filter(Boolean);
-  if (on.length === 0) return [];
-  return [["ls", on.join(",")], ...(setting.bound === "central" ? [] : [["bound", setting.bound]])];
+  const on = Object.entries(LS_KEYS)
+    .filter(([margin]) => setting[margin])
+    .map(([margin, key]) => (boundOf(setting, margin) === "central" ? key : `${key}:${boundOf(setting, margin)}`));
+  return on.length ? [["ls", on.join(",")]] : [];
 }
 
 export const isStatic = (setting) => !setting.extensive && !setting.intensive;
 
-/** Which margins are on, in words: "moving into work and hours, central elasticities". */
+/** Which responses are on, in words: "moving into work and hours at the high setting". */
 export function labourSupplyLabel(setting) {
-  const on = [setting.extensive && "moving into work", setting.intensive && "hours"].filter(Boolean);
+  const on = Object.keys(LS_KEYS)
+    .filter((m) => setting[m])
+    .map((m) => (boundOf(setting, m) === "central" ? LS_WORDS[m] : `${LS_WORDS[m]} at the ${boundOf(setting, m)} setting`));
   if (on.length === 0) return "static: no change in work";
-  return `${on.join(" and ")}, ${setting.bound} elasticities`;
+  return on.length > 1 ? `${on.slice(0, -1).join(", ")} and ${on.at(-1)}` : on[0];
 }
 
-/** The money back (£bn by year, positive = less cost) from the margins switched on. */
+/** The money back (£bn by year, positive = less cost) from the responses switched on, each at its own setting. */
 export function labourSupplyOffset(data, setting) {
   const ls = getLabourSupply(data);
-  return ls.years.map(
-    (_, i) =>
-      (setting.extensive ? ls.extensive.offset[setting.bound][i] : 0) + (setting.intensive ? ls.intensive.offset[setting.bound][i] : 0),
+  return ls.years.map((_, i) =>
+    Object.keys(LS_KEYS).reduce((t, m) => t + (setting[m] ? ls[m].offset[boundOf(setting, m)][i] : 0), 0),
   );
 }
 
