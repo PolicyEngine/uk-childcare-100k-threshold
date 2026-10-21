@@ -1,4 +1,4 @@
-"""The pinned dataset: the certified Microcosm UK 2024-25 national release.
+"""The pinned dataset: the Microcosm UK 2024-25 national release of 19 October 2026 (uncertified).
 
 Loaded the way PolicyEngine/uk-energy-reforms loads it (``datasets.py``): a
 fixed Hugging Face revision, its sha256 checked before use. The repository is
@@ -11,7 +11,7 @@ simulations pass the verified local file to ``managed_microsimulation`` with
 ``allow_unmanaged=True``: policyengine.py still runs the model (its bundle
 pins policyengine-uk 2.102.3), and this module, not the bundle, certifies the
 data. Switch to the bundle's managed dataset once a policyengine.py release
-registers the certified release.
+registers a certified release containing microcosm#1126.
 """
 
 import hashlib
@@ -34,19 +34,23 @@ class DatasetSpec:
     notes: str
 
 
-# Release microcosm-uk-2024-25-national, published 4 October 2026: the commit of
-# its immutable cut tag microcosm-uk-2024-25-national-20261002T230158Z-5c6b3f68
-# (the same bytes as microcosm_uk_2024_25.h5 on main). Built with policyengine-uk 2.100.0.
+# Release microcosm-uk-2024-25-national cut on 19 October 2026: the commit of its
+# immutable cut tag microcosm-uk-2024-25-national-20261019T083323Z-6cba5d71, as
+# recorded by the Hugging Face download (snapshot bb225848...); the release
+# manifest gives the same sha256. Built with policyengine-uk 2.132.6. It is the
+# first national release with PolicyEngine/microcosm#1126 (weekly extended hours
+# drawn to DfE's 28.5-hour mean), and it is NOT certified: the latest certified
+# release (14 October 2026) predates #1126.
 MICROCOSM = DatasetSpec(
     key="microcosm_uk_2024_25",
-    label="Microcosm UK 2024-25 (national release)",
+    label="Microcosm UK 2024-25 (national release, uncertified)",
     repo_id="policyengine/populace-uk-private",
     repo_type="dataset",
     filename="microcosm_uk_2024_25.h5",
-    revision="f9d1922cddab6b54a0dd37794a9bac74e3780c88",
-    sha256="aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af",
-    release="microcosm-uk-2024-25-national-20261002T230158Z-5c6b3f68",
-    notes="Certified release, published 4 October 2026. Built with policyengine-uk 2.100.0.",
+    revision="bb2258482ef8ce44f814a29288ee22bad2b636a0",
+    sha256="810ba980005a8b907cb51464279fa5e0125464b7af9a4871b7f6744c30951ece",
+    release="microcosm-uk-2024-25-national-20261019T083323Z-6cba5d71",
+    notes="Uncertified release cut 19 October 2026, the first with microcosm#1126. Built with policyengine-uk 2.132.6.",
 )
 
 

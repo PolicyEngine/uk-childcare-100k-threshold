@@ -3,7 +3,7 @@
 Each job (scenario) runs in its own Python process on the pinned Microcosm
 release (``datasets.py``), through policyengine.py's ``managed_microsimulation``
 with the verified local file passed as an unmanaged dataset (policyengine.py
-6.2.1's bundle does not register the certified release).
+6.2.1's bundle does not register the release).
 
 The job writes record-level arrays to ``.cache/runs/microcosm_uk_2024_25__<scenario>.npz``:
 each entity's values, its weights (``hh_weight``, ``bu_weight``, ``p_weight``)
@@ -191,7 +191,7 @@ def extract(sim, year, baseline_extras=False):
 
     # Index arrays. Group ids projected onto persons are exact, so each index comes from them;
     # mapping a household value to benefit units with map_to="benunit" does not return the
-    # household's own value for about 22,000 of 76,363 benefit units in this release, so the
+    # household's own value for many benefit units (about 22,000 of 76,363 in the 2 October 2026 release), so the
     # benefit-unit-to-household index is built from the members.
     out["p_weight"] = calc("person_weight").astype(float)
     out["p_benunit"] = _index(bu_ids, calc("benunit_id", "person"))
@@ -327,7 +327,8 @@ def run_job(scenario):
     load = time.time() - t0
     if sim.policyengine_bundle.get("managed_by") != "policyengine.py":
         raise RuntimeError(f"{scenario}: the simulation was not built by policyengine.py")
-    years = ([VALIDATION_YEAR] if scenario == "baseline" else []) + YEARS
+    # The baselines that feed baseline_validation also hold the validation year (2025-26).
+    years = ([VALIDATION_YEAR] if scenario in ("baseline", "baseline_hours30") else []) + YEARS
     arrays = {}
     for y in years:
         for k, v in extract(sim, y, baseline_extras=scenario == "baseline").items():

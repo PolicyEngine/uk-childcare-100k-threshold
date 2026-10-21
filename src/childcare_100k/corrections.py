@@ -1,7 +1,7 @@
 """Model corrections applied to every run, baseline and reform alike.
 
 Six corrections, each pending an upstream fix in policyengine-uk (2.102.3 is the
-certified version; policyengine-uk#2079, merged after it, fixes the first two and the
+version the policyengine.py 6.2.1 bundle certifies; policyengine-uk#2079, merged after it, fixes the first two and the
 fifth):
 
 1. Exactly £100,000 qualifies for the 30 hours (C3).
