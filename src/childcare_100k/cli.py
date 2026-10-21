@@ -173,7 +173,7 @@ def data_limitations(rows):
     free = _validation_value(rows, "Free early years entitlements spending (all three entitlements)", 2026)
     gap = 1 - free["model"] / free["official"]
     return [
-        "The dataset is not a certified Microcosm release: " + DATASET_STATUS[len("Not a certified release. "):],
+        "The dataset is not a certified Microcosm release. " + DATASET_STATUS[len("Not a certified release. "):],
         f"Funded hours, baseline context: the central baseline's free-hours spending is about {gap:.0%} below "
         "DfE's illustrative 2026-27 total and further below its 2025-26 total (see baseline_validation). The "
         "weekly extended hours now average about DfE's 28.5 (PolicyEngine/microcosm#1126), so full 30-hour use "
@@ -344,7 +344,7 @@ def moved_outside_note(population):
                 "every year.")
     years = [y for y, v in moved.items() if v]
     return ("Outside the responding population the reform should leave every adult's gain to work unchanged. In "
-            + ", ".join(f"{_fy(int(y))} (about {moved[y]:,.0f} adults)" for y in years)
+            + " and ".join(f"{_fy(int(y))} (about {moved[y]:,.0f} adults)" for y in years)
             + " it does not: in 2026-27 these are non-working adults whose own income is just under £100,000, so "
             "entering work would take them over the limit; the reform raises their gain to work by under £100 a "
             "year. They are not given a response, and the effect on the cost is negligible.")
