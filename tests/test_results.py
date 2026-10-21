@@ -41,8 +41,8 @@ def test_meta():
     assert m["lead_year"] == 2027
     assert m["run_provenance"]["dataset_sha256"] == m["dataset_sha256"]
     assert m["dataset"] == "microcosm_uk_2024_25"
-    assert m["dataset_revision"] == "f9d1922cddab6b54a0dd37794a9bac74e3780c88"
-    assert m["dataset_sha256"] == "aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af"
+    assert m["dataset_revision"] == "bb2258482ef8ce44f814a29288ee22bad2b636a0"
+    assert m["dataset_sha256"] == "810ba980005a8b907cb51464279fa5e0125464b7af9a4871b7f6744c30951ece"
     assert not any("cross_check" in k for k in m)
     assert "sample" not in m  # the dashboard fixture's flag; never set on real results
 

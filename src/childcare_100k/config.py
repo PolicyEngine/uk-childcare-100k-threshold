@@ -23,7 +23,7 @@ BENCHMARK_YEAR = 2029
 # gives no start date, so 2026-27 is shown as illustrative.
 LEAD_YEAR = 2027
 
-# Dataset: the certified Microcosm UK 2024-25 national release, pinned by revision
+# Dataset: the Microcosm UK 2024-25 national release of 19 October 2026 (uncertified), pinned by revision
 # and sha256 in datasets.py (policyengine.py 6.2.1's bundle does not register it,
 # so the runs pass the verified file to managed_microsimulation as an unmanaged
 # dataset). It is the only dataset.
@@ -50,14 +50,14 @@ def parameter_changes(parameters):
 # (overrides apply identically to a sensitivity's baseline and reform runs).
 HOURS_USAGE_VARIABLE = "maximum_extended_childcare_hours_usage"
 ROUTED_SHARE_VARIABLE = "tax_free_childcare_spend_routed_share"
-# Share of childcare spend routed through a TFC account. The certified Microcosm
+# Share of childcare spend routed through a TFC account. The Microcosm
 # release sets tax_free_childcare_spend_routed_share = 0.593 for every record, and the
 # central run uses it; the low end sets 0.58 in baseline and reform.
 ROUTED_SHARE_LOW = 0.58
 SCENARIOS = {
     "baseline": {"params": [], "inputs": {}},
     "reform": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {}},
-    # High: every family uses the full 30 extended hours (the data draw a mean of ~15).
+    # High: every family uses the full 30 extended hours (the data draw a mean of ~28.4).
     "baseline_hours30": {"params": [], "inputs": {HOURS_USAGE_VARIABLE: 30.0}},
     "reform_hours30": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {HOURS_USAGE_VARIABLE: 30.0}},
     # Low: only 58% of childcare spend goes through a TFC account.

@@ -1,6 +1,7 @@
 """Baseline validation: the unreformed model against official statistics.
 
-Official figures were read from the publications below on 5 and 6 October 2026.
+Official figures were read from the publications below on 5 and 6 October 2026; the
+2025-26 early years funding totals on 21 October 2026.
 """
 
 from microdf import MicroSeries
@@ -17,6 +18,11 @@ DFE_FUNDING_URL = (
     "2026-to-2027-early-years-national-funding-formulae-technical-note"
 )
 DFE_FUNDING_SOURCE = "DfE, 2026 to 2027 early years national funding formulae: technical note"
+DFE_FUNDING_2025_URL = (
+    "https://www.gov.uk/government/publications/early-years-funding-2025-to-2026/"
+    "2025-to-2026-early-years-national-funding-formulae-technical-note"
+)
+DFE_FUNDING_2025_SOURCE = "DfE, 2025 to 2026 early years national funding formulae: technical note (withdrawn 10 August 2026)"
 HMRC_ITL_URL = (
     "https://www.gov.uk/government/statistics/"
     "income-tax-liabilities-statistics-tax-year-2023-to-2024-to-tax-year-2026-to-2027"
@@ -32,8 +38,13 @@ OFFICIAL = {
     # Working parent entitlement registrations, January 2026.
     "wpe_under_3": 501_700,  # 9 months to 2 years (30,700 aged 9-11 months)
     "wpe_3_4": 388_700,
-    # Illustrative 2026-27 funding: 3-4s £4.2bn + 2-year-olds £2.7bn + under-2s £3.0bn.
+    # Illustrative funding totals by age, summed (neither note states a combined total).
+    # 2026-27, section 3.3: 3-4s £4.2bn + 2-year-olds £2.7bn + under-2s £3.0bn.
     "ey_funding_bn": 9.9,
+    # 2025-26, section 3.2: 3-4s £3.8bn + 2-year-olds £2.1bn + under-2s £2.3bn. The under-2s and
+    # 2-year-old working-parent offer rose from 15 to 30 hours in September 2025 (the note assumes
+    # 14 hours a week taken April-August and 26 from September).
+    "ey_funding_bn_2025": 8.2,
     "rate_under_2": 12.04,
     "rate_2": 8.90,
     "rate_3_4": 6.61,
@@ -93,15 +104,19 @@ def rows_for(runs):
                         "people", HMRC_ITL_SOURCE + ", income before deductions", HMRC_ITL_URL, lab,
                         "Model: adjusted net income as policyengine-uk computes it (before pension contributions), "
                         "which matches HMRC's 'total income before any deductions' ranges."))
-    y2 = VALIDATION_YEAR + 1
-    out.append(_row("Free early years entitlements spending (all three entitlements)", y2,
-                    round(_total(b(y2, "hh_free"), b(y2, "hh_weight")) / BN, 2), OFFICIAL["ey_funding_bn"], "£bn",
-                    DFE_FUNDING_SOURCE + " (sum of illustrative totals by age)", DFE_FUNDING_URL, lab))
+    funding = {VALIDATION_YEAR: ("ey_funding_bn_2025", DFE_FUNDING_2025_SOURCE, DFE_FUNDING_2025_URL),
+               VALIDATION_YEAR + 1: ("ey_funding_bn", DFE_FUNDING_SOURCE, DFE_FUNDING_URL)}
     h = runs["baseline_hours30"]
-    out.append(_row("Free early years entitlements spending if every family used all 30 extended hours", y2,
-                    round(_total(h(y2, "hh_free"), h(y2, "hh_weight")) / BN, 2),
-                    OFFICIAL["ey_funding_bn"], "£bn", DFE_FUNDING_SOURCE, DFE_FUNDING_URL, lab,
-                    "Sensitivity run: brackets the official figure with the central run."))
+    for year, (key, source, url) in funding.items():
+        source = source + " (sum of the illustrative totals by age)"
+        out.append(_row("Free early years entitlements spending (all three entitlements)", year,
+                        round(_total(b(year, "hh_free"), b(year, "hh_weight")) / BN, 2), OFFICIAL[key], "£bn",
+                        source, url, lab,
+                        "England. Model: universal, targeted and extended entitlements, with the model's funding "
+                        "rates and whole-year ages (no 9-11-month-olds)."))
+        out.append(_row("Free early years entitlements spending if every family used all 30 extended hours", year,
+                        round(_total(h(year, "hh_free"), h(year, "hh_weight")) / BN, 2), OFFICIAL[key], "£bn",
+                        source, url, lab, "Sensitivity run: every family uses all 30 extended hours."))
     return out
 
 

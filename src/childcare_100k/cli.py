@@ -12,6 +12,8 @@ import subprocess
 import time
 from datetime import datetime, timezone
 
+import numpy as np
+
 from . import aggregate as agg
 from .config import (
     BASELINE_LIMIT,
@@ -111,14 +113,23 @@ def _provenance_meta(metas):
         "dataset_repo": prov["dataset_repo"],
         "dataset_revision": prov["dataset_revision"],
         "dataset_sha256": prov["dataset_sha256"],
-        # policyengine.py 6.2.1's bundle does not register the certified release, so the runs pass
-        # the verified file to managed_microsimulation(allow_unmanaged=True): policyengine.py runs
-        # the model, datasets.py certifies the data (pinned revision and sha256, checked every run).
+        # policyengine.py 6.2.1's bundle does not register the release, so the runs pass the
+        # verified file to managed_microsimulation(allow_unmanaged=True): policyengine.py runs
+        # the model, datasets.py pins the data (revision and sha256, checked every run).
         "dataset_management": "pinned_by_repo_unmanaged_by_bundle",
+        "dataset_certified": False,
+        "dataset_status": DATASET_STATUS,
         "lead_year": LEAD_YEAR,
         "run_provenance": prov,
     }
 
+
+DATASET_STATUS = (
+    "Not a certified release. Cut on 19 October 2026, it is the first national release with "
+    "PolicyEngine/microcosm#1126 (weekly extended hours drawn to DfE's 28.5-hour mean); the latest certified "
+    "release (14 October 2026) predates that fix. The release was built with policyengine-uk 2.132.6 and is run "
+    "here on 2.102.3, the version policyengine.py 6.2.1 certifies."
+)
 
 LIMITATIONS = [
     "Eligibility uses each parent's realised annual adjusted net income, while the law tests the income a parent "
@@ -157,25 +168,35 @@ def _validation_value(rows, label, year):
     return matches[0]
 
 
-FUNDED_HOURS_SPENDING = "Free early years entitlements spending"
-
-
 def data_limitations(rows):
-    """Limitations stated with this dataset's own validation figures."""
+    """Limitations stated with this dataset's own validation figures (the figures live in baseline_validation)."""
     free = _validation_value(rows, "Free early years entitlements spending (all three entitlements)", 2026)
-    free30 = _validation_value(
-        rows, "Free early years entitlements spending if every family used all 30 extended hours", 2026)
-    high = _validation_value(rows, "People with income of £100,000 or more", 2025)
+    gap = 1 - free["model"] / free["official"]
     return [
-        f"Funded hours, baseline context: the central baseline spends £{free['model']:.1f}bn on "
-        f"free hours in 2026-27 against DfE's £{free['official']:.1f}bn, while full 30-hour use gives "
-        f"£{free30['model']:.1f}bn. DfE's total is illustrative (based partly on forecasts) and is context only: "
-        "bracketing the aggregate baseline does not bound the incremental cost for newly eligible families above "
-        "£100,000, whose take-up and hours may differ. Most of the gap is the dataset's draw of weekly "
-        "extended hours used; it is filed upstream as PolicyEngine/microcosm#1126.",
-        f"Microcosm holds {high['model'] / 1e6:.2f} million people with income of £100,000 or more in 2025-26 "
-        f"against HMRC's projected {high['official'] / 1e6:.2f} million (see baseline_validation).",
+        "The dataset is not a certified Microcosm release: " + DATASET_STATUS[len("Not a certified release. "):],
+        f"Funded hours, baseline context: the central baseline's free-hours spending is about {gap:.0%} below "
+        "DfE's illustrative 2026-27 total and further below its 2025-26 total (see baseline_validation). The "
+        "weekly extended hours now average about DfE's 28.5 (PolicyEngine/microcosm#1126), so full 30-hour use "
+        "closes little of the gap; the rest is the model's lower funding rates, the missing 9-11-month-olds and "
+        "fewer under-3s on the working-parent entitlement than DfE counts. DfE's totals are illustrative (based "
+        "partly on forecasts) and are context only: matching the aggregate baseline does not bound the "
+        "incremental cost for newly eligible families above £100,000, whose take-up and hours may differ.",
+        "Microcosm holds slightly fewer people with income of £100,000 or more than HMRC projects (see "
+        "baseline_validation).",
     ]
+
+
+def concentration_limitation(runs, year):
+    """How much of the static cost rests on the few largest-gaining weighted records."""
+    b, r = runs["baseline"], runs["reform"]
+    bw = agg._weights(b, r, year, "bu")
+    _, _, d = agg.family_changes(b, r, year)
+    cost = np.sort((d * bw)[d > 1])[::-1]
+    top10 = cost[:10].sum() / cost.sum()
+    return (f"The static cost rests on {len(cost):,} gaining survey records in {_fy(year)}; the ten largest "
+            f"(by weight times gain) carry {top10:.0%} of it and the largest alone {cost[0] / cost.sum():.0%}, so "
+            "the cost moves in steps as single heavily weighted records cross a threshold (for example the low end's "
+            "pension adjustment in 2029-30).")
 
 
 SALARY_SACRIFICE_URL = (
@@ -246,8 +267,8 @@ def modelling_assumptions(a, effects, labour_supply_offset):
             "source": _src("DfE funding technical note", DFE_FUNDING_URL),
             "modelled": "Each family's weekly extended hours come from the dataset's draw of "
                         f"{HOURS_USAGE_VARIABLE}, which averages about {a['mean_extended_hours_usage']:.0f} of the "
-                        "30 hours. DfE's January 2025 census implies about 28.5; the draw is under review upstream "
-                        "(PolicyEngine/microcosm#1126). policyengine-uk switches off a 3- or 4-year-old's universal 15 "
+                        "30 hours: since PolicyEngine/microcosm#1126 the draw is set to DfE's January 2025 census, "
+                        "about 28.5 (earlier releases drew about 15). policyengine-uk switches off a 3- or 4-year-old's universal 15 "
                         "hours once the family is eligible for the extended hours (PolicyEngine/policyengine-uk#1930); "
                         "we keep them, as the law does, and count only the hours above them as extended "
                         "(corrections.py), so a family that becomes eligible never loses funded hours.",
@@ -310,6 +331,25 @@ def modelling_assumptions(a, effects, labour_supply_offset):
     ]
 
 
+# CenTax, Removing the childcare cliff-edge (September 2026), Table 4.2: static cost of removing the limit on
+# the free hours, by our fiscal-year key (CenTax's "2028" is 2027-28 and "2030" is 2029-30).
+CENTAX_STATIC_BN = {2027: 0.80, 2029: 0.98}
+
+
+def moved_outside_note(population):
+    """Whether the reform changes anyone's gain to work outside the responding population."""
+    moved = {y: p["adults_moved_outside_population"] for y, p in population.items()}
+    if not any(moved.values()):
+        return ("Outside the responding population the reform leaves every adult's gain to work unchanged, in "
+                "every year.")
+    years = [y for y, v in moved.items() if v]
+    return ("Outside the responding population the reform should leave every adult's gain to work unchanged. In "
+            + ", ".join(f"{_fy(int(y))} (about {moved[y]:,.0f} adults)" for y in years)
+            + " it does not: in 2026-27 these are non-working adults whose own income is just under £100,000, so "
+            "entering work would take them over the limit; the reform raises their gain to work by under £100 a "
+            "year. They are not given a response, and the effect on the cost is negligible.")
+
+
 def _fy(year):
     return f"{year}-{(year + 1) % 100:02d}"
 
@@ -323,7 +363,8 @@ def build(metas):
     validation = baseline_validation(runs)
     assumptions = agg.assumptions(runs)
     limitations = list(LIMITATIONS)
-    limitations[-1:] = data_limitations(validation) + limitations[-1:]
+    limitations[-1:] = (data_limitations(validation) + [concentration_limitation(runs, LEAD_YEAR)]
+                        + limitations[-1:])
 
     lsr = agg.labour_supply(budget["total"])
     grid = household_grid()
@@ -363,7 +404,8 @@ def build(metas):
                 "high": ["full_30_hour_usage", "under_ones"],
                 "descriptions": {
                     "full_30_hour_usage": "Every family uses all 30 extended hours (baseline and reform); "
-                                          "the data draw a mean of about 15. Raises the cost.",
+                                          f"the data draw a mean of about {assumptions['mean_extended_hours_usage']:.0f} "
+                                          "(microcosm#1126), so this raises the cost only a little.",
                     "under_ones": "Adds newly eligible 9-11-month-olds outside the model, allowing for funding "
                                   "starting in the term after a child turns 9 months, at 30 hours x 38 weeks x the "
                                   "under-2 funding rate and the model's take-up. Raises the cost.",
@@ -378,9 +420,7 @@ def build(metas):
         "recipients": agg.recipients(runs),
         "distribution": agg.distribution(runs),
         "gender": agg.gender(runs),
-        # The funded-hours spending rows only feed the limitation above: the gap to DfE is a
-        # model/data issue filed upstream, stated once there rather than as a validation row.
-        "baseline_validation": [r for r in validation if not r["label"].startswith(FUNDED_HOURS_SPENDING)],
+        "baseline_validation": validation,
         "assumptions": {"microcosm": assumptions},
         "cliff_example": cliff_example(grid),
         "household_grid": grid,
@@ -483,6 +523,7 @@ def build(metas):
                 "uncertainty interval: the factors are ratios of childcare-price elasticities of maternal "
                 "employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
                 "The income and family-type breakdowns, who gains and the household calculator are static.",
+                moved_outside_note(lsr["population"]),
             ],
         },
         "benchmarks": [
@@ -504,7 +545,11 @@ def build(metas):
                     "£100,000 and £130m of tax and National Insurance from partners who enter work. The £0.7bn is "
                     "therefore close to CenTax's net free-hours figure with a small addition for Tax-Free Childcare. "
                     "Our figures are static, so the like-for-like comparison is our static cost of the 30 funded "
-                    f"hours in {_fy(BENCHMARK_YEAR)}, £{thirty:.2f}bn, against CenTax's static £0.98bn. Our total "
+                    f"hours in {_fy(BENCHMARK_YEAR)}, £{thirty:.2f}bn, against CenTax's static £0.98bn: "
+                    f"{abs(thirty / CENTAX_STATIC_BN[BENCHMARK_YEAR] - 1):.0%} "
+                    f"{'above' if thirty > CENTAX_STATIC_BN[BENCHMARK_YEAR] else 'below'} it "
+                    f"(in {_fy(LEAD_YEAR)}, £{budget['thirty_hours'][str(LEAD_YEAR)]:.2f}bn against CenTax's "
+                    f"£{CENTAX_STATIC_BN[LEAD_YEAR]:.2f}bn for 2028). Our total "
                     f"for both schemes, £{budget['total'][y]:.2f}bn (range £{sens['range_bn']['low'][y]:.2f}bn to "
                     f"£{sens['range_bn']['high'][y]:.2f}bn), covers both schemes on the same static basis."
                 ),
@@ -512,9 +557,10 @@ def build(metas):
                 "announcement_url": CONSERVATIVE_ANNOUNCEMENT_URL,
                 "underlying_source": "CenTax, Removing the childcare cliff-edge: impacts and cost of reform (2026)",
                 "underlying_source_url": CENTAX_REPORT_URL,
-                "underlying_static_bn": 0.98,
+                "underlying_static_bn": CENTAX_STATIC_BN[BENCHMARK_YEAR],
+                "underlying_static_by_year_bn": {str(k): v for k, v in CENTAX_STATIC_BN.items()},
                 "underlying_net_bn": 0.64,
-                "difference_from_underlying_static_bn": round(thirty - 0.98, 3),
+                "difference_from_underlying_static_bn": round(thirty - CENTAX_STATIC_BN[BENCHMARK_YEAR], 3),
             }
         ],
         "limitations": limitations,
