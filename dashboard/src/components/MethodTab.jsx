@@ -44,6 +44,7 @@ function VersionsTable({ meta }) {
       `policyengine-uk ${meta.policyengine_uk}, the version certified by the policyengine.py ${meta.policyengine} release bundle`,
     ],
     ["Dataset", meta.dataset_label ?? meta.dataset],
+    ...(meta.dataset_status ? [["Dataset status", meta.dataset_status]] : []),
     ...(meta.dataset_release ? [["Dataset release", meta.dataset_release]] : []),
     ["Dataset revision", `${meta.dataset_revision}${meta.dataset_repo ? ` (${meta.dataset_repo})` : ""}`],
     ...(meta.dataset_sha256 ? [["Dataset sha256, checked before every run", meta.dataset_sha256]] : []),
@@ -496,9 +497,10 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         lead="How the model's picture of today, before any reform, compares with official statistics."
         details={
           <p>
-            Tax-Free Childcare top-ups, children and families match HMRC within about 1%. The largest gap is in the
-            funded hours: families in the data use about half of the 30 hours (PolicyEngine/microcosm#1126).
-            &quot;How do we compare with other estimates?&quot; above shows what full use would do to the cost.
+            Tax-Free Childcare and the number of people over £100,000 match HMRC closely. Funded-hours spending is
+            below DfE&apos;s illustrative totals even though families now use most of the 30 hours
+            (PolicyEngine/microcosm#1126): the model&apos;s funding rates are lower, babies aged 9 to 11 months are
+            missing, and fewer under-3s use the working-parent hours than DfE counts.
           </p>
         }
       >

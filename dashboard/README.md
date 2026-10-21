@@ -21,7 +21,7 @@ The page reads one file, `public/data/results.json`, bundled at build time. The 
 bun run data    # cp ../data/results.json public/data/results.json, then validate it
 ```
 
-The analysis runs on Microcosm UK 2024-25 (the certified national release) through policyengine.py; there is one
+The analysis runs on Microcosm UK 2024-25 (the national release of 19 October 2026, not yet certified) through policyengine.py; there is one
 dataset and no cross-check.
 
 The tests read their expected numbers from the same file, so they pass on any valid results file. Every block is
