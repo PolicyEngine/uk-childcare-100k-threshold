@@ -499,10 +499,11 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         lead="How the model's picture of today, before any reform, compares with official statistics."
         details={
           <p>
-            Tax-Free Childcare and the number of people over £100,000 match HMRC closely. Funded-hours spending is
-            below DfE&apos;s illustrative totals even though families now use most of the 30 hours
-            (PolicyEngine/microcosm#1126): the model&apos;s funding rates are lower, babies aged 9 to 11 months are
-            missing, and fewer under-3s use the working-parent hours than DfE counts.
+            Tax-Free Childcare and the number of people over £100,000 match HMRC closely. The model funds 4-year-olds
+            the data record in reception, which DfE does not: without them the 3- and 4-year-olds on the
+            working-parent hours match DfE&apos;s count, and funded-hours spending on CenTax&apos;s basis (no reception,
+            DfE&apos;s funding rates) is close to DfE&apos;s illustrative total. Under-3s are below DfE&apos;s count,
+            which includes babies aged 9 to 11 months.
           </p>
         }
       >

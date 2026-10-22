@@ -571,13 +571,13 @@ def test_price_change_on_her_household_counts_the_uc_childcare_element():
     np.testing.assert_allclose(hr.displaced(ref)["tfc_rate"][:2], 0.0, atol=1e-3)
     covered, central = hr.marginal_price_change(base, ref)
     assert not covered[:2].any()
-    np.testing.assert_allclose(central[:2], -0.85, atol=5e-3)
+    np.testing.assert_allclose(central[:2], -0.85, atol=1e-2)  # 2.134.4 float32 step: see above
     np.testing.assert_allclose(hr.marginal_price_change(base, ref, price_basis="tfc_only")[1][:2], 0.0, atol=1e-3)
     np.testing.assert_allclose(hr.marginal_price_change(base, ref, price_basis="original_spend")[1][:2], 0.0,
                                atol=1e-3)
     # Both parents work: the price change reaches each adult in work whose family pays for care.
     respond, change, _ = hr.price_change(base, ref, "over_limit")
-    assert respond[0] and change[0] == pytest.approx(-0.85, abs=5e-3)
+    assert respond[0] and change[0] == pytest.approx(-0.85, abs=1e-2)
     # The UC childcare element at the displaced spend, recomputed alone; the simulation's spend is restored.
     assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(27_000.0)
     sim.reset_calculations()

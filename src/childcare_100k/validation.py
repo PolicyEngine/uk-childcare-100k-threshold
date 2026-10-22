@@ -97,6 +97,11 @@ def rows_for(runs):
              "(a family drawing 15 hours or fewer keeps the universal hours), which lowers the count; the shipped "
              "line also gives 4-year-olds in reception funded hours (compulsory school age starts at 5 in the "
              "model), which raises it."),
+        _row("3- and 4-year-olds using the working parent entitlement, reception excluded", y,
+             int(round(_total(ext & (age >= 3) & (age < 5) & ~b(y, "p_reception"), pw), -3)), OFFICIAL["wpe_3_4"],
+             "children", DFE_EY_SOURCE, DFE_EY_URL, lab,
+             "Model: as above, without the 4-year-olds the data record in reception, whom DfE's early years census "
+             "does not count (the reception toggle)."),
     ]
     for year, key in ((VALIDATION_YEAR, "taxpayers_100k_2025"), (VALIDATION_YEAR + 1, "taxpayers_100k_2026")):
         out.append(_row("People with income of £100,000 or more", year,

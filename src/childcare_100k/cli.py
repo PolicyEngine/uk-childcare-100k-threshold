@@ -170,15 +170,19 @@ def _validation_value(rows, label, year):
 def data_limitations(rows):
     """Limitations stated with this dataset's own validation figures (the figures live in baseline_validation)."""
     free = _validation_value(rows, "Free early years entitlements spending (all three entitlements)", 2026)
-    gap = 1 - free["model"] / free["official"]
+    centax = _validation_value(rows, "Free early years entitlements spending on CenTax's basis", 2026)
+
+    def versus(row):
+        ratio = row["model"] / row["official"] - 1
+        return f"about {abs(ratio):.0%} {'above' if ratio > 0 else 'below'}"
+
     return [
-        f"Funded hours, baseline context: the central baseline's free-hours spending is about {gap:.0%} below "
-        "DfE's illustrative 2026-27 total and further below its 2025-26 total (see baseline_validation). The "
-        "weekly extended hours now average about DfE's 28.5 (PolicyEngine/microcosm#1126), so full 30-hour use "
-        "closes little of the gap; the rest is mainly the model's lower funding rates and the missing "
-        "9-11-month-olds. DfE's totals are illustrative (based "
-        "partly on forecasts) and are context only: matching the aggregate baseline does not bound the "
-        "incremental cost for newly eligible families above £100,000, whose take-up and hours may differ.",
+        f"Funded hours, baseline context: the shipped baseline's free-hours spending in 2026-27 is {versus(free)} "
+        f"DfE's illustrative total, and {versus(centax)} it on CenTax's basis (no funded hours in reception, DfE's "
+        "funding rates); the reception 4-year-olds the shipped line funds outweigh its lower rates (see "
+        "baseline_validation). DfE's totals are illustrative (based partly on forecasts) and are context only: "
+        "matching the aggregate baseline does not bound the incremental cost for newly eligible families above "
+        "£100,000, whose take-up and hours may differ.",
         "Microcosm holds slightly fewer people with income of £100,000 or more than HMRC projects (see "
         "baseline_validation).",
     ]
