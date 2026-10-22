@@ -2,7 +2,8 @@
 
 Loaded the way PolicyEngine/uk-energy-reforms loads it (``datasets.py``): a
 fixed Hugging Face revision, its sha256 checked before use. The repository is
-private, so a token is required (``HF_TOKEN`` or ``HUGGING_FACE_TOKEN``).
+private, so a token is required: ``HF_TOKEN`` or ``HUGGING_FACE_TOKEN``, or
+the one saved by ``hf auth login``.
 Setting ``HF_HUB_OFFLINE=1`` instead reads the file from the local Hugging
 Face cache only; the sha256 check applies either way.
 
@@ -73,7 +74,7 @@ def _offline() -> bool:
 @cache
 def dataset_path(spec: DatasetSpec = MICROCOSM) -> Path:
     """Download (or, offline, read from the cache) the pinned file and verify its sha256."""
-    from huggingface_hub import hf_hub_download
+    from huggingface_hub import get_token, hf_hub_download
 
     if _offline():
         path = hf_hub_download(
@@ -84,10 +85,14 @@ def dataset_path(spec: DatasetSpec = MICROCOSM) -> Path:
             local_files_only=True,
         )
     else:
-        token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_TOKEN")
+        token = (
+            os.environ.get("HF_TOKEN")
+            or os.environ.get("HUGGING_FACE_TOKEN")
+            or get_token()
+        )
         if not token:
             raise RuntimeError(
-                f"{spec.repo_id} is private: set HF_TOKEN or HUGGING_FACE_TOKEN "
+                f"{spec.repo_id} is private: set HF_TOKEN or HUGGING_FACE_TOKEN, or run `hf auth login` "
                 "(or HF_HUB_OFFLINE=1 to read the pinned revision from the local cache)."
             )
         path = hf_hub_download(
@@ -100,5 +105,7 @@ def dataset_path(spec: DatasetSpec = MICROCOSM) -> Path:
     path = Path(path)
     actual = _sha256(path)
     if actual != spec.sha256:
-        raise ValueError(f"{spec.key}: sha256 {actual} does not match the pinned {spec.sha256}")
+        raise ValueError(
+            f"{spec.key}: sha256 {actual} does not match the pinned {spec.sha256}"
+        )
     return path
