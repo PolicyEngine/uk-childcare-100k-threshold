@@ -61,7 +61,7 @@ The certified release matches HMRC's high-earner count and Tax-Free Childcare sp
 
 ## Reproduce
 
-Python 3.13 and [uv](https://docs.astral.sh/uv/). The release is in a private Hugging Face repository; set `HF_TOKEN` (or `HUGGING_FACE_TOKEN`) with read access to `policyengine/populace-uk-private`.
+Python 3.13 or 3.14 and [uv](https://docs.astral.sh/uv/); `.python-version` selects 3.14, because some locked dependencies (h5py among them) publish no wheels for 3.15 yet. The release is in a private Hugging Face repository; set `HF_TOKEN` (or `HUGGING_FACE_TOKEN`) with read access to `policyengine/populace-uk-private`.
 
 ```bash
 uv venv && uv pip install -e ".[dev]"
