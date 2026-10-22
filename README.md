@@ -65,7 +65,7 @@ DfE's totals are the sums of the illustrative totals by age in its early years n
 
 ## Reproduce
 
-Python 3.13 and [uv](https://docs.astral.sh/uv/). The release is in a private Hugging Face repository; set `HF_TOKEN` (or `HUGGING_FACE_TOKEN`) with read access to `policyengine/populace-uk-private`, or, if the pinned revision is already in your Hugging Face cache, set `HF_HUB_OFFLINE=1` instead and no token is used. The sha256 check applies either way.
+Python 3.13 or 3.14 and [uv](https://docs.astral.sh/uv/); `.python-version` selects 3.14, because some locked dependencies (h5py among them) publish no wheels for 3.15 yet. The release is in a private Hugging Face repository; set `HF_TOKEN` (or `HUGGING_FACE_TOKEN`) with read access to `policyengine/populace-uk-private`, or, if the pinned revision is already in your Hugging Face cache, set `HF_HUB_OFFLINE=1` instead and no token is used. The sha256 check applies either way.
 
 ```bash
 uv sync --frozen --extra dev
