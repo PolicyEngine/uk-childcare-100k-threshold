@@ -9,7 +9,7 @@ from childcare_100k.household import _run
 EXPECTED = {
     (99_000, False): 101_619,
     (100_000, False): 102_199,
-    (100_001, False): 84_331,
+    (100_001, False): 84_332,  # 84,331 on policyengine-uk 2.102.3 (pennies of float32)
     (100_001, True): 102_200,
 }
 

@@ -23,10 +23,10 @@ BENCHMARK_YEAR = 2029
 # gives no start date, so 2026-27 is shown as illustrative.
 LEAD_YEAR = 2027
 
-# Dataset: the Microcosm UK 2024-25 national release of 19 October 2026 (uncertified), pinned by revision
-# and sha256 in datasets.py (policyengine.py 6.2.1's bundle does not register it,
-# so the runs pass the verified file to managed_microsimulation as an unmanaged
-# dataset). It is the only dataset.
+# Dataset: the Microcosm UK 2024-25 national release of 21 October 2026 (a858c100), pinned by
+# its cut tag and sha256 in datasets.py and run on the policyengine-uk version its manifest
+# pins (2.134.4). No policyengine.py bundle registers it yet, so the runs pass the verified
+# file to managed_microsimulation as an unmanaged dataset. It is the only dataset.
 PRIMARY_DATASET = "microcosm_uk_2024_25"
 DATASET_LABELS = {PRIMARY_DATASET: "Microcosm UK 2024-25 (national release)"}
 
@@ -46,23 +46,31 @@ def parameter_changes(parameters):
     return {p: {str(y): REMOVED for y in YEARS} for p in parameters}
 
 
-# Each scenario: the limits it removes, and inputs it overrides in every year
-# (overrides apply identically to a sensitivity's baseline and reform runs).
+# Each scenario: the limits it removes, inputs it overrides in every year (overrides apply
+# identically to a sensitivity's baseline and reform runs) and the model toggles it applies
+# (corrections.py). The shipped line has no toggles; the line on CenTax's basis applies
+# every model toggle, and aggregate.py adds the 9-11-month-olds outside the model.
 HOURS_USAGE_VARIABLE = "maximum_extended_childcare_hours_usage"
 ROUTED_SHARE_VARIABLE = "tax_free_childcare_spend_routed_share"
 # Share of childcare spend routed through a TFC account. The Microcosm
-# release sets tax_free_childcare_spend_routed_share = 0.593 for every record, and the
+# release sets tax_free_childcare_spend_routed_share for every record, and the
 # central run uses it; the low end sets 0.58 in baseline and reform.
 ROUTED_SHARE_LOW = 0.58
+CENTAX_MODEL_TOGGLES = ["reception", "dfe_rates", "pension_in_ani"]
 SCENARIOS = {
-    "baseline": {"params": [], "inputs": {}},
-    "reform": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {}},
+    "baseline": {"params": [], "inputs": {}, "toggles": []},
+    "reform": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {}, "toggles": []},
+    # On CenTax's basis: no funded hours in reception, DfE's funding rates, ANI after pension contributions.
+    "baseline_centax": {"params": [], "inputs": {}, "toggles": CENTAX_MODEL_TOGGLES},
+    "reform_centax": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {}, "toggles": CENTAX_MODEL_TOGGLES},
     # High: every family uses the full 30 extended hours (the data draw a mean of ~28.4).
-    "baseline_hours30": {"params": [], "inputs": {HOURS_USAGE_VARIABLE: 30.0}},
-    "reform_hours30": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {HOURS_USAGE_VARIABLE: 30.0}},
+    "baseline_hours30": {"params": [], "inputs": {HOURS_USAGE_VARIABLE: 30.0}, "toggles": []},
+    "reform_hours30": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {HOURS_USAGE_VARIABLE: 30.0},
+                       "toggles": []},
     # Low: only 58% of childcare spend goes through a TFC account.
-    "baseline_routed": {"params": [], "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW}},
-    "reform_routed": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW}},
+    "baseline_routed": {"params": [], "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW}, "toggles": []},
+    "reform_routed": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW},
+                      "toggles": []},
 }
 # Under-1s: the model holds age in whole years and gives age 0 no hours, so
 # 9-11-month-olds never qualify. Added outside the model: a quarter of the
@@ -73,10 +81,10 @@ UNDER_ONE_WEEKLY_HOURS = 30
 WEEKS_PER_YEAR = 38
 
 # Free-hours spending: the 30-hours leg is the change in all three entitlements.
-# policyengine-uk switches the universal and targeted 15 hours off once a family is
-# eligible for the extended entitlement; corrections.py keeps them and counts as
-# extended only each child's hours above them, so the universal and targeted lines
-# should not move, but all three are summed so that nothing is missed if they do.
+# policyengine-uk 2.134.4 keeps the universal and targeted 15 hours when a family becomes
+# eligible for the extended entitlement and counts as extended only each child's hours
+# above them, so the universal and targeted lines should barely move, but all three are
+# summed so that nothing is missed if they do.
 FREE_HOURS_VARIABLES = [
     "extended_childcare_entitlement",
     "universal_childcare_entitlement",

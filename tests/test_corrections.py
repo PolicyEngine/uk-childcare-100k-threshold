@@ -1,4 +1,5 @@
-"""The model corrections (corrections.py): the 2029 salary-sacrifice fix, the three 30-hours entitlement fixes and Tax-Free Childcare reg 13."""
+"""The model corrections and toggles (corrections.py) on policyengine-uk 2.134.4: the 2029 salary-sacrifice fix (C4),
+Tax-Free Childcare's claimant-and-partner income gate (C6), the dropped corrections now upstream, and the toggles."""
 
 import pytest
 
@@ -82,12 +83,12 @@ def test_correction_refuses_a_changed_model_formula(monkeypatch):
         corrections.apply_to_system(CountryTaxBenefitSystem())
 
 
-# ── Entitlement corrections (C1-C3 of the program review of #4) ─────────────────
+# ── Corrections dropped because policyengine-uk 2.134.4 handles them (C1-C3, C5, C6 30-hours half) ──────
 
 Y = 2027
 
 
-def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False, corrected=True):
+def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False, toggles=(), extra=None):
     from policyengine_uk import Simulation
     from policyengine_uk.utils.scenario import Scenario
 
@@ -96,7 +97,7 @@ def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False,
     people = {
         "a": {"age": {Y: 35}, "employment_income": {Y: a_income}, "is_parent": {Y: True}},
         "b": {"age": {Y: 34}, "employment_income": {Y: b_income}, "is_parent": {Y: True}, **(b_extra or {})},
-        "c": {"age": {Y: child_age}},
+        "c": {"age": {Y: child_age}, **(extra or {})},
     }
     situation = {
         "people": people,
@@ -105,7 +106,7 @@ def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False,
     }
     scenario = Scenario(
         parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS) if reform else None,
-        simulation_modifier=corrections.apply_corrections if corrected else None,
+        simulation_modifier=corrections.modifier(toggles, years=config.YEARS),
         applied_before_data_load=True,
     )
     return Simulation(situation=situation, scenario=scenario)
@@ -118,41 +119,31 @@ def _funded(sim):
     }
 
 
-def test_exactly_100000_qualifies_for_the_30_hours():
-    """C3: reg 14(3)(c)(i) excludes only income that exceeds £100,000."""
+def test_upstream_exactly_100000_qualifies_for_the_30_hours():
+    """C3, upstream: reg 14(3)(c)(i) excludes only income that exceeds £100,000."""
     assert _funded(_family(100_000, 40_000, 2))["extended"] > 0
-    assert _funded(_family(100_000, 40_000, 2, corrected=False))["extended"] == 0
     assert _funded(_family(100_001, 40_000, 2))["extended"] == 0
 
 
-def test_partner_on_a_specified_benefit_does_not_need_the_minimum_earnings():
-    """C1: reg 14(4)/15(4); a partner on contributory ESA earning £5,000 alongside a £120,000 earner."""
+def test_upstream_partner_on_a_specified_benefit_does_not_need_the_minimum_earnings():
+    """C1, upstream: reg 14(4)/15(4); a partner on contributory ESA earning £5,000 alongside a £120,000 earner."""
     esa = {"esa_contrib_reported": {Y: 5_000}}
-    assert _funded(_family(120_000, 5_000, 2, b_extra=esa))["extended"] == 0  # over the limit today
+    assert _funded(_family(120_000, 5_000, 2, b_extra=esa))["extended"] == 0
     assert _funded(_family(120_000, 5_000, 2, b_extra=esa, reform=True))["extended"] > 0
-    assert _funded(_family(120_000, 5_000, 2, b_extra=esa, reform=True, corrected=False))["extended"] == 0
-    # Without the benefit the low earner still fails the minimum earnings test.
     assert _funded(_family(120_000, 5_000, 2, reform=True))["extended"] == 0
 
 
-def test_universal_hours_are_kept_when_the_family_becomes_eligible():
-    """C2: a three-year-old whose drawn extended use is 5 hours keeps the universal 15."""
+def test_upstream_universal_hours_are_kept_and_added_once():
+    """C2, upstream: a three-year-old drawing 5 hours keeps the universal 15; drawing 30, gets 30 in total, not 45."""
     base, reform = _family(120_000, 40_000, 3, usage=5), _family(120_000, 40_000, 3, usage=5, reform=True)
     assert sum(_funded(reform).values()) == pytest.approx(sum(_funded(base).values()))
-    assert _funded(reform)["universal"] == pytest.approx(_funded(base)["universal"])
-    raw = _family(120_000, 40_000, 3, usage=5, reform=True, corrected=False)
-    assert sum(_funded(raw).values()) < sum(_funded(base).values())  # the model's own loss
+    full = _funded(_family(120_000, 40_000, 3, usage=30, reform=True))
+    below = _funded(_family(40_000, 40_000, 3, usage=30))
+    assert full["universal"] > 0
+    assert sum(full.values()) == pytest.approx(sum(below.values()))
 
 
-def test_extended_hours_above_the_universal_are_added_once():
-    """C2: with 30 hours used, a three-year-old gets 30 hours in total, not 45."""
-    reform = _funded(_family(120_000, 40_000, 3, usage=30, reform=True))
-    raw = _funded(_family(120_000, 40_000, 3, usage=30, reform=True, corrected=False))
-    assert reform["universal"] > 0
-    assert sum(reform.values()) == pytest.approx(sum(raw.values()))
-
-
-# ── Tax-Free Childcare: reg 13 (C1 of the rereview of #6) ────────────────────────
+# ── Tax-Free Childcare ───────────────────────────────────────────────────────────
 
 
 def _tfc_family(b_extra, a_income=120_000, b_income=0, reform=True, corrected=True, couple=True):
@@ -187,136 +178,74 @@ def _tfc(sim):
 
 ESA = {"esa_contrib_reported": {Y: 5_000}}
 CARERS_ALLOWANCE = {"carers_allowance": {Y: 4_000}}
-
-
-@pytest.mark.parametrize("benefit", [ESA, CARERS_ALLOWANCE], ids=["contributory ESA", "carer's allowance"])
-def test_partner_on_a_caring_or_incapacity_benefit_is_regarded_as_in_paid_work(benefit):
-    """SI 2015/448 reg 13(1)-(2): the reform pays the £2,000 cap on £10,000 of care; the uncorrected model pays nothing."""
-    assert _tfc(_tfc_family(benefit, reform=False)) == 0  # over £100,000 today
-    assert _tfc(_tfc_family(benefit)) == pytest.approx(2_000)
-    assert _tfc(_tfc_family(benefit, corrected=False)) == 0
-    # Below the limit the same family qualifies today, too.
-    assert _tfc(_tfc_family(benefit, a_income=40_000, reform=False)) == pytest.approx(2_000)
-
-
-def test_disability_benefits_are_not_a_reg_13_benefit():
-    """DLA is not on the reg 13(1)(b) list (the old Pension Credit route is gone, as upstream)."""
-    assert _tfc(_tfc_family({"dla": {Y: 4_000}}, a_income=40_000, reform=False)) == 0
-
-
-def test_reg_13_needs_a_partner_in_qualifying_paid_work():
-    """A lone parent on Carer's Allowance; and a couple whose worker is also paid a reg 13(1)(b) benefit (reg 13(3))."""
-    lone = _tfc_family({}, a_income=0, reform=False, couple=False)
-    lone.set_input("carers_allowance", Y, [4_000, 0])
-    assert not lone.calculate("tax_free_childcare_work_condition", Y).any() and _tfc(lone) == 0
-    assert _tfc(_tfc_family(ESA, a_income=40_000, reform=False)) == pytest.approx(2_000)
-    worker_on_esa = _tfc_family(ESA, a_income=40_000, reform=False)
-    worker_on_esa.set_input("esa_contrib", Y, [5_000, 5_000, 0])
-    assert _tfc(worker_on_esa) == 0
-
-
-def test_the_limit_still_applies_to_a_partner_regarded_as_in_paid_work():
-    """Reg 13 deems work and the minimum income only; reg 15's £100,000 limit is the reform's to remove."""
-    rich_carer = {"carers_allowance": {Y: 4_000}, "savings_interest_income": {Y: 110_000}}
-    assert _tfc(_tfc_family(rich_carer, a_income=40_000, reform=False)) == 0
-    assert _tfc(_tfc_family(rich_carer, a_income=40_000)) == pytest.approx(2_000)
-
-
-# ── Claimant and partner, not the is_parent flags (C2 of the rereview of #6) ─────
-
 UNFLAGGED = {"is_parent": {Y: False}}
 
 
-def test_an_unflagged_nonworking_partner_fails_the_work_condition():
-    """C2: a couple whose nonworking partner is not flagged is_parent gets no Tax-Free Childcare (2014 Act s.3(1), reg 9).
+@pytest.mark.parametrize("benefit", [ESA, CARERS_ALLOWANCE], ids=["contributory ESA", "carer's allowance"])
+def test_upstream_reg_13_partner_is_regarded_as_in_paid_work(benefit):
+    """C5, upstream: SI 2015/448 reg 13(1)-(2); the reform pays the £2,000 cap on £10,000 of care."""
+    assert _tfc(_tfc_family(benefit, reform=False)) == 0
+    assert _tfc(_tfc_family(benefit)) == pytest.approx(2_000)
+    assert _tfc(_tfc_family(benefit, corrected=False)) == pytest.approx(2_000)
 
-    The model's ``is_parent`` gates (and the earlier stand-in) skipped the partner and paid the £2,000 cap.
-    """
-    assert _tfc(_tfc_family(UNFLAGGED, corrected=False)) == pytest.approx(2_000)  # the model's error
-    sim = _tfc_family(UNFLAGGED)
-    assert sim.calculate("is_couple", Y).all()
-    assert _tfc(sim) == 0
-    assert not sim.calculate("tax_free_childcare_eligible", Y).any()
-    # The same couple with the partner flagged, as before.
-    assert _tfc(_tfc_family({})) == 0
-    # The partner earning the minimum: the couple qualifies, flagged or not.
+
+def test_upstream_unflagged_nonworking_partner_fails_the_work_condition():
+    """C6 work condition, upstream: Tax-Free Childcare and the 30 hours test the claimant and partner."""
+    assert _tfc(_tfc_family(UNFLAGGED, corrected=False)) == 0
+    assert _funded(_tfc_family(UNFLAGGED))["extended"] == 0
     assert _tfc(_tfc_family(UNFLAGGED, b_income=20_000)) == pytest.approx(2_000)
 
 
-def test_an_unflagged_partner_faces_the_income_limit():
-    """The income test reaches the unflagged partner too: over £100,000 today, both qualify only under the reform."""
+def test_unflagged_partner_faces_the_tfc_income_limit():
+    """C6, kept: tax_free_childcare_eligible tests is_parent in 2.134.4, so an unflagged partner over £100,000 passed."""
     rich = {**UNFLAGGED, "savings_interest_income": {Y: 110_000}}
+    assert _tfc(_tfc_family(rich, a_income=40_000, b_income=20_000, reform=False, corrected=False)) == pytest.approx(2_000)
     assert _tfc(_tfc_family(rich, a_income=40_000, b_income=20_000, reform=False)) == 0
     assert _tfc(_tfc_family(rich, a_income=40_000, b_income=20_000)) == pytest.approx(2_000)
 
 
-@pytest.mark.parametrize("benefit", [ESA, CARERS_ALLOWANCE], ids=["contributory ESA", "carer's allowance"])
-def test_an_unflagged_partner_on_a_reg_13_benefit_is_regarded_as_in_paid_work(benefit):
-    assert _tfc(_tfc_family({**UNFLAGGED, **benefit})) == pytest.approx(2_000)
+# ── Toggles ──────────────────────────────────────────────────────────────────────
 
 
-def test_the_30_hours_test_the_claimant_and_partner():
-    """Reg 14: the unflagged nonworking partner fails the 30 hours, and an unflagged working partner of a flagged
-    parent on Carer's Allowance (reg 14(4)) passes it; the model's is_parent work condition refused that couple."""
-    assert _funded(_tfc_family(UNFLAGGED))["extended"] == 0  # the universal 15 hours only
-    sim = _tfc_family(UNFLAGGED, a_income=0, b_income=40_000, reform=False)
-    sim.set_input("carers_allowance", Y, [4_000, 0, 0])
-    assert sim.calculate("extended_childcare_entitlement_eligible", Y).all()
-    assert _tfc(sim) == pytest.approx(2_000)
+def test_reception_toggle_removes_a_reception_childs_funded_hours():
+    reception = {"current_education": {Y: "PRIMARY"}}
+    shipped = _funded(_family(40_000, 40_000, 4, extra=reception))
+    toggled = _funded(_family(40_000, 40_000, 4, extra=reception, toggles=["reception"]))
+    assert shipped["universal"] > 0 and shipped["extended"] > 0
+    assert sum(toggled.values()) == 0
+    # A 4-year-old not in reception keeps them.
+    assert _funded(_family(40_000, 40_000, 4, toggles=["reception"])) == pytest.approx(
+        _funded(_family(40_000, 40_000, 4)))
 
 
-def _parent_and_young_adult(young, a_income=120_000, reform=True, corrected=True):
-    """A 2027 benefit unit: a 40-year-old flagged parent, an unflagged 19-year-old (``young``), a three-year-old in
-    £10,000 of paid care."""
-    from policyengine_uk import Simulation
-    from policyengine_uk.utils.scenario import Scenario
+def test_dfe_rates_toggle_sets_dfe_2026_rates_uprated_by_the_model():
+    from policyengine_uk import CountryTaxBenefitSystem
 
-    from childcare_100k import config
-
-    people = {
-        "a": {"age": {Y: 40}, "employment_income": {Y: a_income}, "is_parent": {Y: True}},
-        "b": {"age": {Y: 19}, **young},
-        "c": {"age": {Y: 3}, "childcare_expenses": {Y: 10_000}},
-    }
-    situation = {
-        "people": people,
-        "benunits": {"bu": {"members": list(people), "would_claim_tfc": {Y: True},
-                            "would_claim_extended_childcare": {Y: True},
-                            "maximum_extended_childcare_hours_usage": {Y: 30}}},
-        "households": {"hh": {"members": list(people), "region": {Y: "SOUTH_EAST"}}},
-    }
-    scenario = Scenario(
-        parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS) if reform else None,
-        simulation_modifier=corrections.apply_corrections if corrected else None,
-        applied_before_data_load=True,
-    )
-    return Simulation(situation=situation, scenario=scenario)
+    system = CountryTaxBenefitSystem()
+    rate = system.parameters.gov.dfe.childcare_funding_rate
+    model = [[b.amount(f"{y}-01-01") for b in rate.brackets] for y in (2026, 2029)]
+    corrections.apply_to_system(system, ["dfe_rates"], years=[2025, 2026, 2029])
+    assert [b.amount("2026-01-01") for b in rate.brackets] == pytest.approx(list(corrections.DFE_RATES_2026))
+    assert [b.amount("2029-06-01") for b in rate.brackets] == pytest.approx(
+        [d * m29 / m26 for d, m26, m29 in zip(corrections.DFE_RATES_2026, model[0], model[1])])
+    # 2025-26 is left at the model's rate.
+    assert rate.brackets[0].amount("2025-01-01") < corrections.DFE_RATES_2026[0]
 
 
-def test_a_young_partner_in_a_couple_is_tested():
-    """C2 of the rereview at bc0d71c: the model makes a 40-year-old £120,000 earner and a nonworking 19-year-old in one
-    benefit unit a couple (is_couple). The earlier proxy presumed the 19-year-old the earner's child and the corrected
-    reform paid £2,000 of Tax-Free Childcare and £3,633.88 of extended hours; the partner fails the work test
-    (2014 Act s.3(1), SI 2015/448 reg 9, SI 2022/1134 reg 14), so both are nil."""
-    sim = _parent_and_young_adult({})
-    assert sim.calculate("is_couple", Y).all()
-    assert corrections.claimant_or_partner(sim.populations["person"], Y).tolist() == [True, True, False]
-    assert _tfc(sim) == 0
-    assert _funded(sim)["extended"] == 0
-    # The same couple with the 19-year-old flagged a parent, as she checked: nil as well.
-    assert _tfc(_parent_and_young_adult({"is_parent": {Y: True}})) == 0
-    # Below the limit, today, nil too; and a working 19-year-old partner qualifies the couple.
-    assert _tfc(_parent_and_young_adult({}, a_income=40_000, reform=False)) == 0
-    working = _parent_and_young_adult({"employment_income": {Y: 20_000}})
-    assert _tfc(working) == pytest.approx(2_000)
-    assert _funded(working)["extended"] > 0
+def test_pension_toggle_tests_ani_after_pension_contributions():
+    """£105,000 earner paying £10,000 into a personal pension: over the limit on the model's ANI, under it in law."""
+    pension = {"personal_pension_contributions": {Y: 10_000}}
 
+    def eligible(toggles):
+        from policyengine_uk import Simulation
+        from policyengine_uk.utils.scenario import Scenario
 
-def test_a_lone_parent_with_a_dependent_young_person_is_still_single():
-    """A dependent 19-year-old (in non-advanced education, living with a flagged parent: not an HBAI adult) is neither
-    claimant nor partner, though the model counts the unit a couple; nor is one presumed a child outside a couple."""
-    sim = _parent_and_young_adult({"is_in_non_advanced_education": {Y: True}}, a_income=40_000, reform=False)
-    assert sim.calculate("is_couple", Y).all()
-    assert corrections.claimant_or_partner(sim.populations["person"], Y).tolist() == [True, False, False]
-    assert _tfc(sim) == pytest.approx(2_000)
-    assert sim.calculate("extended_childcare_entitlement_eligible", Y).all()
+        people = {"a": {"age": {Y: 35}, "employment_income": {Y: 105_000}, **pension}, "c": {"age": {Y: 2}}}
+        situation = {"people": people, "benunits": {"bu": {"members": list(people)}},
+                     "households": {"hh": {"members": list(people), "region": {Y: "SOUTH_EAST"}}}}
+        sim = Simulation(situation=situation, scenario=Scenario(
+            simulation_modifier=corrections.modifier(toggles), applied_before_data_load=True))
+        return bool(sim.calculate(corrections.THIRTY_HOURS_INCOME_TEST, Y)[0])
+
+    assert not eligible([])
+    assert eligible(["pension_in_ani"])

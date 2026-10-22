@@ -4,6 +4,8 @@ The arithmetic tests run on hand-built arrays. The gain-to-work tests run policy
 hand-built households, so none of these needs the Microcosm release.
 """
 
+import types
+
 import numpy as np
 import pytest
 
@@ -335,6 +337,8 @@ class _FamiliesSim:
             "adult_index": n(1, 2, 0, 1, 2, 0),
             "age": n(40, 38, 3, 40, 38, 3),
         }
+        # policyengine-uk 2.134.4's elasticity groups read each person's benefit unit from the entity structure.
+        self.populations = {"benunit": types.SimpleNamespace(members_entity_id=n(0, 0, 0, 1, 1, 1))}
 
     def calculate(self, variable, period=None, map_to=None, **kwargs):
         return self.person[variable]
@@ -559,10 +563,11 @@ def test_price_change_on_her_household_counts_the_uc_childcare_element():
     assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(22_033.92, abs=0.01)
     assert hr.displaced(ref)["bu_tfc"][0] == 0
     # The model's support on the next £1: none at the cap (baseline, today's spend), 85p below it. C3: a £1 step on
-    # float32 benefit levels reads a rate to within about 1.2e-7 x the support level (0.3p on a £22,000 element).
+    # float32 benefit levels reads a rate to within a few float32 steps of the benefit levels it differences; on
+    # policyengine-uk 2.134.4 that reads 84.4p (0.84375), so the tolerance is 1p.
     np.testing.assert_allclose(base["support_rate"][:2], 0.0, atol=1e-3)
     np.testing.assert_allclose(ref["support_rate"][:2], 0.0, atol=1e-3)
-    np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.85, atol=5e-3)
+    np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.85, atol=1e-2)
     np.testing.assert_allclose(hr.displaced(ref)["tfc_rate"][:2], 0.0, atol=1e-3)
     covered, central = hr.marginal_price_change(base, ref)
     assert not covered[:2].any()

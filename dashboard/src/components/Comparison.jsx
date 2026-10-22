@@ -103,6 +103,9 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
   const [central, high, low] = ["central", "high", "low"].map((id) => CENTAX_SCENARIOS.find((c) => c.id === id));
   const net = (v) => (v < 0 ? `raises ${formatBn(-v, 2)}` : formatBn(v, 2));
   const eff = (id) => (a[id]?.effects ? signedM(a[id].effects[li]) : "Not tested");
+  const benchmark = getBenchmarks(data)[0];
+  const centaxBasis = data.budget?.centax_basis_bn?.thirty_hours?.[String(last.year)];
+  const centaxBeforeBunching = benchmark?.underlying_static_before_bunching_by_year_bn?.[String(last.year)];
   const groups = [
     {
       title: "Cost",
@@ -116,6 +119,18 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
           "Not given",
           "",
         ],
+        ...(centaxBasis
+          ? [
+              [
+                `Free hours on CenTax's basis, ${nb(last.year)}`,
+                `${formatBn(centaxBasis, 2)} (no funded hours in reception, DfE's funding rates, income after pension contributions, babies from 9 months)`,
+                "",
+                `${formatBn(central.staticBn, 2)} (${formatBn(centaxBeforeBunching, 2)} before their deduction for parents keeping income just under £100,000)`,
+                "",
+                "",
+              ],
+            ]
+          : []),
         [
           `After parents change how much they work, ${nb(last.year)}`,
           <span key="dyn" data-testid="dynamic-cell">{dynamicCell(data, setting)}</span>,

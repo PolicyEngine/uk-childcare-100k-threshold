@@ -94,9 +94,9 @@ def rows_for(runs):
              int(round(_total(ext & (age >= 3) & (age < 5), pw), -3)), OFFICIAL["wpe_3_4"], "children",
              DFE_EY_SOURCE, DFE_EY_URL, lab,
              "Model: a 3- or 4-year-old counts once the family's working-parent hours go beyond the universal 15 "
-             "(a family drawing 15 hours or fewer keeps the universal hours; corrections.py), which lowers the "
-             "count; the model also gives 4-year-olds in reception funded hours (compulsory school age starts at 5 "
-             "in the model), which raises it."),
+             "(a family drawing 15 hours or fewer keeps the universal hours), which lowers the count; the shipped "
+             "line also gives 4-year-olds in reception funded hours (compulsory school age starts at 5 in the "
+             "model), which raises it."),
     ]
     for year, key in ((VALIDATION_YEAR, "taxpayers_100k_2025"), (VALIDATION_YEAR + 1, "taxpayers_100k_2026")):
         out.append(_row("People with income of £100,000 or more", year,
@@ -117,6 +117,13 @@ def rows_for(runs):
         out.append(_row("Free early years entitlements spending if every family used all 30 extended hours", year,
                         round(_total(h(year, "hh_free"), h(year, "hh_weight")) / BN, 2), OFFICIAL[key], "£bn",
                         source, url, lab, "Sensitivity run: every family uses all 30 extended hours."))
+    c = runs["baseline_centax"]
+    year = VALIDATION_YEAR + 1
+    out.append(_row("Free early years entitlements spending on CenTax's basis", year,
+                    round(_total(c(year, "hh_free"), c(year, "hh_weight")) / BN, 2), OFFICIAL["ey_funding_bn"], "£bn",
+                    DFE_FUNDING_SOURCE + " (sum of the illustrative totals by age)", DFE_FUNDING_URL, lab,
+                    "England. Model with DfE's funding rates and no funded hours in reception; 9-11-month-olds are "
+                    "not in it (they are added outside the model only for newly eligible families)."))
     return out
 
 

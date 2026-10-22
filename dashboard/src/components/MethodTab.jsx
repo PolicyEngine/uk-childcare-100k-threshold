@@ -41,7 +41,9 @@ function VersionsTable({ meta }) {
     ],
     [
       "Tax and benefit rules",
-      `policyengine-uk ${meta.policyengine_uk}, the version certified by the policyengine.py ${meta.policyengine} release bundle`,
+      `policyengine-uk ${meta.policyengine_uk}, the version the Microcosm release pins, pinned exactly in pyproject.toml${
+        meta.policyengine_bundle_model_version ? ` (the policyengine.py bundle carries ${meta.policyengine_bundle_model_version})` : ""
+      }`,
     ],
     ["Dataset", meta.dataset_label ?? meta.dataset],
     ...(meta.dataset_status ? [["Dataset status", meta.dataset_status]] : []),

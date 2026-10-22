@@ -2,8 +2,9 @@
 
 Each job (scenario) runs in its own Python process on the pinned Microcosm
 release (``datasets.py``), through policyengine.py's ``managed_microsimulation``
-with the verified local file passed as an unmanaged dataset (policyengine.py
-6.2.1's bundle does not register the release).
+with the verified local file passed as an unmanaged dataset (no policyengine.py
+bundle registers the release yet), on the policyengine-uk version the release
+pins (2.134.4).
 
 The job writes record-level arrays to ``.cache/runs/microcosm_uk_2024_25__<scenario>.npz``:
 each entity's values, its weights (``hh_weight``, ``bu_weight``, ``p_weight``)
@@ -47,8 +48,8 @@ from .config import (
     parameter_changes,
 )
 from . import labour_supply
-from .corrections import apply_corrections, is_applied
-from .datasets import MICROCOSM, dataset_path
+from .corrections import is_applied, modifier
+from .datasets import MICROCOSM, POLICYENGINE_UK_VERSION, dataset_path
 
 SOURCE_DIR = Path(__file__).resolve().parent
 # The labour supply job (labour_supply.py): builds the central baseline and reform
@@ -109,18 +110,23 @@ def _simulation(scenario):
     from policyengine.tax_benefit_models.uk import managed_microsimulation
     from policyengine_uk.utils.scenario import Scenario
 
+    installed = importlib.metadata.version("policyengine-uk")
+    if installed != POLICYENGINE_UK_VERSION:
+        raise RuntimeError(f"policyengine-uk {installed} installed; the release pins {POLICYENGINE_UK_VERSION}")
     spec = SCENARIOS[scenario]
     params = spec["params"]
+    toggles = spec["toggles"]
     assert set(params) <= set(REFORM_PARAMETERS)
-    # Every run, baseline and reform alike, carries the model corrections (corrections.py).
+    # Every run, baseline and reform alike, carries the model corrections, and the scenario's
+    # toggles (corrections.py).
     run_scenario = Scenario(
         parameter_changes=parameter_changes(params) if params else None,
-        simulation_modifier=apply_corrections,
+        simulation_modifier=modifier(toggles, years=[VALIDATION_YEAR] + YEARS),
         applied_before_data_load=True,
     )
     sim = managed_microsimulation(dataset=str(dataset_path()), allow_unmanaged=True, scenario=run_scenario)
-    if not is_applied(sim.tax_benefit_system):
-        raise RuntimeError(f"{scenario}: the childcare income-test correction did not reach the simulation")
+    if not is_applied(sim.tax_benefit_system, toggles):
+        raise RuntimeError(f"{scenario}: the corrections or toggles did not reach the simulation")
     sim.baseline = None  # nothing in this analysis compares against the scenario's comparator
     for variable, value in spec["inputs"].items():
         entity = sim.tax_benefit_system.variables[variable].entity.key
@@ -139,25 +145,11 @@ def _index(ids, values):
     return pos
 
 
-PERSON_FREE_HOURS_VARIABLES = ("universal_childcare_entitlement", "targeted_childcare_entitlement")
-
-
-def extended_per_person(sim, year, p_benunit, bu_eligible):
-    """Each person's term in the corrected ``extended_childcare_entitlement`` (a benefit-unit sum over its members).
-
-    As ``corrections.thirty_hours_value``: the value of the child's extended hours above
-    their universal and targeted entitlements, never below zero.
-    """
-    p = sim.tax_benefit_system.parameters(str(year)).gov.dfe
-    age = np.asarray(sim.calculate("age", year), dtype=float)
-    hours_cap = np.asarray(p.extended_childcare_entitlement.hours.calc(age), dtype=float)
-    used = np.asarray(sim.calculate("max_free_entitlement_hours_used", year), dtype=float)
-    bu_usage = np.asarray(sim.calculate(HOURS_USAGE_VARIABLE, year), dtype=float)
-    weekly_hours = np.minimum(np.minimum(used, hours_cap), bu_usage[p_benunit])
-    rate = np.asarray(p.childcare_funding_rate.calc(age), dtype=float)
-    floor = sum(np.asarray(sim.calculate(v, year), dtype=float) for v in PERSON_FREE_HOURS_VARIABLES)
-    above_floor = np.maximum(weekly_hours * rate * p.weeks_per_year - floor, 0)
-    return above_floor * np.asarray(bu_eligible, dtype=float)[p_benunit]
+PERSON_FREE_HOURS_VARIABLES = (
+    "extended_childcare_entitlement_per_child",
+    "universal_childcare_entitlement",
+    "targeted_childcare_entitlement",
+)
 
 
 def extract(sim, year, baseline_extras=False):
@@ -186,7 +178,8 @@ def extract(sim, year, baseline_extras=False):
     out["bu_tfc"] = calc(TFC_VARIABLE, "benunit").astype(float)
     out["bu_ext_eligible"] = calc("extended_childcare_entitlement_eligible").astype(bool)
     out["bu_hours_usage"] = calc(HOURS_USAGE_VARIABLE).astype(float)
-    rates = sim.tax_benefit_system.parameters(f"{year}-06-01").gov.dfe.childcare_funding_rate
+    # The rates the year's formulas use: a year's formulas read parameters at 1 January of its key.
+    rates = sim.tax_benefit_system.parameters(f"{year}-01-01").gov.dfe.childcare_funding_rate
     out["rate_by_age"] = np.array([rates.calc(np.array([a]))[0] for a in (0, 1, 2, 3, 4)], dtype=float)
 
     # Index arrays. Group ids projected onto persons are exact, so each index comes from them;
@@ -240,13 +233,10 @@ def extract(sim, year, baseline_extras=False):
     out["p_bu_tfc"] = project(out["bu_tfc"])
 
     # Each person's own free-hours and Tax-Free Childcare value, so a child is counted as
-    # gaining only if their own entitlement rises (not a sibling's). Universal, targeted and
-    # TFC are person-level in the model. The extended entitlement is computed per benefit
-    # unit as a sum over its children; its per-child terms are rebuilt here with the
-    # model's own inputs and checked to sum back to the model's benefit-unit value.
-    out["p_free_value"] = extended_per_person(sim, year, out["p_benunit"], out["bu_ext_eligible"]) + sum(
-        calc(v) for v in PERSON_FREE_HOURS_VARIABLES
-    ).astype(float)
+    # gaining only if their own entitlement rises (not a sibling's). All are person-level in
+    # policyengine-uk 2.134.4 (the extended entitlement is the benefit-unit sum of
+    # extended_childcare_entitlement_per_child), checked to sum back to the benefit units.
+    out["p_free_value"] = sum(calc(v).astype(float) for v in PERSON_FREE_HOURS_VARIABLES)
     if not np.allclose(np.bincount(out["p_benunit"], weights=out["p_free_value"], minlength=len(bu_ids)), bu_free, atol=0.01):
         raise ValueError(f"{year}: per-person free-hours values do not sum to the benefit units' values")
     out["p_tfc_value"] = calc(TFC_VARIABLE).astype(float)
@@ -256,16 +246,18 @@ def extract(sim, year, baseline_extras=False):
     ani = calc("adjusted_net_income").astype(float)
     relief = calc("pension_contributions_relief").astype(float)
     returned = calc("salary_sacrifice_returned_to_income").astype(float)
-    # The income the childcare limits test (corrections.py): ANI less salary sacrifice
-    # returned to pay under the April 2029 NI cap. Zero before 2029-30.
+    # The income the childcare limits test in the shipped line (corrections.py, C4): ANI less
+    # salary sacrifice returned to pay under the April 2029 NI cap. Zero before 2029-30.
     limit_income = ani - returned
     out["p_ani"] = limit_income
     out["p_pension_relief"] = relief
     out["p_ani_over"] = limit_income > 100_000
     out["p_ani_at_least"] = limit_income >= 100_000
-    # Net of pension contributions as well. The returned amount is in both ANI and the
-    # model's pension relief, so this equals ANI less relief, as before.
-    out["p_ani_net_pension_over"] = (ani - relief) > 100_000
+    # Net of pension contributions as well (the pension_in_ani toggle): the returned amount
+    # is in the model's pension relief, so this is ANI less the larger of the two.
+    out["p_ani_net_pension_over"] = (ani - np.maximum(relief, returned)) > 100_000
+    # Children the data record in reception (the reception toggle, corrections.in_reception).
+    out["p_reception"] = (calc("current_education").astype(str) == "PRIMARY") & is_child & (age < 5)
     out["bu_any_over"] = any_member(out["p_ani_over"])
     out["bu_any_over_law"] = any_member(out["p_ani_net_pension_over"])  # ANI net of pension contributions
     out["bu_child_under_5"] = any_member(is_child & (age < 5))

@@ -41,8 +41,11 @@ def test_meta():
     assert m["lead_year"] == 2027
     assert m["run_provenance"]["dataset_sha256"] == m["dataset_sha256"]
     assert m["dataset"] == "microcosm_uk_2024_25"
-    assert m["dataset_revision"] == "bb2258482ef8ce44f814a29288ee22bad2b636a0"
-    assert m["dataset_sha256"] == "810ba980005a8b907cb51464279fa5e0125464b7af9a4871b7f6744c30951ece"
+    assert m["dataset_revision"] == "415b034b2a46ba536065c48754636e916ed096a1"
+    assert m["dataset_release"] == "microcosm-uk-2024-25-national-20261021T195620Z-a858c100"
+    assert m["dataset_sha256"] == "e1f027b98a5127329643abc62e2de47b8fd67344b311ab1d9b86c7411908d190"
+    assert m["policyengine_uk"] == "2.134.4"
+    assert "dataset_certified" not in m
     assert not any("cross_check" in k for k in m)
     assert "sample" not in m  # the dashboard fixture's flag; never set on real results
 
@@ -144,8 +147,34 @@ def test_scenarios_only_touch_the_two_limits():
         assert set(parameter_changes(spec["params"])) == set(spec["params"])
     assert set(SCENARIOS["reform"]["params"]) == set(REFORM_PARAMETERS)
     # Sensitivity overrides are identical in the baseline and reform run they are compared with.
-    for name in ("hours30", "routed"):
+    for name in ("hours30", "routed", "centax"):
         assert SCENARIOS[f"baseline_{name}"]["inputs"] == SCENARIOS[f"reform_{name}"]["inputs"]
+        assert SCENARIOS[f"baseline_{name}"]["toggles"] == SCENARIOS[f"reform_{name}"]["toggles"]
+    # Only the line on CenTax's basis applies toggles, and it applies every model toggle.
+    from childcare_100k.corrections import MODEL_TOGGLES
+
+    assert sorted(SCENARIOS["reform_centax"]["toggles"]) == sorted(MODEL_TOGGLES)
+    assert all(not spec["toggles"] for name, spec in SCENARIOS.items() if not name.endswith("_centax"))
+
+
+def test_centax_basis_and_reconciliation():
+    c = RESULTS["budget"]["centax_basis_bn"]
+    for k in ("thirty_hours_in_model", "under_ones", "thirty_hours", "tax_free_childcare", "total"):
+        _by_year(c[k])
+    for y in YEAR_KEYS:
+        assert c["thirty_hours"][y] == pytest.approx(c["thirty_hours_in_model"][y] + c["under_ones"][y], abs=0.0015)
+        assert c["total"][y] == pytest.approx(c["thirty_hours"][y] + c["tax_free_childcare"][y], abs=1e-9)
+    sd = RESULTS["budget"]["bootstrap_sd_bn"]
+    assert sd["thirty_hours"] == {"2027": 0.13, "2029": 0.18} and sd["url"].startswith("https://github.com/")
+    r = RESULTS["reconciliation"]
+    for y in YEAR_KEYS:
+        assert 0 < r["concentration"][y]["top_ten_share_pct"] <= 100
+        assert r["concentration"][y]["kish_effective_sample_size"] <= r["concentration"][y]["gaining_sample_size"]
+        assert r["thirty_hours_reception_excluded_bn"][y] <= RESULTS["budget"]["gross_bn"]["thirty_hours"][y]
+        p = r["parents_over_100k_with_child_under_5_thousands"][y]
+        assert p["ani"] % 1000 == 0 and p["ani_after_pension_contributions"] <= p["ani"]
+    b = RESULTS["benchmarks"][0]
+    assert b["ours_centax_basis"] == c["thirty_hours"][str(b["year"])]
 
 
 def test_model_parameter_tree_differs_only_in_the_two_limits():

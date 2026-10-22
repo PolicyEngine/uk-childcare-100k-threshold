@@ -106,8 +106,8 @@ def family_changes(base, ref, year):
     return d_free, d_tfc, d_free + d_tfc
 
 
-def budget_block(runs, years=YEARS):
-    b, r = runs["baseline"], runs["reform"]
+def budget_block(runs, years=YEARS, pair=("baseline", "reform")):
+    b, r = runs[pair[0]], runs[pair[1]]
     out = {"thirty_hours": {}, "tax_free_childcare": {}, "total": {}, "net_total": {}}
     for y in years:
         free, tfc, net = gross(b, r, y)
@@ -163,13 +163,7 @@ def sensitivities(runs, years=YEARS):
         d_routed = family_changes(rb, rr, y)[2]
         routed = MicroSeries(d_routed - d, weights=bw)[over_law].sum()
 
-        # Under-1s (9-11 months) in newly eligible families: outside the model.
-        newly = r(y, "bu_ext_eligible") & ~b(y, "bu_ext_eligible")
-        rate0 = float(b(y, "rate_by_age")[0])
-        under1 = MicroSeries(
-            b(y, "bu_n_age0") * UNDER_ONE_SHARE_OF_YEAR * UNDER_ONE_WEEKLY_HOURS * WEEKS_PER_YEAR * rate0,
-            weights=bw,
-        )[newly].sum()
+        under1 = under_ones_cost(b, r, y)
 
         k = str(y)
         eff["full_30_hour_usage"][k] = _bn(hours30)
@@ -179,6 +173,94 @@ def sensitivities(runs, years=YEARS):
         low[k] = _bn(c + pension + routed)
         high[k] = _bn(c + hours30 + under1)
     return {"effects_bn": eff, "range_bn": {"low": low, "central": central, "high": high}}
+
+
+def under_ones_cost(b, r, y):
+    """9- to 11-month-olds in newly eligible families (£, unrounded), outside the model.
+
+    Each age-0 child in a family that becomes eligible for the extended hours (and so already
+    passes the model's take-up draw) is funded for ``UNDER_ONE_SHARE_OF_YEAR`` of the year at
+    30 hours x 38 weeks x the run's under-2 funding rate.
+    """
+    bw = _weights(b, r, y, "bu")
+    newly = r(y, "bu_ext_eligible") & ~b(y, "bu_ext_eligible")
+    rate0 = float(b(y, "rate_by_age")[0])
+    return MicroSeries(
+        b(y, "bu_n_age0") * UNDER_ONE_SHARE_OF_YEAR * UNDER_ONE_WEEKLY_HOURS * WEEKS_PER_YEAR * rate0,
+        weights=bw,
+    )[newly].sum()
+
+
+CENTAX_PAIR = ("baseline_centax", "reform_centax")
+
+
+def centax_basis(runs, years=YEARS):
+    """The static cost on CenTax's basis (£bn): the runs with every model toggle (no funded hours in reception,
+    DfE's funding rates, ANI after pension contributions), plus the 9-11-month-olds outside the model."""
+    b, r = runs[CENTAX_PAIR[0]], runs[CENTAX_PAIR[1]]
+    block = budget_block(runs, years, CENTAX_PAIR)
+    out = {"thirty_hours_in_model": block["thirty_hours"], "under_ones": {}, "thirty_hours": {},
+           "tax_free_childcare": block["tax_free_childcare"], "total": {}}
+    for y in years:
+        k = str(y)
+        out["under_ones"][k] = _bn(under_ones_cost(b, r, y))
+        free = gross(b, r, y)[0] + under_ones_cost(b, r, y)
+        out["thirty_hours"][k] = _bn(free)
+        out["total"][k] = round(out["thirty_hours"][k] + out["tax_free_childcare"][k], 3)
+    return out
+
+
+def reception_excluded(runs, years=YEARS):
+    """The shipped 30-hours leg with every reception child's own change in funded hours removed (£bn).
+
+    The same as the reception toggle alone, up to the family usage cap's interplay between siblings.
+    """
+    b, r = runs["baseline"], runs["reform"]
+    out = {}
+    for y in years:
+        pw = _weights(b, r, y, "p")
+        d = r(y, "p_free_value") - b(y, "p_free_value")
+        reception = MicroSeries(d, weights=pw)[b(y, "p_reception")].sum()
+        out[str(y)] = _bn(gross(b, r, y)[0] - reception)
+    return out
+
+
+def concentration(runs, years=YEARS):
+    """How much of the shipped static cost rests on the few largest records, and the gaining cell's Kish effective
+    sample size, (sum of weights)^2 / sum of squared weights, over the gaining benefit units."""
+    b, r = runs["baseline"], runs["reform"]
+    out = {}
+    for y in years:
+        bw = _weights(b, r, y, "bu")
+        _, _, d = family_changes(b, r, y)
+        gain = d > GAIN_THRESHOLD
+        cost = np.sort((d * bw)[gain])[::-1]
+        w = bw[gain]
+        out[str(y)] = {
+            "gaining_sample_size": int(gain.sum()),
+            "top_ten_share_pct": round(float(100 * cost[:10].sum() / cost.sum()), 1),
+            "largest_share_pct": round(float(100 * cost[0] / cost.sum()), 1),
+            "kish_effective_sample_size": int(round(float(w.sum() ** 2 / (w ** 2).sum()))),
+        }
+    return out
+
+
+def parents_over_limit(runs, years=YEARS):
+    """Adults over £100,000 with a child under 5 in the family (thousands): the income the shipped limits test
+    (ANI less salary sacrifice returned to pay) and ANI after pension contributions. Ages are whole years, so
+    under-5 includes children under 9 months; CenTax's ~200,000 counts parents of a child aged 9 months to 4."""
+    b = runs["baseline"]
+    out = {}
+    for y in years:
+        pw = b(y, "p_weight")
+        adult = ~b(y, "p_is_child")
+        young = b(y, "bu_child_under_5")[b(y, "p_benunit")]
+        out[str(y)] = {
+            "ani": _k(MicroSeries((adult & young & b(y, "p_ani_over")).astype(float), weights=pw).sum()),
+            "ani_after_pension_contributions": _k(MicroSeries(
+                (adult & young & b(y, "p_ani_net_pension_over")).astype(float), weights=pw).sum()),
+        }
+    return out
 
 
 def recipients(runs, years=YEARS):
