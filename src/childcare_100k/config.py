@@ -23,9 +23,9 @@ BENCHMARK_YEAR = 2029
 # gives no start date, so 2026-27 is shown as illustrative.
 LEAD_YEAR = 2027
 
-# Dataset: the Microcosm UK 2024-25 national release of 21 October 2026 (a858c100), pinned by
+# Dataset: the Microcosm UK 2024-25 national release of 23 October 2026 (a133f37a), pinned by
 # its cut tag and sha256 in datasets.py and run on the policyengine-uk version its manifest
-# pins (2.134.4). No policyengine.py bundle registers it yet, so the runs pass the verified
+# pins (2.147.2). No policyengine.py bundle registers it yet, so the runs pass the verified
 # file to managed_microsimulation as an unmanaged dataset. It is the only dataset.
 PRIMARY_DATASET = "microcosm_uk_2024_25"
 DATASET_LABELS = {PRIMARY_DATASET: "Microcosm UK 2024-25 (national release)"}
@@ -46,42 +46,43 @@ def parameter_changes(parameters):
     return {p: {str(y): REMOVED for y in YEARS} for p in parameters}
 
 
-# Each scenario: the limits it removes, inputs it overrides in every year (overrides apply
-# identically to a sensitivity's baseline and reform runs) and the model toggles it applies
-# (corrections.py). The shipped line has no toggles; the line on CenTax's basis applies
-# every model toggle, and aggregate.py adds the 9-11-month-olds outside the model.
+# Each scenario: the limits it removes and inputs it overrides in every year (overrides apply
+# identically to a sensitivity's baseline and reform runs). A reform names its baseline
+# (``base``): engine.run_job nets the value of each child's new funded hours off that child's
+# childcare spending in the reform before Tax-Free Childcare is computed (``net_new_hours``),
+# so the reform does not pay Tax-Free Childcare on care the new hours replace.
 HOURS_USAGE_VARIABLE = "maximum_extended_childcare_hours_usage"
 ROUTED_SHARE_VARIABLE = "tax_free_childcare_spend_routed_share"
+TFC_TAKE_UP_VARIABLE = "would_claim_tfc"
 # Share of childcare spend routed through a TFC account. The Microcosm
 # release sets tax_free_childcare_spend_routed_share for every record, and the
 # central run uses it; the low end sets 0.58 in baseline and reform.
 ROUTED_SHARE_LOW = 0.58
-CENTAX_MODEL_TOGGLES = ["reception", "dfe_rates", "pension_in_ani"]
+# Tax-Free Childcare take-up among newly eligible families, sensitivity: today's average use among all
+# eligible families (about 36% of them, which with about 52% of newly eligible families reporting paid
+# registered childcare is about 70% of those with spending; María Juaristi, #8, 22 October 2026). On an
+# expectation basis: the leg with every newly eligible family claiming (the ``tfc_all`` pair) times 0.70.
+TFC_TAKE_UP_NEWLY_ELIGIBLE_LOW = 0.70
+_REFORM = [THIRTY_HOURS_LIMIT, TFC_LIMIT]
 SCENARIOS = {
-    "baseline": {"params": [], "inputs": {}, "toggles": []},
-    "reform": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {}, "toggles": []},
-    # On CenTax's basis: no funded hours in reception, DfE's funding rates, ANI after pension contributions.
-    "baseline_centax": {"params": [], "inputs": {}, "toggles": CENTAX_MODEL_TOGGLES},
-    "reform_centax": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {}, "toggles": CENTAX_MODEL_TOGGLES},
+    "baseline": {"params": [], "inputs": {}},
+    "reform": {"params": _REFORM, "inputs": {}, "base": "baseline", "net_new_hours": True},
     # High: every family uses the full 30 extended hours (the data draw a mean of ~28.4).
-    "baseline_hours30": {"params": [], "inputs": {HOURS_USAGE_VARIABLE: 30.0}, "toggles": []},
-    "reform_hours30": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {HOURS_USAGE_VARIABLE: 30.0},
-                       "toggles": []},
+    "baseline_hours30": {"params": [], "inputs": {HOURS_USAGE_VARIABLE: 30.0}},
+    "reform_hours30": {"params": _REFORM, "inputs": {HOURS_USAGE_VARIABLE: 30.0}, "base": "baseline_hours30",
+                       "net_new_hours": True},
     # Low: only 58% of childcare spend goes through a TFC account.
-    "baseline_routed": {"params": [], "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW}, "toggles": []},
-    "reform_routed": {"params": [THIRTY_HOURS_LIMIT, TFC_LIMIT], "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW},
-                      "toggles": []},
+    "baseline_routed": {"params": [], "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW}},
+    "reform_routed": {"params": _REFORM, "inputs": {ROUTED_SHARE_VARIABLE: ROUTED_SHARE_LOW}, "base": "baseline_routed",
+                      "net_new_hours": True},
+    # Every family claims Tax-Free Childcare when eligible (baseline and reform), for the take-up sensitivity.
+    "baseline_tfc_all": {"params": [], "inputs": {TFC_TAKE_UP_VARIABLE: True}},
+    "reform_tfc_all": {"params": _REFORM, "inputs": {TFC_TAKE_UP_VARIABLE: True}, "base": "baseline_tfc_all",
+                       "net_new_hours": True},
 }
-# Under-1s: the model holds age in whole years and gives age 0 no hours, so
-# 9-11-month-olds never qualify. Added outside the model: a quarter of the
-# age-0 children in newly eligible families (who already pass the model's
-# take-up draw), at 30 hours x 38 weeks x the under-2 funding rate.
-UNDER_ONE_SHARE_ELIGIBLE = 0.25
-UNDER_ONE_WEEKLY_HOURS = 30
-WEEKS_PER_YEAR = 38
 
 # Free-hours spending: the 30-hours leg is the change in all three entitlements.
-# policyengine-uk 2.134.4 keeps the universal and targeted 15 hours when a family becomes
+# policyengine-uk 2.147.2 keeps the universal and targeted 15 hours when a family becomes
 # eligible for the extended entitlement and counts as extended only each child's hours
 # above them, so the universal and targeted lines should barely move, but all three are
 # summed so that nothing is missed if they do.

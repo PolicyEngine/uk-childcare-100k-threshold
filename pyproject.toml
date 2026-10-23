@@ -10,12 +10,14 @@ readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
   "numpy>=1.26",
-  # The Microcosm release (datasets.py) pins policyengine-uk 2.134.4 exactly in its
-  # manifest; no policyengine.py release bundles that version yet (6.10.0 bundles
-  # 2.132.6), so the model is pinned here and policyengine.py is installed without
-  # its [uk] extra, which would pin a different policyengine-uk.
+  # The Microcosm release (datasets.py) pins policyengine-uk 2.147.2 and
+  # policyengine-core 3.33.3 exactly in its manifest; no policyengine.py release
+  # bundles that model version yet (6.10.0 bundles 2.132.6), so both are pinned
+  # here and policyengine.py is installed without its [uk] extra, which would pin
+  # a different policyengine-uk.
   "policyengine==6.10.0",
-  "policyengine-uk==2.134.4",
+  "policyengine-core==3.33.3",
+  "policyengine-uk==2.147.2",
 ]
 
 [project.optional-dependencies]

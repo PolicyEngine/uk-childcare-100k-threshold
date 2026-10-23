@@ -349,11 +349,11 @@ def test_cohabiting_parents_get_the_couple_income_elasticities():
     e = ls.income_elasticities(_FamiliesSim(), 2027)
     np.testing.assert_allclose(e[[0, 1]], [-0.05, -0.173])
     np.testing.assert_allclose(e[[3, 4]], e[[0, 1]])
-    # Why the view is needed: upstream reads legal marriage, so the cohabiting father gets nothing
-    # (a "lone father") and the cohabiting mother the lone-parent rate. Drop the view when this fails.
+    # Upstream read legal marriage until policyengine-uk#2190 was fixed; on 2.147.2 it gives cohabiting parents the
+    # couple rates too, so the view is now a no-op kept for older engines.
     from policyengine_uk.dynamics.progression import calculate_labour_net_income_elasticities
     upstream = calculate_labour_net_income_elasticities(_FamiliesSim())
-    np.testing.assert_allclose(upstream[[3, 4]], [0.0, -0.037])
+    np.testing.assert_allclose(upstream[[3, 4]], e[[3, 4]])
 
 
 def test_cohabiting_parents_get_the_couple_participation_elasticities():
@@ -365,7 +365,7 @@ def test_cohabiting_parents_get_the_couple_participation_elasticities():
     np.testing.assert_allclose(e[[0, 1]], [0.136, 0.589])
     np.testing.assert_allclose(e[[3, 4]], e[[0, 1]])
     upstream = calculate_participation_elasticities(_FamiliesSim(), quintile)
-    np.testing.assert_allclose(upstream[[3, 4]], [0.0, 0.932])
+    np.testing.assert_allclose(upstream[[3, 4]], e[[3, 4]])  # upstream agrees since policyengine-uk#2190
 
 
 def test_couple_elasticities_leave_marriage_in_the_simulation_alone():
@@ -452,6 +452,12 @@ def test_price_change_reads_the_reform_rate_at_the_remaining_spend():
         hr.marginal_price_change(_base(), ref, price_basis="other")
 
 
+# Newly funded value of a three-year-old's extended hours in 2027-28 (15 hours x 38 weeks x DfE's 2026-27 rate of
+# £6.61 uprated by CPI, £6.762 an hour on policyengine-uk 2.147.2), and the paid care it displaces at 90.5%.
+FUNDED = 3_854.35
+SAVING = FUNDED * config.FREE_HOURS_DISPLACEMENT  # £3,489.20
+
+
 def _paying_two_earner_couple(year=2027):
     """María's A5 household: £120,000 and £40,000 earners, a three-year-old, £5,000 of paid care."""
     situation = _couple(120_000, year)
@@ -462,33 +468,34 @@ def _paying_two_earner_couple(year=2027):
 
 
 def test_income_gain_on_her_household_is_consistent_with_the_displaced_spend():
-    """A5: newly funded hours displace £3,289.62 of the £5,000; the reform's top-up on what is left is £342.08, not
-    the £1,000 on the full £5,000, so the gain is £3,631.70, not £4,289.62 (now the fixed-spend sensitivity)."""
+    """A5: newly funded hours (£3,854.35 at DfE's 2027-28 rate of £6.762 an hour, 15 hours x 38 weeks) displace
+    £3,489.20 of the £5,000; the reform's top-up on what is left is £302.16, not the £1,000 on the full £5,000, so the
+    gain is £3,791.36, not £4,489.20 (now the fixed-spend sensitivity)."""
     base = ls.baseline_side(_corrected(_paying_two_earner_couple(), False), 2027)
     sim = _corrected(_paying_two_earner_couple(), True)
     ref = ls.reform_side(sim, 2027, base)
-    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(3_289.62, abs=0.01)
+    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(SAVING, abs=0.01)
     assert ref["bu_tfc"][0] == pytest.approx(1_000.0)
-    assert hr.displaced(ref)["bu_tfc"][0] == pytest.approx(342.08, abs=0.01)
-    assert hr.income_gain(base, ref)[0] == pytest.approx(3_631.70, abs=0.01)
-    assert hr.income_gain(base, ref, basis="paid_care_fixed_spend")[0] == pytest.approx(4_289.62, abs=0.01)
+    assert hr.displaced(ref)["bu_tfc"][0] == pytest.approx(0.2 * (5_000 - SAVING), abs=0.01)
+    assert hr.income_gain(base, ref)[0] == pytest.approx(0.2 * (5_000 - SAVING) + SAVING, abs=0.01)
+    assert hr.income_gain(base, ref, basis="paid_care_fixed_spend")[0] == pytest.approx(1_000 + SAVING, abs=0.01)
     # The recompute leaves the simulation's spend as it was.
     assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(5_000.0)
 
 
 def test_price_change_on_her_household_at_the_remaining_spend():
     """A6 of the rereview at bc0d71c: £120,000 and £40,000 earners, a three-year-old, £11,000 of paid care. At £11,000
-    the reform's top-up is at the £2,000 cap, a zero marginal rate; the funded hours displace £3,289.62, and on the
-    £7,710.38 left the model's marginal rate is 20%, so the next paid hour is 20% cheaper than today (no Tax-Free
+    the reform's top-up is at the £2,000 cap, a zero marginal rate; the funded hours displace £3,489.20, and on the
+    £7,510.80 left the model's marginal rate is 20%, so the next paid hour is 20% cheaper than today (no Tax-Free
     Childcare over £100,000)."""
     situation = _paying_two_earner_couple()
     situation["people"]["child"]["childcare_expenses"] = {2027: 11_000}
     base = ls.baseline_side(_corrected(situation, False), 2027)
     sim = _corrected(situation, True)
     ref = ls.reform_side(sim, 2027, base)
-    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(3_289.62, abs=0.01)
+    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(SAVING, abs=0.01)
     assert ref["bu_tfc"][0] == pytest.approx(2_000.0)
-    assert hr.displaced(ref)["bu_tfc"][0] == pytest.approx(0.2 * 7_710.38, abs=0.01)
+    assert hr.displaced(ref)["bu_tfc"][0] == pytest.approx(0.2 * (11_000 - SAVING), abs=0.01)
     np.testing.assert_allclose(ref["tfc_rate"][:2], 0.0, atol=1e-3)
     np.testing.assert_allclose(hr.displaced(ref)["tfc_rate"][:2], 0.2, atol=1e-3)
     _, central = hr.marginal_price_change(base, ref)
@@ -521,33 +528,33 @@ def _london_uc_family(year=2027):
 
 
 def test_income_gain_on_her_household_withdraws_the_uc_childcare_element():
-    """A7 of the rereview at bc0d71c: the reform gives the London family £3,633.88 of extended hours (no Tax-Free
-    Childcare: it claims Universal Credit). Displacing £3,289.62 of its £11,000 of care cuts its UC childcare element
-    from £9,350 to £6,553.82 (85% of charges paid, SI 2013/376 reg 34(1)) and its cash income by £2,796.18, which the
+    """A7 of the rereview at bc0d71c: the reform gives the London family £3,854.35 of extended hours (no Tax-Free
+    Childcare: it claims Universal Credit). Displacing £3,489.20 of its £11,000 of care cuts its UC childcare element
+    from £9,350 to £6,384.18 (85% of charges paid, SI 2013/376 reg 34(1)) and its cash income by £2,965.82, which the
     central gain now takes off; the TFC-only adjustment missed it."""
     base_sim = _corrected(_london_uc_family(), False)
     base = ls.baseline_side(base_sim, 2027)
     sim = _corrected(_london_uc_family(), True)
     ref = ls.reform_side(sim, 2027, base)
-    assert float(sim.calculate("extended_childcare_entitlement", 2027).sum()) == pytest.approx(3_633.88, abs=0.01)
+    assert float(sim.calculate("extended_childcare_entitlement", 2027).sum()) == pytest.approx(FUNDED, abs=0.01)
     assert float(sim.calculate("tax_free_childcare", 2027).sum()) == 0
     assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(9_350.0, abs=0.01)
     saving = hr.paid_care_saving(base, ref)[0]
-    assert saving == pytest.approx(3_289.62, abs=0.01)
+    assert saving == pytest.approx(SAVING, abs=0.01)
     lost = ref["hh_disposable_income"][0] - hr.displaced(ref)["hh_disposable_income"][0]
-    assert lost == pytest.approx(2_796.18, abs=0.01)
+    assert lost == pytest.approx(0.85 * SAVING, abs=0.01)
     assert hr.income_gain(base, ref, basis="paid_care_fixed_spend")[0] - hr.income_gain(base, ref)[0] == pytest.approx(
-        2_796.18, abs=0.01)
+        0.85 * SAVING, abs=0.01)
     # The UC childcare element at the displaced spend, recomputed alone.
     sim.reset_calculations()
     sim.set_input("childcare_expenses", 2027, np.array([0, 0, 11_000 - saving, 0, 0, 0], np.float32))
-    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(6_553.82, abs=0.01)
+    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(0.85 * (11_000 - SAVING), abs=0.01)
 
 
 def test_price_change_on_her_household_counts_the_uc_childcare_element():
     """A8 of the rereview at 44217d0: the London family with four children and £27,000 of paid care. Before
     displacement its UC childcare element is at the £22,033.92 cap, so its next £1 attracts no UC; on the
-    £23,710.38 left once the funded hours displace £3,289.62 the element is £20,153.82, below the cap, so the next
+    £23,510.80 left once the funded hours displace £3,489.20 the element is £19,984.18, below the cap, so the next
     £1 attracts 85p. No Tax-Free Childcare in either state. The marginal net price falls from £1 to 15p, an 85%
     fall, which the Tax-Free-Childcare-only rule (``tfc_only``) reported as no change."""
     situation = _london_uc_family()
@@ -557,7 +564,7 @@ def test_price_change_on_her_household_counts_the_uc_childcare_element():
     sim = _corrected(situation, True)
     ref = ls.reform_side(sim, 2027, base)
     saving = hr.paid_care_saving(base, ref)[0]
-    assert saving == pytest.approx(3_289.62, abs=0.01)
+    assert saving == pytest.approx(SAVING, abs=0.01)
     assert float(sim.calculate("universal_credit", 2027).sum()) > 0
     assert float(sim.calculate("tax_free_childcare", 2027).sum()) == 0
     assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(22_033.92, abs=0.01)
@@ -582,7 +589,7 @@ def test_price_change_on_her_household_counts_the_uc_childcare_element():
     assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(27_000.0)
     sim.reset_calculations()
     sim.set_input("childcare_expenses", 2027, np.array([0, 0, 27_000 - saving, 0, 0, 0], np.float32))
-    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(20_153.82, abs=0.01)
+    assert float(sim.calculate("uc_childcare_element", 2027).sum()) == pytest.approx(0.85 * (27_000 - SAVING), abs=0.01)
 
 
 def _her_c3_household(paid_care):
@@ -594,23 +601,23 @@ def _her_c3_household(paid_care):
 
 
 def test_price_change_on_the_next_pound_just_below_the_uc_cap():
-    """C3 of the rereview at f4dcedf: the London family with £29,211 of paid care. The funded hours displace
-    £3,289.62, leaving £25,921.38, about 88p below the spend at which the UC childcare element reaches its cap. The
+    """C3 of the rereview at f4dcedf: the London family with £29,410.58 of paid care. The funded hours displace
+    £3,489.20, leaving £25,921.38, about 88p below the spend at which the UC childcare element reaches its cap. The
     next £1 raises UC by about 85% of 88p, £0.748, so its net price falls about 75%. The 1% step (£259.21) crossed
     the cap and divided that £0.75 by £259.21, a 0.289% fall."""
-    base, sim, ref = _her_c3_household(29_211)
-    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(3_289.62, abs=0.01)
+    base, sim, ref = _her_c3_household(29_410.58)
+    assert hr.paid_care_saving(base, ref)[0] == pytest.approx(SAVING, abs=0.01)
     np.testing.assert_allclose(base["support_rate"][:2], 0.0, atol=1e-3)
     np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.748, atol=0.01)
     _, central = hr.marginal_price_change(base, ref)
     np.testing.assert_allclose(central[:2], -0.748, atol=0.01)
-    assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(29_211.0)
+    assert float(sim.calculate("childcare_expenses", 2027).sum()) == pytest.approx(29_410.58)
 
 
 def test_price_change_on_the_next_pound_just_above_the_uc_cap():
     """C3: £10 more paid care leaves the family about £9 above the UC cap's spending boundary once the funded hours
     displace care, so its next £1 attracts no UC and the price does not change."""
-    base, _, ref = _her_c3_household(29_221)
+    base, _, ref = _her_c3_household(29_420.58)
     np.testing.assert_allclose(hr.displaced(ref)["support_rate"][:2], 0.0, atol=1e-3)
     np.testing.assert_allclose(hr.marginal_price_change(base, ref)[1][:2], 0.0, atol=1e-3)
 
@@ -727,16 +734,18 @@ def two_earner_runs():
 
 def test_hours_offset_is_recomputed_once_on_the_combined_earnings_change(two_earner_runs):
     """A1: the £99,900 parent crosses the personal-allowance taper. Recomputing the price (+£839.16) and income
-    changes separately and adding them gave £432.87 for that parent; once, on the combined change, £400.84.
-    (Her case uses the funded hours at government cost, the A4 sensitivity.)"""
+    changes separately and adding them gave £432.87 for that parent; once, on the combined change, £400.84
+    (policyengine-uk 2.134.4). On 2.147.2 the funded hours are valued at DfE's rates, so the income effect on the
+    government-cost basis is larger and the combined offset is £396.06. (Her case uses the funded hours at
+    government cost, the A4 sensitivity.)"""
     sim, base, ref = two_earner_runs
     r = hr.hours_response(sim, 2027, base, ref, 1.0, basis="government_cost")
     below, total = r["at_or_below_limit"], r["total"]
     # C3: the support rate is read on a £1 step from float32 benefit levels, so it carries up to about 0.3p of
     # rounding per £1; the pounds below are pinned to within 50p rather than the penny.
     assert below["price_earnings"] == pytest.approx(839.16, abs=0.5)
-    assert below["offset"] == pytest.approx(400.84, abs=0.5)
-    assert total["offset"] == pytest.approx(906.29, abs=0.5)
+    assert below["offset"] == pytest.approx(396.06, abs=0.5)
+    assert total["offset"] == pytest.approx(896.09, abs=0.5)
     # The parts are an attribution that adds up to the net exactly.
     for g in (*hr.GROUPS, "total"):
         assert r[g]["price_offset"] + r[g]["income_offset"] == pytest.approx(r[g]["offset"], abs=1e-6)

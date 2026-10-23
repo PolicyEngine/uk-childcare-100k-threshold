@@ -4,7 +4,14 @@ Each job (scenario) runs in its own Python process on the pinned Microcosm
 release (``datasets.py``), through policyengine.py's ``managed_microsimulation``
 with the verified local file passed as an unmanaged dataset (no policyengine.py
 bundle registers the release yet), on the policyengine-uk version the release
-pins (2.134.4).
+pins (2.147.2).
+
+A reform that names its baseline (``config.SCENARIOS``, ``net_new_hours``) nets the
+value of each child's new funded hours off that child's ``childcare_expenses`` before
+anything else is computed (``net_new_hours``): ``childcare_expenses`` is a fixed survey
+input, so otherwise a newly eligible child would get the new funded hours and Tax-Free
+Childcare on the whole of the care they replace. The baseline's run must be cached
+first; its person ids are checked against the reform's.
 
 The job writes record-level arrays to ``.cache/runs/microcosm_uk_2024_25__<scenario>.npz``:
 each entity's values, its weights (``hh_weight``, ``bu_weight``, ``p_weight``)
@@ -48,7 +55,7 @@ from .config import (
     parameter_changes,
 )
 from . import labour_supply
-from .corrections import is_applied, modifier
+from .corrections import apply_corrections, is_applied
 from .datasets import MICROCOSM, POLICYENGINE_UK_VERSION, dataset_path
 
 SOURCE_DIR = Path(__file__).resolve().parent
@@ -115,18 +122,16 @@ def _simulation(scenario):
         raise RuntimeError(f"policyengine-uk {installed} installed; the release pins {POLICYENGINE_UK_VERSION}")
     spec = SCENARIOS[scenario]
     params = spec["params"]
-    toggles = spec["toggles"]
     assert set(params) <= set(REFORM_PARAMETERS)
-    # Every run, baseline and reform alike, carries the model corrections, and the scenario's
-    # toggles (corrections.py).
+    # Every run, baseline and reform alike, carries the model correction (corrections.py).
     run_scenario = Scenario(
         parameter_changes=parameter_changes(params) if params else None,
-        simulation_modifier=modifier(toggles, years=[VALIDATION_YEAR] + YEARS),
+        simulation_modifier=apply_corrections,
         applied_before_data_load=True,
     )
     sim = managed_microsimulation(dataset=str(dataset_path()), allow_unmanaged=True, scenario=run_scenario)
-    if not is_applied(sim.tax_benefit_system, toggles):
-        raise RuntimeError(f"{scenario}: the corrections or toggles did not reach the simulation")
+    if not is_applied(sim.tax_benefit_system):
+        raise RuntimeError(f"{scenario}: the correction did not reach the simulation")
     sim.baseline = None  # nothing in this analysis compares against the scenario's comparator
     for variable, value in spec["inputs"].items():
         entity = sim.tax_benefit_system.variables[variable].entity.key
@@ -134,6 +139,39 @@ def _simulation(scenario):
         for y in [VALIDATION_YEAR] + YEARS:
             sim.set_input(variable, y, np.full(n, value))
     return sim
+
+
+def person_free_value(sim, year):
+    """Each person's funded hours at their funding value (£ a year): all three entitlements."""
+    return sum(np.asarray(sim.calculate(v, year)).astype(float) for v in PERSON_FREE_HOURS_VARIABLES)
+
+
+def net_new_hours(sim, scenario):
+    """Net each child's new funded hours off its childcare spending in the reform (every analysis year).
+
+    The value of a child's newly funded hours (reform less baseline, at their funding value)
+    comes off that child's ``childcare_expenses``, floored at zero. Fees are above funding
+    rates, so this is conservative. Funded hours do not depend on childcare spending, so
+    the reform's own free-hours values are unchanged by it. Returns, by year, the Tax-Free
+    Childcare paid on each household before netting (£), so the netting's effect can be
+    reported. The simulation is left with the netted spending and no cached calculations.
+    """
+    base = run_path(SCENARIOS[scenario]["base"])
+    load_meta(SCENARIOS[scenario]["base"])  # the baseline run must be current
+    z = np.load(base)
+    ids = np.asarray(sim.calculate("person_id", YEARS[0])).astype(np.int64)
+    before, netted = {}, {}
+    for y in YEARS:
+        if not np.array_equal(z[f"{y}/p_id"], ids):
+            raise ValueError(f"{scenario}: person order differs from the baseline run's")
+        new = np.maximum(person_free_value(sim, y) - z[f"{y}/p_free_value"], 0.0)
+        spend = np.asarray(sim.calculate("childcare_expenses", y)).astype(float)
+        netted[y] = np.maximum(spend - new, 0.0)
+        before[y] = np.asarray(sim.calculate(TFC_VARIABLE, y, map_to="household")).astype(float)
+    sim.reset_calculations()
+    for y, value in netted.items():
+        sim.set_input("childcare_expenses", y, value.astype(np.float32))
+    return before
 
 
 def _index(ids, values):
@@ -169,6 +207,7 @@ def extract(sim, year, baseline_extras=False):
         out[f"hh_{v}"] = calc(v, "household").astype(float)
     out["hh_free"] = sum(out[f"hh_{v}"] for v in FREE_HOURS_VARIABLES)
     out["hh_tfc"] = calc(TFC_VARIABLE, "household").astype(float)
+    out["bu_tfc_claim"] = calc("would_claim_tfc").astype(bool)
     out["hh_gov_balance"] = calc("gov_balance").astype(float)
 
     bu_ids = calc("benunit_id")
@@ -221,9 +260,11 @@ def extract(sim, year, baseline_extras=False):
 
     age = calc("age").astype(float)
     is_child = calc("is_child").astype(bool)
+    out["p_id"] = calc("person_id").astype(np.int64)
     out["p_age"] = age
+    out["p_spend"] = calc("childcare_expenses").astype(float)
+    out["bu_spend"] = calc("childcare_expenses", "benunit").astype(float)
     out["p_is_child"] = is_child
-    out["bu_n_age0"] = sim.map_result((is_child & (age < 1)).astype(float), "person", "benunit", how="sum")
     out["p_extended"] = calc("is_child_receiving_extended_childcare").astype(bool)
     out["p_universal"] = calc("is_child_receiving_universal_childcare").astype(bool)
     out["p_targeted"] = calc("is_child_receiving_targeted_childcare").astype(bool)
@@ -234,32 +275,23 @@ def extract(sim, year, baseline_extras=False):
 
     # Each person's own free-hours and Tax-Free Childcare value, so a child is counted as
     # gaining only if their own entitlement rises (not a sibling's). All are person-level in
-    # policyengine-uk 2.134.4 (the extended entitlement is the benefit-unit sum of
+    # policyengine-uk 2.147.2 (the extended entitlement is the benefit-unit sum of
     # extended_childcare_entitlement_per_child), checked to sum back to the benefit units.
-    out["p_free_value"] = sum(calc(v).astype(float) for v in PERSON_FREE_HOURS_VARIABLES)
+    out["p_free_value"] = person_free_value(sim, year)
     if not np.allclose(np.bincount(out["p_benunit"], weights=out["p_free_value"], minlength=len(bu_ids)), bu_free, atol=0.01):
         raise ValueError(f"{year}: per-person free-hours values do not sum to the benefit units' values")
     out["p_tfc_value"] = calc(TFC_VARIABLE).astype(float)
     if not np.allclose(np.bincount(out["p_benunit"], weights=out["p_tfc_value"], minlength=len(bu_ids)), out["bu_tfc"], atol=0.01):
         raise ValueError(f"{year}: per-person TFC values do not sum to the benefit units' values")
 
+    # The income both limits test: adjusted net income, which policyengine-uk 2.147.2 takes after pension
+    # contributions (Income Tax Act 2007 s.58). Total income before deductions (net_income, before Gift Aid
+    # and pension contributions) is HMRC's basis for its income bands (validation.py).
     ani = calc("adjusted_net_income").astype(float)
-    relief = calc("pension_contributions_relief").astype(float)
-    returned = calc("salary_sacrifice_returned_to_income").astype(float)
-    # The income the childcare limits test in the shipped line (corrections.py, C4): ANI less
-    # salary sacrifice returned to pay under the April 2029 NI cap. Zero before 2029-30.
-    limit_income = ani - returned
-    out["p_ani"] = limit_income
-    out["p_pension_relief"] = relief
-    out["p_ani_over"] = limit_income > 100_000
-    out["p_ani_at_least"] = limit_income >= 100_000
-    # Net of pension contributions as well (the pension_in_ani toggle): the returned amount
-    # is in the model's pension relief, so this is ANI less the larger of the two.
-    out["p_ani_net_pension_over"] = (ani - np.maximum(relief, returned)) > 100_000
-    # Children the data record in reception (the reception toggle, corrections.in_reception).
-    out["p_reception"] = (calc("current_education").astype(str) == "PRIMARY") & is_child & (age < 5)
+    out["p_ani"] = ani
+    out["p_ani_over"] = ani > 100_000
+    out["p_income_before_deductions_at_least"] = calc("net_income").astype(float) >= 100_000
     out["bu_any_over"] = any_member(out["p_ani_over"])
-    out["bu_any_over_law"] = any_member(out["p_ani_net_pension_over"])  # ANI net of pension contributions
     out["bu_child_under_5"] = any_member(is_child & (age < 5))
     out["bu_child_under_12"] = any_member(is_child & (age < 12))
     # For the breakdown by sex of the higher earner: each person's sex and whether they have earnings.
@@ -280,6 +312,20 @@ def extract(sim, year, baseline_extras=False):
         out["bu_would_claim_tfc"] = calc("would_claim_tfc").astype(bool)
         out["p_routed_share"] = calc("tax_free_childcare_spend_routed_share").astype(float)
         out["bu_routed_share"] = calc("tax_free_childcare_spend_routed_share", "benunit").astype(float)
+        # For the DfE census rows (validation.py), measured as the release's calibration rows are: children with
+        # gross working-parent hours in the year's spring term (1 January), by DfE's age (on 31 December, the
+        # year less the birth year). The spring term is funded if it starts after the child reaches the minimum
+        # age (term share above zero: the terms run April, September, January) and before it starts school.
+        from policyengine_core.periods import period as as_period
+        from policyengine_uk.utils.dates import birth_day
+
+        born = np.asarray(birth_day(sim.populations["person"], as_period(str(year)))).astype(np.int64)
+        out["p_dfe_age"] = year - born // 10_000
+        out["p_wpe_spring"] = (
+            (calc("extended_childcare_entitlement_total_per_child").astype(float) > 0)
+            & (calc("extended_childcare_entitlement_term_share").astype(float) > 0)
+            & (calc("early_years_term_share_before_school").astype(float) >= 1)
+        )
     return out
 
 
@@ -322,6 +368,9 @@ def run_job(scenario):
     # The baselines that feed baseline_validation also hold the validation year (2025-26).
     years = ([VALIDATION_YEAR] if scenario in ("baseline", "baseline_hours30") else []) + YEARS
     arrays = {}
+    if SCENARIOS[scenario].get("net_new_hours"):
+        for y, value in net_new_hours(sim, scenario).items():
+            arrays[f"{y}/hh_tfc_before_netting"] = value
     for y in years:
         for k, v in extract(sim, y, baseline_extras=scenario == "baseline").items():
             arrays[f"{y}/{k}"] = v

@@ -1,101 +1,32 @@
-"""The model corrections and toggles (corrections.py) on policyengine-uk 2.134.4: the 2029 salary-sacrifice fix (C4),
-Tax-Free Childcare's claimant-and-partner income gate (C6), the dropped corrections now upstream, and the toggles."""
+"""The model correction (corrections.py) on policyengine-uk 2.147.2: Tax-Free Childcare's claimant-and-partner income
+gate (C6), and the corrections and toggles dropped because the engine now handles them, each kept as a regression test."""
 
 import pytest
 
 from childcare_100k import corrections
 
 
-def _situation(year):
-    """One parent on £97,000 after £10,000 of pension salary sacrifice, with a two-year-old."""
-    return {
-        "people": {
-            "parent": {
-                "age": {year: 35},
-                "employment_income_before_lsr": {year: 97_000},
-                "pension_contributions_via_salary_sacrifice": {year: 10_000},
-            },
-            "child": {"age": {year: 2}},
-        },
-        "benunits": {"bu": {"members": ["parent", "child"]}},
-        "households": {
-            "hh": {"members": ["parent", "child"], "region": {year: "SOUTH_EAST"}}
-        },
-    }
-
-
-def _sim(year, corrected):
-    from policyengine_uk import Simulation
-    from policyengine_uk.utils.scenario import Scenario
-
-    kwargs = (
-        {
-            "scenario": Scenario(
-                simulation_modifier=corrections.apply_corrections,
-                applied_before_data_load=True,
-            )
-        }
-        if corrected
-        else {}
-    )
-    return Simulation(situation=_situation(year), **kwargs)
-
-
-def _value(sim, variable, year):
-    return sim.calculate(variable, year)[0]
-
-
-def test_income_tests_ignore_salary_sacrifice_returned_to_pay_in_2029():
-    uncorrected, corrected = _sim(2029, False), _sim(2029, True)
-    assert _value(
-        corrected, "salary_sacrifice_returned_to_income", 2029
-    ) == pytest.approx(8_000)
-    # The model's own adjusted net income crosses £100,000 and fails both tests...
-    assert _value(uncorrected, "adjusted_net_income", 2029) > 100_000
-    assert not _value(uncorrected, corrections.THIRTY_HOURS_INCOME_TEST, 2029)
-    assert not _value(uncorrected, corrections.TFC_INCOME_TEST, 2029)
-    # ...the corrected tests pass, and nothing else moves.
-    assert _value(corrected, corrections.THIRTY_HOURS_INCOME_TEST, 2029)
-    assert _value(corrected, corrections.TFC_INCOME_TEST, 2029)
-    for variable in ("adjusted_net_income", "income_tax", "ni_employee"):
-        assert _value(corrected, variable, 2029) == pytest.approx(
-            _value(uncorrected, variable, 2029)
-        )
-
-
-def test_correction_is_a_no_op_before_the_cap():
-    uncorrected, corrected = _sim(2028, False), _sim(2028, True)
-    for variable in (
-        corrections.THIRTY_HOURS_INCOME_TEST,
-        corrections.TFC_INCOME_TEST,
-        "income_tax",
-    ):
-        assert _value(corrected, variable, 2028) == _value(uncorrected, variable, 2028)
-
-
 def test_correction_refuses_a_changed_model_formula(monkeypatch):
-    monkeypatch.setitem(
-        corrections.EXPECTED_FORMULA_SHA256, corrections.TFC_INCOME_TEST, "0" * 64
-    )
+    monkeypatch.setitem(corrections.EXPECTED_FORMULA_SHA256, corrections.TFC_ELIGIBLE, "0" * 64)
     from policyengine_uk import CountryTaxBenefitSystem
 
     with pytest.raises(RuntimeError, match="changed upstream"):
         corrections.apply_to_system(CountryTaxBenefitSystem())
 
 
-# ── Corrections dropped because policyengine-uk 2.134.4 handles them (C1-C3, C5, C6 30-hours half) ──────
+# ── Corrections dropped because policyengine-uk 2.147.2 handles them ──────────────────────────────────
 
 Y = 2027
 
 
-def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False, toggles=(), extra=None):
+def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False, extra=None, a_extra=None):
     from policyengine_uk import Simulation
     from policyengine_uk.utils.scenario import Scenario
 
     from childcare_100k import config
 
     people = {
-        "a": {"age": {Y: 35}, "employment_income": {Y: a_income}, "is_parent": {Y: True}},
+        "a": {"age": {Y: 35}, "employment_income": {Y: a_income}, "is_parent": {Y: True}, **(a_extra or {})},
         "b": {"age": {Y: 34}, "employment_income": {Y: b_income}, "is_parent": {Y: True}, **(b_extra or {})},
         "c": {"age": {Y: child_age}, **(extra or {})},
     }
@@ -106,7 +37,7 @@ def _family(a_income, b_income, child_age, usage=30, b_extra=None, reform=False,
     }
     scenario = Scenario(
         parameter_changes=config.parameter_changes(config.REFORM_PARAMETERS) if reform else None,
-        simulation_modifier=corrections.modifier(toggles, years=config.YEARS),
+        simulation_modifier=corrections.apply_corrections,
         applied_before_data_load=True,
     )
     return Simulation(situation=situation, scenario=scenario)
@@ -197,55 +128,67 @@ def test_upstream_unflagged_nonworking_partner_fails_the_work_condition():
 
 
 def test_unflagged_partner_faces_the_tfc_income_limit():
-    """C6, kept: tax_free_childcare_eligible tests is_parent in 2.134.4, so an unflagged partner over £100,000 passed."""
+    """C6, kept: tax_free_childcare_eligible tests is_parent in 2.147.2, so an unflagged partner over £100,000 passed."""
     rich = {**UNFLAGGED, "savings_interest_income": {Y: 110_000}}
     assert _tfc(_tfc_family(rich, a_income=40_000, b_income=20_000, reform=False, corrected=False)) == pytest.approx(2_000)
     assert _tfc(_tfc_family(rich, a_income=40_000, b_income=20_000, reform=False)) == 0
     assert _tfc(_tfc_family(rich, a_income=40_000, b_income=20_000)) == pytest.approx(2_000)
 
 
-# ── Toggles ──────────────────────────────────────────────────────────────────────
+# ── Toggles dropped because policyengine-uk 2.147.2 handles them ─────────────────────────────────────────────
 
 
-def test_reception_toggle_removes_a_reception_childs_funded_hours():
-    reception = {"current_education": {Y: "PRIMARY"}}
-    shipped = _funded(_family(40_000, 40_000, 4, extra=reception))
-    toggled = _funded(_family(40_000, 40_000, 4, extra=reception, toggles=["reception"]))
-    assert shipped["universal"] > 0 and shipped["extended"] > 0
-    assert sum(toggled.values()) == 0
-    # A 4-year-old not in reception keeps them.
-    assert _funded(_family(40_000, 40_000, 4, toggles=["reception"])) == pytest.approx(
-        _funded(_family(40_000, 40_000, 4)))
+def test_upstream_salary_sacrifice_over_the_2029_cap_leaves_income_tests_alone():
+    """C4, upstream (policyengine-uk#2462): £97,000 after £10,000 of salary sacrifice stays under £100,000 in 2029."""
+    from policyengine_uk import Simulation
+
+    year = 2029
+    situation = {
+        "people": {
+            "parent": {"age": {year: 35}, "employment_income_before_lsr": {year: 97_000},
+                       "pension_contributions_via_salary_sacrifice": {year: 10_000}},
+            "child": {"age": {year: 2}},
+        },
+        "benunits": {"bu": {"members": ["parent", "child"]}},
+        "households": {"hh": {"members": ["parent", "child"], "region": {year: "SOUTH_EAST"}}},
+    }
+    sim = Simulation(situation=situation)
+    assert sim.calculate("salary_sacrifice_returned_to_income", year)[0] == 0
+    assert sim.calculate("adjusted_net_income", year)[0] <= 100_000
+    assert sim.calculate("extended_childcare_entitlement_meets_income_requirements", year)[0]
+    assert sim.calculate("tax_free_childcare_meets_income_requirements", year)[0]
 
 
-def test_dfe_rates_toggle_sets_dfe_2026_rates_uprated_by_the_model():
+def test_upstream_ani_is_after_pension_contributions():
+    """Pension toggle, upstream (policyengine-uk#2440): £105,000 less £10,000 into a personal pension qualifies."""
+    pension = {"personal_pension_contributions": {Y: 10_000}}
+    assert _funded(_family(105_000, 40_000, 2, a_extra=pension))["extended"] > 0
+    assert _funded(_family(105_000, 40_000, 2))["extended"] == 0
+
+
+def test_upstream_funding_rates_are_dfe_2026_27_rates():
+    """DfE-rate toggle, upstream (policyengine-uk#2465): DfE's 2026-27 national average rates."""
     from policyengine_uk import CountryTaxBenefitSystem
 
-    system = CountryTaxBenefitSystem()
-    rate = system.parameters.gov.dfe.childcare_funding_rate
-    model = [[b.amount(f"{y}-01-01") for b in rate.brackets] for y in (2026, 2029)]
-    corrections.apply_to_system(system, ["dfe_rates"], years=[2025, 2026, 2029])
-    assert [b.amount("2026-01-01") for b in rate.brackets] == pytest.approx(list(corrections.DFE_RATES_2026))
-    assert [b.amount("2029-06-01") for b in rate.brackets] == pytest.approx(
-        [d * m29 / m26 for d, m26, m29 in zip(corrections.DFE_RATES_2026, model[0], model[1])])
-    # 2025-26 is left at the model's rate.
-    assert rate.brackets[0].amount("2025-01-01") < corrections.DFE_RATES_2026[0]
+    rate = CountryTaxBenefitSystem().parameters("2026-06-01").gov.dfe.childcare_funding_rate
+    assert [round(float(rate.calc(a)), 2) for a in (0, 2, 3)] == [12.04, 8.90, 6.61]
 
 
-def test_pension_toggle_tests_ani_after_pension_contributions():
-    """£105,000 earner paying £10,000 into a personal pension: over the limit on the model's ANI, under it in law."""
-    pension = {"personal_pension_contributions": {Y: 10_000}}
+def _young(age, months, reform=False):
+    """A £120,000 earner's child (the reform makes the family eligible) aged ``age`` and ``months`` on 6 October."""
+    return _family(120_000, 40_000, age, reform=reform, extra={"months_since_last_birthday": {Y: months}})
 
-    def eligible(toggles):
-        from policyengine_uk import Simulation
-        from policyengine_uk.utils.scenario import Scenario
 
-        people = {"a": {"age": {Y: 35}, "employment_income": {Y: 105_000}, **pension}, "c": {"age": {Y: 2}}}
-        situation = {"people": people, "benunits": {"bu": {"members": list(people)}},
-                     "households": {"hh": {"members": list(people), "region": {Y: "SOUTH_EAST"}}}}
-        sim = Simulation(situation=situation, scenario=Scenario(
-            simulation_modifier=corrections.modifier(toggles), applied_before_data_load=True))
-        return bool(sim.calculate(corrections.THIRTY_HOURS_INCOME_TEST, Y)[0])
+def test_upstream_reception_children_keep_only_the_summer_term():
+    """Reception toggle, upstream (policyengine-uk#2570): a 4-year-old who started school in September keeps one term."""
+    started = _funded(_young(4, 6))  # born April: reception from September
+    assert started["universal"] == pytest.approx(15 * 38 * 6.762 / 3, rel=0.01)
 
-    assert not eligible([])
-    assert eligible(["pension_in_ani"])
+
+def test_upstream_children_under_one_are_funded_from_the_term_after_nine_months():
+    """Under-1s adjustment, upstream (policyengine-uk#2570): a child aged 0 who is 9 months by 1 January is funded
+    for the spring term under the reform; a newborn is not."""
+    assert _funded(_young(0, 8))["extended"] == 0
+    funded = _funded(_young(0, 8, reform=True))["extended"]
+    assert funded == pytest.approx(30 * 38 * 12.317 / 3, rel=0.01)
+    assert _funded(_young(0, 0, reform=True))["extended"] == 0
