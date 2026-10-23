@@ -102,7 +102,7 @@ def rows_for(runs):
              DFE_EY_SOURCE + " (9 months to 2 years registered)", DFE_EY_URL, lab, CENSUS_NOTE),
         _row("3- and 4-year-olds on the working parent entitlement in the spring term", y,
              int(round(_total(spring & (dfe_age >= 3) & (dfe_age < 5), pw), -3)), OFFICIAL["wpe_3_4"], "children",
-             DFE_EY_SOURCE, DFE_EY_URL, lab, CENSUS_NOTE),
+             DFE_EY_SOURCE, DFE_EY_URL, lab, "Counted as in the row above."),
     ]
     for year, key in ((VALIDATION_YEAR, "taxpayers_100k_2025"), (VALIDATION_YEAR + 1, "taxpayers_100k_2026")):
         out.append(_row("People with income of £100,000 or more", year,
