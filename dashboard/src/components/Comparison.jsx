@@ -103,6 +103,8 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
   const [central, high, low] = ["central", "high", "low"].map((id) => CENTAX_SCENARIOS.find((c) => c.id === id));
   const net = (v) => (v < 0 ? `raises ${formatBn(-v, 2)}` : formatBn(v, 2));
   const eff = (id) => (a[id]?.effects ? signedM(a[id].effects[li]) : "Not tested");
+  const benchmark = getBenchmarks(data)[0];
+  const centaxBeforeBunching = benchmark?.underlying_static_before_bunching_by_year_bn?.[String(last.year)];
   const groups = [
     {
       title: "Cost",
@@ -112,7 +114,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
           `Static cost, ${nb(last.year)}`,
           `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)})`,
           "",
-          `${formatBn(central.staticBn, 2)} (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)})`,
+          `${formatBn(central.staticBn, 2)} (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)}; ${formatBn(centaxBeforeBunching, 2)} before their deduction for parents keeping income just under £100,000)`,
           "Not given",
           "",
         ],
@@ -148,10 +150,18 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
         [
           "Babies under one",
           a.under_ones.ours,
-          eff("under_ones"),
+          "",
           "Included, as in the law",
           "Not stated",
           <span key="u">{a.under_ones.source_says}. <Link href={a.under_ones.source.url}>{a.under_ones.source.label}</Link></span>,
+        ],
+        [
+          "Who claims",
+          a.take_up.ours,
+          eff("take_up"),
+          "Not costed: free hours only",
+          "Not stated",
+          <span key="t">{a.take_up.source_says}. <Link href={a.take_up.source.url}>{a.take_up.source.label}</Link></span>,
         ],
         [
           "Income the limit tests",

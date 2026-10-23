@@ -225,7 +225,7 @@ describe("methodology", () => {
     expect(screen.getByTestId("versions-table").textContent).toContain(data.meta.dataset_label);
     const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(data.baseline_validation.length);
-    expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(6);
+    expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(9);
     expect(within(screen.getByTestId("limitations")).getAllByRole("listitem")).toHaveLength(data.limitations.length);
   });
 

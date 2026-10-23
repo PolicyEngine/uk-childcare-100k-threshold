@@ -41,9 +41,12 @@ function VersionsTable({ meta }) {
     ],
     [
       "Tax and benefit rules",
-      `policyengine-uk ${meta.policyengine_uk}, the version certified by the policyengine.py ${meta.policyengine} release bundle`,
+      `policyengine-uk ${meta.policyengine_uk}, the version the Microcosm release pins, pinned exactly in pyproject.toml${
+        meta.policyengine_bundle_model_version ? ` (the policyengine.py bundle carries ${meta.policyengine_bundle_model_version})` : ""
+      }`,
     ],
     ["Dataset", meta.dataset_label ?? meta.dataset],
+    ...(meta.dataset_status ? [["Dataset status", meta.dataset_status]] : []),
     ...(meta.dataset_release ? [["Dataset release", meta.dataset_release]] : []),
     ["Dataset revision", `${meta.dataset_revision}${meta.dataset_repo ? ` (${meta.dataset_repo})` : ""}`],
     ...(meta.dataset_sha256 ? [["Dataset sha256, checked before every run", meta.dataset_sha256]] : []),
@@ -128,13 +131,16 @@ function AssumptionsTable({ rows }) {
     ["of which with a parent over £100,000", (r) => r.would_claim_30_hours_pct.of_which_parent_over_100k],
     ["Families with a child under 12 who would claim Tax-Free Childcare", (r) => r.would_claim_tfc_pct.families_with_child_under_12],
     ["of which with a parent over £100,000", (r) => r.would_claim_tfc_pct.of_which_parent_over_100k],
+    ["Families with a child under 12 reporting paid registered childcare", (r) => r.reports_childcare_spend_pct?.families_with_child_under_12],
+    ["of which with a parent over £100,000", (r) => r.reports_childcare_spend_pct?.of_which_parent_over_100k],
+    ["Families with a child under 12 receiving a Tax-Free Childcare top-up", (r) => r.uses_tfc_pct?.families_with_child_under_12],
   ];
   return (
     <div className="overflow-x-auto">
       <table className="data-table" data-testid="assumptions-table">
         <thead>
           <tr>
-            <th>Take-up, {fyLabel(rows[0].year)}</th>
+            <th>Take-up and use, {fyLabel(rows[0].year)}</th>
             {rows.map((r) => (
               <th key={r.id}>{datasetName(r.id)}</th>
             ))}
@@ -411,15 +417,23 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
           </li>
           <li>
             The cost is the extra government spending on funded hours and Tax-Free Childcare top-ups between the two
-            runs. Families gaining, and how much, come from the same comparison, household by household.
+            runs. In the second run each child&apos;s childcare spending is reduced by the value of its new funded
+            hours before Tax-Free Childcare is worked out, so the top-up is not paid on care the hours replace.
+            Families gaining, and how much, come from the same comparison, household by household.
+          </li>
+          <li>
+            The data decide once, by a random draw, whether each family would claim the 30 hours. Another pair of runs
+            has every family claiming, and the central cost is each newly eligible family&apos;s cost there times the
+            take-up rate, so it does not depend on the luck of that draw (How certain is the cost?, on Budget impact).
+            Who gains, by family and income, comes from the single draw.
           </li>
           <li>
             The headline costing is static: parents work, earn and pay for childcare exactly as they do today in both
             runs. A labour supply response can be added on Budget impact; the Labour supply section below explains it.
           </li>
           <li>
-            Further runs change one uncertain assumption at a time (how many hours families use, babies under one, and
-            the income the limit tests), and &quot;How do we compare with other estimates?&quot; below shows what each
+            Further runs change one uncertain assumption at a time (how many hours families use, how much childcare
+            spending goes through Tax-Free Childcare, and Tax-Free Childcare take-up among newly eligible families), and &quot;How do we compare with other estimates?&quot; below shows what each
             changes.
           </li>
           <li>
@@ -496,9 +510,11 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         lead="How the model's picture of today, before any reform, compares with official statistics."
         details={
           <p>
-            Tax-Free Childcare top-ups, children and families match HMRC within about 1%. The largest gap is in the
-            funded hours: families in the data use about half of the 30 hours (PolicyEngine/microcosm#1126).
-            &quot;How do we compare with other estimates?&quot; above shows what full use would do to the cost.
+            Tax-Free Childcare and the number of people over £100,000 match HMRC closely. The working-parent counts are
+            measured as the dataset&apos;s calibration counts them, children funded in the January term by their age on
+            31 December, and compared with DfE&apos;s January 2025 census, which the dataset is calibrated to: the 3-
+            and 4-year-olds match, and under-3s are a little above. Funded-hours spending is close to DfE&apos;s
+            illustrative total for 2026-27.
           </p>
         }
       >

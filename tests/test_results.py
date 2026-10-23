@@ -41,8 +41,11 @@ def test_meta():
     assert m["lead_year"] == 2027
     assert m["run_provenance"]["dataset_sha256"] == m["dataset_sha256"]
     assert m["dataset"] == "microcosm_uk_2024_25"
-    assert m["dataset_revision"] == "f9d1922cddab6b54a0dd37794a9bac74e3780c88"
-    assert m["dataset_sha256"] == "aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af"
+    assert m["dataset_revision"] == "c3a751d911ac82e482d298dda0b6f2c949f4ed4d"
+    assert m["dataset_release"] == "microcosm-uk-2024-25-national-20261023T075039Z-a133f37a"
+    assert m["dataset_sha256"] == "64f83900ca3a1242fb017585234844ce89f743d32e41cd2b6558057777f914aa"
+    assert m["policyengine_uk"] == "2.147.2"
+    assert "dataset_certified" not in m
     assert not any("cross_check" in k for k in m)
     assert "sample" not in m  # the dashboard fixture's flag; never set on real results
 
@@ -126,9 +129,37 @@ def test_range_brackets_central():
     for y in YEAR_KEYS:
         assert r["central"][y] == RESULTS["budget"]["gross_bn"]["total"][y]
         assert r["low"][y] <= r["central"][y] <= r["high"][y]
-        low = r["central"][y] + eff["ani_net_of_pension_contributions_and_tfc_routed_share"][y]
-        high = r["central"][y] + eff["full_30_hour_usage"][y] + eff["under_ones"][y]
+        low = r["central"][y] + eff["tfc_routed_share"][y]
+        high = r["central"][y] + eff["full_30_hour_usage"][y]
         assert abs(low - r["low"][y]) <= 0.004 and abs(high - r["high"][y]) <= 0.004
+
+
+def test_expected_mode_headline_and_single_draw():
+    """The headline is the expected cost: the claim-all pair times the take-up rate, below the single draw here."""
+    b = RESULTS["budget"]
+    t = b["thirty_hours_take_up"]
+    assert 0 < t["rate"] < 1
+    for y in YEAR_KEYS:
+        assert b["thirty_hours_components_bn"]["extended"][y] == b["gross_bn"]["thirty_hours"][y]
+        # Each point of the rate is a hundredth of the claim-all cost, which the headline is rate times.
+        assert t["per_point_m"][y] == pytest.approx(1000 * b["gross_bn"]["thirty_hours"][y] / t["rate"] / 100, abs=1)
+        single = b["single_draw_bn"]
+        assert abs(single["thirty_hours"][y] + single["tax_free_childcare"][y] - single["total"][y]) <= 0.002
+
+
+def test_bootstrap_brackets_the_headline():
+    u = RESULTS["budget"]["uncertainty"]
+    assert u["draws"] == 2000
+    assert set(u["by_year"]) == {"2027", "2029"}
+    for y, v in u["by_year"].items():
+        for basis, central in (("expected", "gross_bn"), ("drawn", "single_draw_bn")):
+            for leg in ("thirty_hours", "tax_free_childcare", "total"):
+                c = v[basis][leg]
+                assert c["sd_bn"] > 0
+                assert c["p5_bn"] < RESULTS["budget"][central][leg][y] < c["p95_bn"]
+        assert 0 < v["effective_source_households_30_hours"] <= v["source_households_30_hours"]
+    a = RESULTS["budget"]["age_profile_sensitivity"]
+    assert a["even_spread_bn"] > 0 and a["centax_gradient_bn"] > 0
 
 
 # ── The reform changes only the two limits ────────────────────────────────
@@ -144,8 +175,34 @@ def test_scenarios_only_touch_the_two_limits():
         assert set(parameter_changes(spec["params"])) == set(spec["params"])
     assert set(SCENARIOS["reform"]["params"]) == set(REFORM_PARAMETERS)
     # Sensitivity overrides are identical in the baseline and reform run they are compared with.
-    for name in ("hours30", "routed"):
+    for name in ("hours30", "routed", "tfc_all"):
         assert SCENARIOS[f"baseline_{name}"]["inputs"] == SCENARIOS[f"reform_{name}"]["inputs"]
+        assert SCENARIOS[f"reform_{name}"]["base"] == f"baseline_{name}"
+    # Every reform nets the new funded hours off childcare spending against its own baseline; no baseline does.
+    for name, spec in SCENARIOS.items():
+        assert spec.get("net_new_hours", False) == bool(spec["params"])
+        assert "toggles" not in spec
+
+
+def test_tax_free_childcare_leg_and_reconciliation():
+    t = RESULTS["budget"]["tax_free_childcare_bn"]
+    for k in ("central", "before_netting", "take_up_newly_eligible_low", "take_up_newly_eligible_all"):
+        _by_year(t[k])
+    assert t["take_up_newly_eligible_low_rate"] == 0.7
+    for y in YEAR_KEYS:
+        assert t["central"][y] == RESULTS["budget"]["gross_bn"]["tax_free_childcare"][y]
+        # Netting the new funded hours off spending can only lower the top-up.
+        assert t["central"][y] <= t["before_netting"][y]
+        assert t["take_up_newly_eligible_low"][y] == pytest.approx(0.7 * t["take_up_newly_eligible_all"][y], abs=0.0015)
+    for gone in ("centax_basis_bn", "bootstrap_sd_bn"):
+        assert gone not in RESULTS["budget"]
+    r = RESULTS["reconciliation"]
+    assert "thirty_hours_reception_excluded_bn" not in r
+    for y in YEAR_KEYS:
+        assert 0 < r["concentration"][y]["top_ten_share_pct"] <= 100
+        assert r["concentration"][y]["kish_effective_sample_size"] <= r["concentration"][y]["gaining_sample_size"]
+        assert r["parents_over_100k_with_child_under_5_thousands"][y] % 1000 == 0
+    assert "ours_centax_basis" not in RESULTS["benchmarks"][0]
 
 
 def test_model_parameter_tree_differs_only_in_the_two_limits():
@@ -264,7 +321,12 @@ def test_modelling_assumptions_carry_the_tested_effects():
     rows = {r["id"]: r for r in RESULTS["modelling_assumptions"]}
     eff = RESULTS["budget"]["sensitivities"]["effects_bn"]
     assert rows["hours"]["effect_bn"] == eff["full_30_hour_usage"]
-    assert rows["under_ones"]["effect_bn"] == eff["under_ones"]
+    assert "effect_bn" not in rows["under_ones"]  # in the model since policyengine-uk#2570
+    assert rows["income_test"]["effect_bn"] == eff["tfc_routed_share"]
+    t = RESULTS["budget"]["tax_free_childcare_bn"]
+    for y in YEAR_KEYS:
+        assert rows["take_up"]["effect_bn"][y] == pytest.approx(
+            t["take_up_newly_eligible_low"][y] - t["central"][y], abs=1e-9)
     for r in rows.values():
         assert r["title"] and r["modelled"]
         assert ("alternative" in r) == ("effect_bn" in r)

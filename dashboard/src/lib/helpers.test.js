@@ -21,6 +21,7 @@ import {
   getReform,
   getSensitivities,
   getThirtyHoursComponents,
+  getUncertainty,
   getValidation,
   getYears,
   LEAD_YEAR,
@@ -70,6 +71,20 @@ describe("the results file", () => {
     const c = getThirtyHoursComponents(data);
     const b = getBudget(data);
     b.rows.forEach((row, i) => expect(Math.abs(c.extended[i] + c.universal[i] + c.targeted[i] - row.thirty_hours)).toBeLessThan(0.003));
+  });
+
+  it("puts the headline inside its bootstrap range and the single draw beside it", () => {
+    const u = getUncertainty(data);
+    const b = getBudget(data);
+    for (const r of u.rows) {
+      const row = b.rows.find((x) => x.year === r.year);
+      expect(r.thirty).toBe(row.thirty_hours);
+      expect(r.expected.thirty_hours.p5_bn).toBeLessThan(row.thirty_hours);
+      expect(row.thirty_hours).toBeLessThan(r.expected.thirty_hours.p95_bn);
+      expect(r.expected.total.sd_bn).toBeGreaterThanOrEqual(r.expected.thirty_hours.sd_bn);
+      expect(r.effectiveSourceHouseholds).toBeLessThanOrEqual(r.sourceHouseholds);
+    }
+    expect(u.age.even_spread_bn).toBeGreaterThan(0);
   });
 
   it("never has a single suppressed region or family type, so none can be worked out from the UK total", () => {
@@ -122,8 +137,15 @@ describe("validation throws, naming the block", () => {
     throwsOn(() => getSensitivities(mutate("budget.sensitivities.high", [1, 2])), "budget.sensitivities.high");
   });
 
+  it("on a bootstrap range that leaves out the headline, or a missing uncertainty block", () => {
+    const y = Object.keys(data.budget.uncertainty.by_year)[0];
+    throwsOn(() => getUncertainty(mutate(`budget.uncertainty.by_year.${y}.expected.thirty_hours.p95_bn`, 0.1)), "budget.uncertainty.by_year");
+    throwsOn(() => getUncertainty(mutate(`budget.uncertainty.by_year.${y}.expected.thirty_hours.sd_bn`, 0)), "budget.uncertainty.by_year");
+    throwsOn(() => getUncertainty(mutate("budget.thirty_hours_take_up.rate", 1.5)), "budget.thirty_hours_take_up");
+  });
+
   it("on a missing block that the page reads", () => {
-    for (const block of ["budget.sensitivities", "budget.thirty_hours_components_bn", "baseline_validation", "limitations", "benchmarks", "assumptions"]) {
+    for (const block of ["budget.uncertainty", "budget.single_draw_bn", "budget.age_profile_sensitivity", "budget.sensitivities", "budget.thirty_hours_components_bn", "baseline_validation", "limitations", "benchmarks", "assumptions"]) {
       expect(() => validateResults(mutate(block, undefined, { remove: true })), block).toThrow(ResultsError);
     }
   });

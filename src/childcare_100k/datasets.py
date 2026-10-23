@@ -1,17 +1,20 @@
-"""The pinned dataset: the certified Microcosm UK 2024-25 national release.
+"""The pinned dataset: the Microcosm UK 2024-25 national release of 23 October 2026 (a133f37a).
 
 Loaded the way PolicyEngine/uk-energy-reforms loads it (``datasets.py``): a
 fixed Hugging Face revision, its sha256 checked before use. The repository is
-private, so a token is required (``HF_TOKEN`` or ``HUGGING_FACE_TOKEN``).
+private, so a token is required: ``HF_TOKEN`` or ``HUGGING_FACE_TOKEN``, or
+the one saved by ``hf auth login``.
 Setting ``HF_HUB_OFFLINE=1`` instead reads the file from the local Hugging
 Face cache only; the sha256 check applies either way.
 
-policyengine.py 6.2.1's release bundle does not register this release, so the
-simulations pass the verified local file to ``managed_microsimulation`` with
-``allow_unmanaged=True``: policyengine.py still runs the model (its bundle
-pins policyengine-uk 2.102.3), and this module, not the bundle, certifies the
-data. Switch to the bundle's managed dataset once a policyengine.py release
-registers the certified release.
+The release carries its own signed certification and its manifest pins
+policyengine-uk 2.147.2 and policyengine-core 3.33.3 exactly. No
+policyengine.py release bundles that model version yet, so pyproject.toml pins
+both directly, and the simulations pass the verified local file to
+``managed_microsimulation`` with ``allow_unmanaged=True``: policyengine.py
+builds the simulation, and this module, not the bundle, pins the data. Switch
+to the bundle's managed dataset once a policyengine.py release registers this
+release.
 """
 
 import hashlib
@@ -34,20 +37,29 @@ class DatasetSpec:
     notes: str
 
 
-# Release microcosm-uk-2024-25-national, published 4 October 2026: the commit of
-# its immutable cut tag microcosm-uk-2024-25-national-20261002T230158Z-5c6b3f68
-# (the same bytes as microcosm_uk_2024_25.h5 on main). Built with policyengine-uk 2.100.0.
+# Release microcosm-uk-2024-25-national cut on 23 October 2026 from PolicyEngine/microcosm
+# 829c1bc26, the head of #1338 (tracked in #1339), which is still open: childcare take-up and the
+# DfE funded-childcare rows measured at the spring term, a working-parent take-up rate for each
+# age under 2, and the 9-11-months row bound. It does not carry #1338's later round-3 fix to key
+# the under-2 draw on DfE age, nor #1344 or #1347. Pinned by the commit of its immutable cut tag
+# (c3a751d9...); the dataset repository's main (29f6fcc3...) carried the same file when this was
+# pinned. The sha256 is the one in the release manifest, build manifest and certification. Its
+# manifest pins policyengine-uk 2.147.2, which carries policyengine-uk#2570 (reception and the
+# working-parent start from the term after 9 months, from the date of birth).
+# latest-national.json still points at 6cba5d71: the release is published as non-default.
 MICROCOSM = DatasetSpec(
     key="microcosm_uk_2024_25",
-    label="Microcosm UK 2024-25 (national release)",
+    label="Microcosm UK 2024-25 (national release, 23 October 2026)",
     repo_id="policyengine/populace-uk-private",
     repo_type="dataset",
     filename="microcosm_uk_2024_25.h5",
-    revision="f9d1922cddab6b54a0dd37794a9bac74e3780c88",
-    sha256="aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af",
-    release="microcosm-uk-2024-25-national-20261002T230158Z-5c6b3f68",
-    notes="Certified release, published 4 October 2026. Built with policyengine-uk 2.100.0.",
+    revision="c3a751d911ac82e482d298dda0b6f2c949f4ed4d",
+    sha256="64f83900ca3a1242fb017585234844ce89f743d32e41cd2b6558057777f914aa",
+    release="microcosm-uk-2024-25-national-20261023T075039Z-a133f37a",
+    notes="Release cut 23 October 2026 from microcosm 829c1bc26 (#1338), built and certified with policyengine-uk 2.147.2.",
 )
+# The engine the release manifest pins; engine.provenance refuses any other.
+POLICYENGINE_UK_VERSION = "2.147.2"
 
 
 def _sha256(path: Path) -> str:
@@ -65,7 +77,7 @@ def _offline() -> bool:
 @cache
 def dataset_path(spec: DatasetSpec = MICROCOSM) -> Path:
     """Download (or, offline, read from the cache) the pinned file and verify its sha256."""
-    from huggingface_hub import hf_hub_download
+    from huggingface_hub import get_token, hf_hub_download
 
     if _offline():
         path = hf_hub_download(
@@ -76,10 +88,14 @@ def dataset_path(spec: DatasetSpec = MICROCOSM) -> Path:
             local_files_only=True,
         )
     else:
-        token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_TOKEN")
+        token = (
+            os.environ.get("HF_TOKEN")
+            or os.environ.get("HUGGING_FACE_TOKEN")
+            or get_token()
+        )
         if not token:
             raise RuntimeError(
-                f"{spec.repo_id} is private: set HF_TOKEN or HUGGING_FACE_TOKEN "
+                f"{spec.repo_id} is private: set HF_TOKEN or HUGGING_FACE_TOKEN, or run `hf auth login` "
                 "(or HF_HUB_OFFLINE=1 to read the pinned revision from the local cache)."
             )
         path = hf_hub_download(
@@ -92,5 +108,7 @@ def dataset_path(spec: DatasetSpec = MICROCOSM) -> Path:
     path = Path(path)
     actual = _sha256(path)
     if actual != spec.sha256:
-        raise ValueError(f"{spec.key}: sha256 {actual} does not match the pinned {spec.sha256}")
+        raise ValueError(
+            f"{spec.key}: sha256 {actual} does not match the pinned {spec.sha256}"
+        )
     return path
