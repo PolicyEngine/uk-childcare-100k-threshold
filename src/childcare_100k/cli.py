@@ -646,6 +646,7 @@ def main(argv=None):
     t0 = time.time()
     if a.aggregate_only:
         metas = {f"{PRIMARY_DATASET}/{s}": load_meta(s) for s in JOBS}
+        metas.update({f"{PRIMARY_DATASET}/{s}": expectation.load_meta(s) for s in expectation.JOBS})
     else:
         metas = run_all(rerun=a.rerun)
     results = build(metas)
