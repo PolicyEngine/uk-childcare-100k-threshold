@@ -220,7 +220,7 @@ LSR_ALTERNATIVE = ("Parents respond: partners move into work (OBR participation 
                    "income rises (a childcare-price and an OBR income elasticity)")
 
 
-def modelling_assumptions(a, effects, labour_supply_offset, tfc, per_point_m):
+def modelling_assumptions(a, effects, labour_supply_offset, tfc):
     """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
     etfc = a["would_claim_tfc_pct"]
     return [
@@ -255,10 +255,9 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, per_point_m):
             "modelled": "The dataset draws once whether each family would claim the 30 hours, at the take-up "
                         f"contract's working-parent rate ({EXTENDED_TAKE_UP_RATE:.1%}). Because a few heavily weighted "
                         "families decide much of the cost, the central figure averages over that draw: each newly "
-                        "eligible family's cost if it claims, times the rate (expectation.py). Each percentage point "
-                        f"of the rate moves the 30 hours' cost by about £{per_point_m[str(LEAD_YEAR)]}m in "
-                        f"{_fy(LEAD_YEAR)}; the figure on the single draw is on the Budget impact tab. The "
-                        "Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and "
+                        "eligible family's cost if it claims, times the rate (expectation.py). The figure on the single "
+                        "draw, and what each percentage point of the rate does to the cost, are on the Budget impact "
+                        "tab. The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and "
                         "account counts, not a take-up rate: a family gets a top-up only on the paid registered "
                         "childcare it reports, so use is limited by reported spending (the table shows both). "
                         "Nothing identifies take-up among families over £100,000, who are not eligible today, so the "
@@ -490,8 +489,7 @@ def build(metas):
         "cliff_example": cliff_example(grid),
         "household_grid": grid,
         "modelling_assumptions": modelling_assumptions(assumptions, sens["effects_bn"],
-                                                       lsr["total_offset_bn"]["central"], tfc,
-                                                       exp["thirty_hours_per_point_m"]),
+                                                       lsr["total_offset_bn"]["central"], tfc),
         "labour_supply": {
             **lsr,
             "assumptions": {
