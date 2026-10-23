@@ -104,7 +104,6 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
   const net = (v) => (v < 0 ? `raises ${formatBn(-v, 2)}` : formatBn(v, 2));
   const eff = (id) => (a[id]?.effects ? signedM(a[id].effects[li]) : "Not tested");
   const benchmark = getBenchmarks(data)[0];
-  const centaxBasis = data.budget?.centax_basis_bn?.thirty_hours?.[String(last.year)];
   const centaxBeforeBunching = benchmark?.underlying_static_before_bunching_by_year_bn?.[String(last.year)];
   const groups = [
     {
@@ -115,22 +114,10 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
           `Static cost, ${nb(last.year)}`,
           `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)})`,
           "",
-          `${formatBn(central.staticBn, 2)} (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)})`,
+          `${formatBn(central.staticBn, 2)} (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)}; ${formatBn(centaxBeforeBunching, 2)} before their deduction for parents keeping income just under £100,000)`,
           "Not given",
           "",
         ],
-        ...(centaxBasis
-          ? [
-              [
-                `Free hours on CenTax's basis, ${nb(last.year)}`,
-                `${formatBn(centaxBasis, 2)} (no funded hours in reception, DfE's funding rates, income after pension contributions, babies from 9 months)`,
-                "",
-                `${formatBn(central.staticBn, 2)} (${formatBn(centaxBeforeBunching, 2)} before their deduction for parents keeping income just under £100,000)`,
-                "",
-                "",
-              ],
-            ]
-          : []),
         [
           `After parents change how much they work, ${nb(last.year)}`,
           <span key="dyn" data-testid="dynamic-cell">{dynamicCell(data, setting)}</span>,
@@ -163,10 +150,18 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
         [
           "Babies under one",
           a.under_ones.ours,
-          eff("under_ones"),
+          "",
           "Included, as in the law",
           "Not stated",
           <span key="u">{a.under_ones.source_says}. <Link href={a.under_ones.source.url}>{a.under_ones.source.label}</Link></span>,
+        ],
+        [
+          "Who claims Tax-Free Childcare",
+          a.take_up.ours,
+          eff("take_up"),
+          "Not costed: free hours only",
+          "Not stated",
+          <span key="t">{a.take_up.source_says}. <Link href={a.take_up.source.url}>{a.take_up.source.label}</Link></span>,
         ],
         [
           "Income the limit tests",

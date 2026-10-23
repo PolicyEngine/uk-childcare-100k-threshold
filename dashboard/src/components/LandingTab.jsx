@@ -312,8 +312,6 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
   const chart = costChartData(budget, offsets, dynamic);
   const gapM = netGrossGapM(cmp.net, budget.rows.map((r) => r.total));
   const fy = nb(lead.year);
-  // Sampling noise on the 30-hours leg: the Microcosm team's bootstrap over FRS source households (2027-28, 2029-30).
-  const sd = data.budget?.bootstrap_sd_bn?.thirty_hours?.[String(lead.year)];
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="landing-tab">
@@ -332,9 +330,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
                 ? `After the labour supply response (${labourSupplyLabel(setting)}): ${formatBn(lead.total, 2)} static, ${
                     offsets[li] >= 0 ? `${formatMoneyBn(offsets[li])} back from parents working more` : `${formatMoneyBn(-offsets[li])} more, as the response raises the cost`
                   }`
-                : `Extra government spending on both schemes${
-                    isNum(sd) ? `; sampling noise on the 30 hours about ±${formatBn(sd, 2)} (one standard deviation, Microcosm bootstrap)` : ""
-                  }`
+                : "Extra government spending on both schemes"
             }
             testId="card-cost"
           >
