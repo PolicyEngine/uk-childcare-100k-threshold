@@ -28,9 +28,9 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-23T18:09:35+00:00",
-  "git_revision": "5acd327d2faffdf52bbabf6400157f81315c8b73",
-  "aggregation_sha256": "813863e82a40128a11921500de66166c0d5bb15361b07575808aef67f4bc3e49",
+  "generated_at": "2026-10-23T18:15:14+00:00",
+  "git_revision": "1091c368ce61e789c0df93d9622627174106445b",
+  "aggregation_sha256": "eb80da33b30fcdc5fc43f37d3021438c01fb0480beb15b3d5b4d64c842ffac69",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 70.6,
@@ -41,7 +41,9 @@
    "microcosm_uk_2024_25/reform_routed": 102.5,
    "microcosm_uk_2024_25/baseline_tfc_all": 60.5,
    "microcosm_uk_2024_25/reform_tfc_all": 112.5,
-   "microcosm_uk_2024_25/labour_supply": 4737.5
+   "microcosm_uk_2024_25/labour_supply": 4737.5,
+   "microcosm_uk_2024_25/baseline_claim_all": 108.9,
+   "microcosm_uk_2024_25/reform_claim_all": 152.8
   },
   "peak_rss_gb": {
    "microcosm_uk_2024_25/baseline": 5.4,
@@ -52,7 +54,9 @@
    "microcosm_uk_2024_25/reform_routed": 19.3,
    "microcosm_uk_2024_25/baseline_tfc_all": 8.4,
    "microcosm_uk_2024_25/reform_tfc_all": 8.8,
-   "microcosm_uk_2024_25/labour_supply": 16.6
+   "microcosm_uk_2024_25/labour_supply": 16.6,
+   "microcosm_uk_2024_25/baseline_claim_all": 4.2,
+   "microcosm_uk_2024_25/reform_claim_all": 4.2
   }
  },
  "reform": {
@@ -25030,7 +25034,7 @@
     "label": "Microcosm take-up contract",
     "url": "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
    },
-   "modelled": "The dataset draws once whether each family would claim the 30 hours, at the take-up contract's working-parent rate (83.6%). Because a few heavily weighted families decide much of the cost, the central figure averages over that draw: each newly eligible family's cost if it claims, times the rate (expectation.py). Each percentage point of the rate moves the 30 hours' cost by about £11m in 2027-28; the figure on the single draw is on the Budget impact tab. The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and account counts, not a take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use is limited by reported spending (the table shows both). Nothing identifies take-up among families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly eligible families, about today's use among all eligible families.",
+   "modelled": "The dataset draws once whether each family would claim the 30 hours, at the take-up contract's working-parent rate (83.6%). Because a few heavily weighted families decide much of the cost, the central figure averages over that draw: each newly eligible family's cost if it claims, times the rate (expectation.py). The figure on the single draw, and what each percentage point of the rate does to the cost, are on the Budget impact tab. The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and account counts, not a take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use is limited by reported spending (the table shows both). Nothing identifies take-up among families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly eligible families, about today's use among all eligible families.",
    "sources": [
     {
      "label": "Microcosm take-up contract",
@@ -26325,7 +26329,7 @@
   "responding_population": "Every adult (the first two in each family; not self-employed, students or aged 60 and over, the OBR's exclusions) in a family whose youngest child is under 12 and in which at least one adult's income, as the limits test it, is over £100,000: the parent over the limit as well as their partner. Those not in work may move into work, except disabled adults (receiving DLA or PIP), whom the OBR excludes from participation (Table A4) but not from hours (Table A3); those in work may change their hours.",
   "not_modelled": "Bunching: parents who today keep their income at or just below £100,000 and would earn more without the limit.",
   "notes": [
-   "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the two offsets (moving into work and hours), at the same bound; the hours offset is its price effect (money back) plus its income effect (money out). They apply to the total: they are not split by scheme.",
+   "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the two offsets (moving into work and hours), at the same bound; the static total is the expected cost, the offsets are measured on the dataset's single take-up draw; the hours offset is its price effect (money back) plus its income effect (money out). They apply to the total: they are not split by scheme.",
    "Moving into work (extensive margin): the OBR elasticities are the percentage change in the probability of working for a percentage change in the gain to work (net of the childcare a parent would buy), converted from in-work income by the gain over in-work income. As in Adam and Phillips (Appendix E) they apply to the employed share: new employment is the sum over working adults of their own response, and it is shared among the non-working adults like them (who are the ones entering): those in the same OBR cell (sex, couple, age band of the youngest child, earnings quintile), in proportion to their own response, or, where the cell has no responding non-worker, in the nearest coarser cell (allocated_by_cell_level). The offset is entrants' earnings less the rise in their household's net income (tax and National Insurance paid, less the childcare support the family now receives) and less the Tax-Free Childcare top-up on the care they start buying. Entrants placed in a coarser cell take the non-workers' earnings, gain and subsidy from other earnings quintiles; entry_sensitivity reports the offset with them dropped (same_cell_only) and with them given the weighted median hourly wage of the workers who imply them, gain and subsidy recomputed (worker_profile), at central elasticities.",
    "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; the parts are an attribution that adds up to it (the price change recomputed alone, the income effect the remainder; the at-or-below group alone, the over group the remainder). Price effect: -0.042 times the change in the price of the family's marginal hour of paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive margin. The marginal price is net of all the childcare-linked cash support on the next pound of spend, the model's own (Tax-Free Childcare, the Universal Credit childcare element and the other payments tied to childcare_expenses), read by raising the family's spend by £1 (not 1%, which near a cap averages over spending beyond it), today and, under the reform, at the spend the family still makes once the funded hours displace paid care; intensive_price_basis publishes it at today's spend (original_spend) and with Tax-Free Childcare alone (tfc_only). The 30 funded hours are a fixed amount, conditional only on both parents meeting the minimum earnings test, so for a family that still buys paid care on top of them they do not change what an extra hour costs; they lower the marginal price (to zero) only where they are worth more than all the paid care the family buys. Income effect: the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities, assigned to married and cohabiting couples alike) times the household's static gain as a percentage of its disposable income, as policyengine-uk's apply_progression_responses applies them except for the income measure. The gain is on the same disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid childcare the newly funded hours displace (their value at the displacement rate below, capped at what the family pays), with the reform's cash income recomputed by the model on the care the family still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither elasticity is measured on parents over £100,000.",
    "Whether newly funded hours cover a family's paid care, and how much paid care they save it, is judged on value, with funded hours assumed to displace paid care at 90.5% of their value (1 - 54/570, IFS BN189, which counts all displaced non-family care as paid). It is an assumption, published at 71.4% (only subsidisable care displaced, 1 - 163/570) and 100% (intensive_displacement), at central elasticities.",

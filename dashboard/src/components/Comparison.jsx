@@ -156,7 +156,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
           <span key="u">{a.under_ones.source_says}. <Link href={a.under_ones.source.url}>{a.under_ones.source.label}</Link></span>,
         ],
         [
-          "Who claims Tax-Free Childcare",
+          "Who claims",
           a.take_up.ours,
           eff("take_up"),
           "Not costed: free hours only",

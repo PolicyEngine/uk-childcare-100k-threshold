@@ -422,6 +422,12 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             Families gaining, and how much, come from the same comparison, household by household.
           </li>
           <li>
+            The data decide once, by a random draw, whether each family would claim the 30 hours. Another pair of runs
+            has every family claiming, and the central cost is each newly eligible family&apos;s cost there times the
+            take-up rate, so it does not depend on the luck of that draw (How certain is the cost?, on Budget impact).
+            Who gains, by family and income, comes from the single draw.
+          </li>
+          <li>
             The headline costing is static: parents work, earn and pay for childcare exactly as they do today in both
             runs. A labour supply response can be added on Budget impact; the Labour supply section below explains it.
           </li>

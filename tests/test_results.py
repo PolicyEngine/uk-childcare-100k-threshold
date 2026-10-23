@@ -134,6 +134,34 @@ def test_range_brackets_central():
         assert abs(low - r["low"][y]) <= 0.004 and abs(high - r["high"][y]) <= 0.004
 
 
+def test_expected_mode_headline_and_single_draw():
+    """The headline is the expected cost: the claim-all pair times the take-up rate, below the single draw here."""
+    b = RESULTS["budget"]
+    t = b["thirty_hours_take_up"]
+    assert 0 < t["rate"] < 1
+    for y in YEAR_KEYS:
+        assert b["thirty_hours_components_bn"]["extended"][y] == b["gross_bn"]["thirty_hours"][y]
+        # Each point of the rate is a hundredth of the claim-all cost, which the headline is rate times.
+        assert t["per_point_m"][y] == pytest.approx(1000 * b["gross_bn"]["thirty_hours"][y] / t["rate"] / 100, abs=1)
+        single = b["single_draw_bn"]
+        assert abs(single["thirty_hours"][y] + single["tax_free_childcare"][y] - single["total"][y]) <= 0.002
+
+
+def test_bootstrap_brackets_the_headline():
+    u = RESULTS["budget"]["uncertainty"]
+    assert u["draws"] == 2000
+    assert set(u["by_year"]) == {"2027", "2029"}
+    for y, v in u["by_year"].items():
+        for basis, central in (("expected", "gross_bn"), ("drawn", "single_draw_bn")):
+            for leg in ("thirty_hours", "tax_free_childcare", "total"):
+                c = v[basis][leg]
+                assert c["sd_bn"] > 0
+                assert c["p5_bn"] < RESULTS["budget"][central][leg][y] < c["p95_bn"]
+        assert 0 < v["effective_source_households_30_hours"] <= v["source_households_30_hours"]
+    a = RESULTS["budget"]["age_profile_sensitivity"]
+    assert a["even_spread_bn"] > 0 and a["centax_gradient_bn"] > 0
+
+
 # ── The reform changes only the two limits ────────────────────────────────
 
 

@@ -47,6 +47,13 @@ budget               gross_bn {thirty_hours, tax_free_childcare, total}       ea
                      thirty_hours_components_bn {extended, universal, targeted}
                      range_bn {low, central, high}                            central = gross_bn.total
                      sensitivities {effects_bn {id: {...}}, low [ids], high [ids], descriptions {id: str}}
+                     single_draw_bn {thirty_hours, tax_free_childcare, total}  gross_bn is the expected cost
+                     thirty_hours_take_up {rate, rate_source_url, per_point_m {...}}
+                     uncertainty {draws, method, reproduces_url, by_year {"2027": {expected, drawn:
+                       {thirty_hours, tax_free_childcare, total: {sd_bn, p5_bn, p95_bn}},
+                       source_households_30_hours, effective_source_households_30_hours}}}
+                     age_profile_sensitivity {year, even_spread_bn, centax_gradient_bn, babies_bn,
+                       share_over_limit_by_age_pct {"0".."4"}, source_url}
 recipients           {"2029": {families_gaining, children_gaining, by_scheme, children_by_scheme,
                      children_gaining_by_age {"0-1", "2", "3-4", "5-11", "12+"}, mean_gain_gbp, families_losing}}
                      mean_gain_gbp is null only when suppressed (families_gaining 0, or suppressed: true)

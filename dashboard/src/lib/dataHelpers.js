@@ -155,6 +155,70 @@ export function getThirtyHoursComponents(data) {
   };
 }
 
+/**
+ * How certain the static cost is: the bootstrap over FRS source households for the years it covers (on the expected
+ * basis, the headline's, with the single take-up draw beside it), the take-up rate and its per-point effect, and the
+ * one-sided age-profile sensitivity. The expected figures must be the headline's.
+ */
+export function getUncertainty(data) {
+  const years = getYears(data);
+  const b = data?.budget;
+  const u = b?.uncertainty;
+  if (!u || !u.by_year || typeof u.by_year !== "object") fail("budget.uncertainty", "missing");
+  if (!Number.isInteger(u.draws) || u.draws < 100) fail("budget.uncertainty.draws", "missing");
+  if (!isText(u.method) || !isText(u.reproduces_url)) fail("budget.uncertainty", "method or source missing");
+  const single = {
+    thirty_hours: byYear(b?.single_draw_bn?.thirty_hours, years, "budget.single_draw_bn.thirty_hours"),
+    total: byYear(b?.single_draw_bn?.total, years, "budget.single_draw_bn.total"),
+  };
+  const gross = getBudget(data).rows;
+  const rows = Object.entries(u.by_year).map(([key, v]) => {
+    const year = Number(key);
+    const i = years.indexOf(year);
+    if (i < 0) fail(`budget.uncertainty.by_year.${key}`, "not a modelled year");
+    const legs = {};
+    for (const basis of ["expected", "drawn"]) {
+      legs[basis] = {};
+      for (const leg of ["thirty_hours", "tax_free_childcare", "total"]) {
+        const c = v?.[basis]?.[leg];
+        if (!c || ![c.sd_bn, c.p5_bn, c.p95_bn].every(isNum) || c.sd_bn <= 0 || c.p5_bn > c.p95_bn) {
+          fail(`budget.uncertainty.by_year.${key}.${basis}.${leg}`, "invalid");
+        }
+        legs[basis][leg] = c;
+      }
+    }
+    for (const k of ["source_households_30_hours", "effective_source_households_30_hours"]) {
+      if (!Number.isInteger(v[k]) || v[k] <= 0) fail(`budget.uncertainty.by_year.${key}.${k}`, "missing");
+    }
+    const central = gross[i];
+    if (!(legs.expected.thirty_hours.p5_bn <= central.thirty_hours && central.thirty_hours <= legs.expected.thirty_hours.p95_bn)) {
+      fail(`budget.uncertainty.by_year.${key}`, "the headline is outside its own range");
+    }
+    return {
+      year,
+      label: fyLabel(year),
+      thirty: central.thirty_hours,
+      total: central.total,
+      singleThirty: single.thirty_hours[i],
+      singleTotal: single.total[i],
+      ...legs,
+      sourceHouseholds: v.source_households_30_hours,
+      effectiveSourceHouseholds: v.effective_source_households_30_hours,
+    };
+  });
+  if (rows.length === 0) fail("budget.uncertainty.by_year", "empty");
+  const t = b?.thirty_hours_take_up;
+  if (!isNum(t?.rate) || t.rate <= 0 || t.rate > 1 || !isText(t?.rate_source_url)) fail("budget.thirty_hours_take_up", "invalid");
+  const perPoint = byYear(t?.per_point_m, years, "budget.thirty_hours_take_up.per_point_m");
+  const a = b?.age_profile_sensitivity;
+  if (!a || !Number.isInteger(a.year) || ![a.even_spread_bn, a.centax_gradient_bn, a.babies_bn].every(isNum) || !isText(a.source_url)) {
+    fail("budget.age_profile_sensitivity", "invalid");
+  }
+  const share = a.share_over_limit_by_age_pct;
+  if (!share || ![0, 1, 2, 3, 4].every((k) => isNum(share[String(k)]))) fail("budget.age_profile_sensitivity.share_over_limit_by_age_pct", "invalid");
+  return { draws: u.draws, method: u.method, sourceUrl: u.reproduces_url, rows, rate: t.rate, rateUrl: t.rate_source_url, perPoint, years, age: a };
+}
+
 /** The net cost and each scheme's limit removed alone. */
 export function getBudgetComparisons(data) {
   const years = getYears(data);
@@ -565,6 +629,7 @@ export function validateResults(data) {
   getSensitivities(data);
   getThirtyHoursComponents(data);
   getBudgetComparisons(data);
+  getUncertainty(data);
   getDistributionYears(data);
   for (const y of years) getChildrenByAge(data, y);
   getValidation(data);

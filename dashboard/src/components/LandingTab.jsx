@@ -6,9 +6,11 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import { colors, schemeColors } from "../lib/colors";
 import {
   fyLabel,
+  getBenchmarks,
   getBudget,
   getBudgetComparisons,
   getRecipients,
+  getUncertainty,
   isNum,
   isStatic,
   labourSupplyLabel,
@@ -205,7 +207,7 @@ function CostChart({ rows, series, offsetName }) {
           <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 0 }} stackOffset="sign">
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
             <XAxis dataKey="label" tick={AXIS_STYLE} />
-            <YAxis tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, digits)} {...axis} />
+            <YAxis tick={AXIS_STYLE} tickFormatter={(v) => (v === 0 ? "£0" : formatBn(v, digits))} {...axis} />
             <Tooltip
               cursor={{ fill: colors.gray[100] }}
               content={<CustomTooltip formatter={(v) => formatMoneyBn(v)} totalLabel={withOffset ? "Cost after the response" : "Total"} />}
@@ -259,6 +261,99 @@ export function netGrossGapM(net, gross) {
 }
 
 /** Each scheme side by side: where it applies, what it gives, who qualifies today and what the reform changes. */
+const bnRange = (lo, hi) => `${formatBn(lo, 2)} to ${formatBn(hi, 2)}`;
+
+/** The bootstrap's standard deviation and 5th-95th percentile beside the headline, and the take-up and age checks. */
+export function UncertaintyTable({ data }) {
+  const u = getUncertainty(data);
+  const rows = [
+    ["30 hours: standard deviation", (r) => formatBn(r.expected.thirty_hours.sd_bn, 2)],
+    ["30 hours: 5th to 95th percentile", (r) => bnRange(r.expected.thirty_hours.p5_bn, r.expected.thirty_hours.p95_bn)],
+    ["Both schemes: standard deviation", (r) => formatBn(r.expected.total.sd_bn, 2)],
+    ["Both schemes: 5th to 95th percentile", (r) => bnRange(r.expected.total.p5_bn, r.expected.total.p95_bn)],
+    ["30 hours on the dataset's single take-up draw", (r) => formatBn(r.singleThirty, 2)],
+  ];
+  return (
+    <div className="overflow-x-auto">
+      <table className="data-table" data-testid="uncertainty-table">
+        <thead>
+          <tr>
+            <th />
+            {u.rows.map((r) => (
+              <th key={r.year} className="text-right">
+                {nb(r.year)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, cell]) => (
+            <tr key={label}>
+              <td className="min-w-[180px] font-medium text-slate-800">{label}</td>
+              {u.rows.map((r) => (
+                <td key={r.year} className="whitespace-nowrap text-right tabular-nums">
+                  {cell(r)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+/** The notes under the uncertainty table: what the range leaves out, take-up and the age profile. */
+export function UncertaintyNotes({ data }) {
+  const u = getUncertainty(data);
+  const lead = u.rows.find((r) => r.year === LEAD_YEAR) ?? u.rows[0];
+  const share = u.age.share_over_limit_by_age_pct;
+  const others = [0, 2, 3, 4].map((k) => share[String(k)]);
+  const pct = (v) => `${Math.round(v)}%`;
+  const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
+  const centaxInside = u.rows.every((r) => {
+    const c = centax[String(r.year)];
+    return isNum(c) && r.expected.thirty_hours.p5_bn <= c && c <= r.expected.thirty_hours.p95_bn;
+  });
+  const [lo, hi] = [Math.min(u.age.even_spread_bn, u.age.centax_gradient_bn), Math.max(u.age.even_spread_bn, u.age.centax_gradient_bn)];
+  return (
+    <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700" data-testid="uncertainty-notes">
+      <li>
+        The range is a floor on the sampling uncertainty. It resamples the FRS households behind the release, each
+        with all its Microcosm copies, {u.draws.toLocaleString("en-GB")}{" "}
+        times with the weights fixed; it holds the
+        calibration fixed and ignores the survey&apos;s clustering. The 30 hours&apos; cost in {nb(lead.year)} rests
+        on about {lead.sourceHouseholds} FRS households, an effective number of about {lead.effectiveSourceHouseholds}.{" "}
+        {centaxInside ? "CenTax's static costs for both years lie inside the range. " : ""}On the single take-up draw
+        the bootstrap reproduces{" "}
+        <a href={u.sourceUrl} target="_blank" rel="noreferrer">
+          the Microcosm team&apos;s
+        </a>
+        .
+      </li>
+      <li>
+        The central cost averages over who claims the 30 hours: each newly eligible family&apos;s cost if it claims,
+        times the{" "}
+        <a href={u.rateUrl} target="_blank" rel="noreferrer">
+          take-up rate
+        </a>{" "}
+        ({formatPct(100 * u.rate, 1)}). The dataset draws once whether each family claims, and its heavily weighted
+        newly eligible families drew a claim more often than the rate, so the single draw is higher. Each percentage
+        point of the rate moves the 30 hours&apos; cost by about £{u.perPoint[u.years.indexOf(lead.year)]}m in{" "}
+        {nb(lead.year)}.
+      </li>
+      <li>
+        The age profile can only push the cost up. The release has few 1-year-olds in families with a parent over
+        £100,000 ({pct(share["1"])}, against {pct(Math.min(...others))} to {pct(Math.max(...others))}{" "}
+        at the other
+        ages under 5), and no source independent of the survey crosses income with a child&apos;s age. Spreading the
+        newly entitled 1-to-4-year-olds evenly across those ages, or on CenTax&apos;s gradient between under-3s and
+        3-to-4s, raises the 30 hours&apos; cost in {nb(u.age.year)} by about {formatBn(lo, 2)} to {formatBn(hi, 2)}.
+      </li>
+    </ul>
+  );
+}
+
 function SchemesTable() {
   const rows = [
     ["Where", "England", "UK-wide"],
@@ -415,6 +510,15 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
           </p>
         ) : null}
         <CostChart rows={chart.rows} series={chart.series} offsetName={chart.offsetName} />
+      </Section>
+
+      <Section
+        id="uncertainty"
+        title="How certain is the cost?"
+        lead="The static cost rests on a small number of survey households, so it carries sampling uncertainty. The table gives it beside the central figures above, for the first full year and the last."
+      >
+        <UncertaintyTable data={data} />
+        <UncertaintyNotes data={data} />
       </Section>
 
     </div>

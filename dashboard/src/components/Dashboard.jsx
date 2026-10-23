@@ -31,6 +31,7 @@ const SECTIONS = {
     { id: "at-a-glance", title: "At a glance" },
     { id: "schemes", title: "Each scheme" },
     { id: "each-year", title: "Each year" },
+    { id: "uncertainty", title: "How certain" },
   ],
   "who-gains": [
     { id: "household", title: "Your household" },
