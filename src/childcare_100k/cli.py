@@ -530,7 +530,8 @@ def build(metas):
                 "extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is "
                 "not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The "
                 "dynamic cost is the static total less the two offsets (moving into work and hours), at the same "
-                "bound; the hours offset is its price effect (money back) plus its income effect (money out). "
+                "bound; the static total is the expected cost, the offsets are measured on the dataset's single "
+                "take-up draw; the hours offset is its price effect (money back) plus its income effect (money out). "
                 "They apply to the total: they are not split by scheme.",
                 "Moving into work (extensive margin): the OBR elasticities are the percentage change in the "
                 "probability of working for a percentage change in the gain to work (net of the childcare a parent "
