@@ -41,10 +41,13 @@ from .config import (
     HOURS_USAGE_VARIABLE,
     ROUTED_SHARE_LOW,
     TFC_TAKE_UP_NEWLY_ELIGIBLE_LOW,
+    EXTENDED_TAKE_UP_RATE,
+    EXTENDED_TAKE_UP_SOURCE_URL,
     SCENARIOS,
     YEARS,
 )
 from .datasets import MICROCOSM, POLICYENGINE_UK_VERSION
+from . import expectation
 from .engine import JOBS, SOURCE_DIR, is_current, load_meta, run_isolated
 from .validation import DFE_FUNDING_URL
 from .household import cliff_example, household_grid
@@ -83,6 +86,11 @@ def run_all(rerun=False, log=print):
         if rerun or not is_current(scenario):
             run_isolated(scenario, REPO, log=log)
         metas[f"{PRIMARY_DATASET}/{scenario}"] = load_meta(scenario)
+    # The expected-mode pair (expectation.py) runs after the central baseline, which its reform does not need.
+    for scenario in expectation.JOBS:
+        if rerun or not expectation.is_current(scenario):
+            expectation.run_isolated(scenario, REPO, log=log)
+        metas[f"{PRIMARY_DATASET}/{scenario}"] = expectation.load_meta(scenario)
     return metas
 
 
@@ -148,7 +156,10 @@ LIMITATIONS = [
     "The release is cut from Microcosm #1338 at 829c1bc26, before its last commit (a12885f9). So it does not key "
     "the under-2 working-parent take-up draw on DfE's age at 31 December (it uses age at 6 October, so its age-0 rate mixes "
     "9-11-month-olds with children aged 12-14 months), and its DfE rows bind the January 2025 census, a year before "
-    "the spring term of 2025-26. Both bear on the under-3 cost of the 30 hours.",
+    "the spring term of 2025-26. Both bear on the under-3 cost of the 30 hours. The next national release will be "
+    "built on PolicyEngine/microcosm#1347, which carries the age-date fix (a12885f9) and #1344; on the Microcosm "
+    "team's preview build with the fix, the 30 hours' cost moves by about -£0.02bn, and these figures will be rerun "
+    "on that release.",
     "In the reform, each child's childcare spending is reduced by the value of its new funded hours at the funding "
     "rate before Tax-Free Childcare is computed. Fees are above funding rates, so this removes less spending than "
     "the hours replace and the Tax-Free Childcare leg may still be a little high. The hours response's income "
@@ -186,13 +197,9 @@ def data_limitations(rows):
 def concentration_limitation(concentration, year):
     """How much of the static cost rests on the few largest-gaining weighted records."""
     c = concentration[str(year)]
-    return (f"The static cost rests on {c['gaining_sample_size']:,} gaining survey records in {_fy(year)} (a Kish "
-            f"effective sample size of about {c['kish_effective_sample_size']:,}); the ten largest (by weight times "
-            f"gain) carry {c['top_ten_share_pct']:.0f}% of it and the largest alone {c['largest_share_pct']:.0f}%. "
-            "No bootstrap of the sampling noise has been run on this release; on the previous one (a858c100) the "
-            f"Microcosm team's bootstrap over FRS source households gave a standard deviation of about "
-            f"£{PREVIOUS_BOOTSTRAP_SD_BN[LEAD_YEAR]:.2f}bn in {_fy(LEAD_YEAR)} and "
-            f"£{PREVIOUS_BOOTSTRAP_SD_BN[BENCHMARK_YEAR]:.2f}bn in {_fy(BENCHMARK_YEAR)} on the 30 funded hours.")
+    return (f"In {_fy(year)} the ten largest gaining families (by weight times gain, on the single take-up draw) carry "
+            f"{c['top_ten_share_pct']:.0f}% of the static cost and the largest alone {c['largest_share_pct']:.0f}%. "
+            "The sampling uncertainty this leaves is on the Budget impact tab.")
 
 
 SALARY_SACRIFICE_URL = (
@@ -213,9 +220,9 @@ LSR_ALTERNATIVE = ("Parents respond: partners move into work (OBR participation 
                    "income rises (a childcare-price and an OBR income elasticity)")
 
 
-def modelling_assumptions(a, effects, labour_supply_offset, tfc):
+def modelling_assumptions(a, effects, labour_supply_offset, tfc, per_point_m):
     """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
-    e30, etfc = a["would_claim_30_hours_pct"], a["would_claim_tfc_pct"]
+    etfc = a["would_claim_tfc_pct"]
     return [
         {
             "id": "static",
@@ -240,14 +247,18 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc):
         {
             "id": "take_up",
             "title": "Who claims",
-            "ours": f"{int(e30['families_with_child_under_5'] + 0.5)}% of eligible families claim the 30 hours; "
+            "ours": f"The 30 hours' cost averaged over the take-up draw ({EXTENDED_TAKE_UP_RATE:.0%} of families claim); "
                     f"{int(etfc['families_with_child_under_12'] + 0.5)}% of families carry a Tax-Free Childcare claim "
                     "flag, but only those reporting paid registered childcare get a top-up",
             "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
             "source": _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
-            "modelled": "Each family's decision to claim comes from the dataset's existing take-up draws, held "
-                        "fixed for newly eligible families: a family that would not claim today does not claim under "
-                        "the reform either. The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and "
+            "modelled": "The dataset draws once whether each family would claim the 30 hours, at the take-up "
+                        f"contract's working-parent rate ({EXTENDED_TAKE_UP_RATE:.1%}). Because a few heavily weighted "
+                        "families decide much of the cost, the central figure averages over that draw: each newly "
+                        "eligible family's cost if it claims, times the rate (expectation.py). Each percentage point "
+                        f"of the rate moves the 30 hours' cost by about £{per_point_m[str(LEAD_YEAR)]}m in "
+                        f"{_fy(LEAD_YEAR)}; the figure on the single draw is on the Budget impact tab. The "
+                        "Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and "
                         "account counts, not a take-up rate: a family gets a top-up only on the paid registered "
                         "childcare it reports, so use is limited by reported spending (the table shows both). "
                         "Nothing identifies take-up among families over £100,000, who are not eligible today, so the "
@@ -259,6 +270,9 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc):
                      f"{PEUK}/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"),
                 _src("would_claim_tfc", f"{PEUK}/hmrc/tax_free_childcare/would_claim_tfc.py"),
                 _src("How we compute the rates (aggregate.py)", f"{THIS_REPO}/aggregate.py"),
+                _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
+                _src("The 30-hours rate in the release's take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
+                _src("Expected-mode costing (#7)", "https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/7"),
                 _src("Microcosm's take-up analysis (#8)", TFC_TAKE_UP_SOURCE_URL),
             ],
             "alternative": f"{TFC_TAKE_UP_NEWLY_ELIGIBLE_LOW:.0%} of newly eligible families claim Tax-Free Childcare",
@@ -337,10 +351,12 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc):
 # their deduction for parents bunching just under £100,000.
 CENTAX_STATIC_BN = {2027: 0.80, 2029: 0.98}
 CENTAX_STATIC_BEFORE_BUNCHING_BN = {2027: 0.86, 2029: 1.07}
-# Sampling noise on the 30 funded hours' static cost: a bootstrap over FRS source households by the Microcosm
-# team on the previous release, a858c100 (María Juaristi, uk-childcare-100k-threshold#8, 21 October 2026). None
-# has been run on a133f37a.
-PREVIOUS_BOOTSTRAP_SD_BN = {2027: 0.13, 2029: 0.18}
+# María Juaristi's comment of 23 October 2026 on #8: her bootstrap over FRS source households on a133f37a (which
+# aggregate.bootstrap reproduces), the expected-mode costing, the age-profile sensitivity and the next release.
+UNCERTAINTY_SOURCE_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/pull/8#issuecomment-6370235552"
+# The 30 hours' change in 2027-28 with the newly entitled 1-to-4-year-olds on CenTax's gradient between under-3s and
+# 3-to-4s (her figure; aggregate.age_profile_sensitivity computes the even spread).
+CENTAX_GRADIENT_SENSITIVITY_BN = 0.13
 # Microcosm's analysis of the Tax-Free Childcare claim flag and the netting of new funded hours (#8, 22 October 2026).
 TFC_TAKE_UP_SOURCE_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/pull/8"
 
@@ -365,10 +381,24 @@ def _fy(year):
 
 def build(metas):
     runs = agg.load(SCENARIOS)
-    budget = agg.budget_block(runs)
+    expected = agg.load_expected()
+    # The single take-up draw (the central pair as the dataset draws it) and the expected cost, averaged over the
+    # 30-hours take-up draw at the contract rate (#7), which is the headline.
+    drawn = agg.budget_block(runs)
+    exp = agg.expected_costs(runs, expected)
+    budget = {k: exp[k] for k in ("thirty_hours", "tax_free_childcare", "total")}
+    # Nothing but the 30 hours and Tax-Free Childcare depends on the limits, so the net change differs from the gross
+    # by the same amount on either basis.
+    budget["net_total"] = {k: round(exp["total"][k] + drawn["net_total"][k] - drawn["total"][k], 3)
+                           for k in exp["total"]}
     sens = agg.sensitivities(runs)
-    # The central figure is the published gross total, to the last rounded digit.
-    sens["range_bn"]["central"] = dict(budget["total"])
+    # The range is the headline plus each sensitivity's effect (measured on the drawn pairs), to the last digit.
+    for k, central in budget["total"].items():
+        sens["range_bn"]["central"][k] = central
+        sens["range_bn"]["low"][k] = round(central + sens["effects_bn"][agg.ROUTED_LOW][k], 3)
+        sens["range_bn"]["high"][k] = round(central + sens["effects_bn"]["full_30_hour_usage"][k], 3)
+    uncertainty = agg.bootstrap(runs, expected)
+    age_profile = agg.age_profile_sensitivity(runs)
     validation = baseline_validation(runs)
     assumptions = agg.assumptions(runs)
     limitations = list(LIMITATIONS)
@@ -376,6 +406,7 @@ def build(metas):
     limitations[-1:] = (data_limitations(validation) + [concentration_limitation(concentration, LEAD_YEAR)]
                         + limitations[-1:])
     tfc = agg.tax_free_childcare_leg(runs)
+    tfc["central"] = dict(budget["tax_free_childcare"])
 
     lsr = agg.labour_supply(budget["total"])
     grid = household_grid()
@@ -407,7 +438,28 @@ def build(metas):
         "budget": {
             "gross_bn": {k: budget[k] for k in ("thirty_hours", "tax_free_childcare", "total")},
             "net_bn": {"total": budget["net_total"]},
-            "thirty_hours_components_bn": agg.thirty_hours_components(runs),
+            # The same costs on the dataset's single take-up draw; the breakdowns by family, income and region,
+            # the sensitivities and the labour supply response are measured on it.
+            "single_draw_bn": {k: drawn[k] for k in ("thirty_hours", "tax_free_childcare", "total")},
+            "thirty_hours_take_up": {
+                "rate": exp["take_up_rate"],
+                "rate_source_url": EXTENDED_TAKE_UP_SOURCE_URL,
+                "per_point_m": exp["thirty_hours_per_point_m"],
+            },
+            "uncertainty": {
+                **uncertainty,
+                "method": "Bootstrap over FRS source households: each draw resamples them with replacement, each "
+                          "with all its Microcosm copies, the release weights fixed. Calibration is held fixed and "
+                          "the FRS's clustering is ignored, so it is a floor on the sampling uncertainty.",
+                "reproduces_url": UNCERTAINTY_SOURCE_URL,
+            },
+            "age_profile_sensitivity": {
+                **age_profile,
+                "centax_gradient_bn": CENTAX_GRADIENT_SENSITIVITY_BN,
+                "source_url": UNCERTAINTY_SOURCE_URL,
+            },
+            "thirty_hours_components_bn": agg.thirty_hours_components(
+                {**runs, **expected}, pair=("baseline_claim_all", "reform_claim_all"), scale=EXTENDED_TAKE_UP_RATE),
             # The Tax-Free Childcare leg: central (new funded hours netted off childcare spending), before that
             # netting, and with take-up among newly eligible families at 70% (expectation basis).
             "tax_free_childcare_bn": tfc,
@@ -438,7 +490,8 @@ def build(metas):
         "cliff_example": cliff_example(grid),
         "household_grid": grid,
         "modelling_assumptions": modelling_assumptions(assumptions, sens["effects_bn"],
-                                                       lsr["total_offset_bn"]["central"], tfc),
+                                                       lsr["total_offset_bn"]["central"], tfc,
+                                                       exp["thirty_hours_per_point_m"]),
         "labour_supply": {
             **lsr,
             "assumptions": {

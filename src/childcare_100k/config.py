@@ -81,6 +81,25 @@ SCENARIOS = {
                        "net_new_hours": True},
 }
 
+# Expected mode (expectation.py, #7): the take-up contract's working-parent rate for the 30 hours,
+# extended_childcare from 6 April 2024, in take_up_contract.json at PolicyEngine/microcosm 829c1bc26
+# (the commit the release was cut from). The universal flag is nested under it at a conditional
+# rate of zero, so the pair sets both. The central cost is this rate times the pair's cost.
+EXTENDED_TAKE_UP_RATE = 0.8361
+EXTENDED_TAKE_UP_SOURCE_URL = (
+    "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/"
+    "packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+)
+CLAIM_30_HOURS = {"would_claim_extended_childcare": True, "would_claim_universal_childcare": True}
+EXPECTED_SCENARIOS = {
+    "baseline_claim_all": {"params": [], "inputs": CLAIM_30_HOURS},
+    "reform_claim_all": {"params": _REFORM, "inputs": CLAIM_30_HOURS, "base": "baseline_claim_all"},
+}
+# Bootstrap over FRS source households (aggregate.bootstrap): each source household is drawn with all
+# its Microcosm copies, the release weights fixed.
+BOOTSTRAP_DRAWS = 2000
+BOOTSTRAP_SEED = 20261023
+
 # Free-hours spending: the 30-hours leg is the change in all three entitlements.
 # policyengine-uk 2.147.2 keeps the universal and targeted 15 hours when a family becomes
 # eligible for the extended entitlement and counts as extended only each child's hours

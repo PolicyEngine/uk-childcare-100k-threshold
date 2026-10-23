@@ -16,11 +16,16 @@ import numpy as np
 from microdf import MicroSeries
 
 from .config import (
+    BOOTSTRAP_DRAWS,
+    BOOTSTRAP_SEED,
+    EXPECTED_SCENARIOS,
+    EXTENDED_TAKE_UP_RATE,
     FAMILY_TYPES,
     FREE_HOURS_DISPLACEMENT_RANGE,
     FREE_HOURS_VARIABLES,
     GAIN_THRESHOLD,
     INCOME_BASIS_SENSITIVITIES,
+    LEAD_YEAR,
     MIN_CELL_RECORDS,
     PRICE_BASIS_SENSITIVITIES,
     REGIONS,
@@ -107,14 +112,15 @@ def budget_block(runs, years=YEARS, pair=("baseline", "reform")):
     return out
 
 
-def thirty_hours_components(runs, years=YEARS):
-    """The 30-hours leg split by entitlement (£bn). The universal and targeted lines stay at zero (corrections.py)."""
-    b, r = runs["baseline"], runs["reform"]
+def thirty_hours_components(runs, years=YEARS, pair=("baseline", "reform"), scale=1.0):
+    """The 30-hours leg split by entitlement (£bn): the pair's change times ``scale`` (the take-up rate for the
+    claim-all pair, so the extended line is the expected cost). The universal and targeted lines stay at zero."""
+    b, r = runs[pair[0]], runs[pair[1]]
     out = {}
     for v in FREE_HOURS_VARIABLES:
         key = v.replace("_childcare_entitlement", "")
         out[key] = {
-            str(y): _bn(_hh(r(y, f"hh_{v}") - b(y, f"hh_{v}"), _weights(b, r, y, "hh")).sum()) for y in years
+            str(y): _bn(scale * _hh(r(y, f"hh_{v}") - b(y, f"hh_{v}"), _weights(b, r, y, "hh")).sum()) for y in years
         }
     return out
 
@@ -599,3 +605,147 @@ def gender(runs, years=YEARS):
             })
         out[str(y)] = {"families_gaining_by_earner": _complement(cells, sizes), "partner_not_working": partner}
     return out
+
+
+# ── Expected mode, bootstrap and age profile (#7; María Juaristi, #8, 23 October 2026) ─────────────
+
+
+class ExpectedRun(Run):
+    """An expected-mode run (expectation.py), refused unless its provenance and that module's hash match."""
+
+    def __init__(self, scenario):
+        from .expectation import load_meta as load_expected_meta
+
+        load_expected_meta(scenario)
+        self.z = np.load(run_path(scenario))
+
+
+def load_expected():
+    return {s: ExpectedRun(s) for s in EXPECTED_SCENARIOS}
+
+
+def household_changes(runs, expected, year, rate=EXTENDED_TAKE_UP_RATE):
+    """Each household's weighted change in spending (£) on the 30 hours and Tax-Free Childcare, drawn and expected.
+
+    Drawn: the central pair, on the dataset's single take-up draw. Expected: the cost averaged over the 30-hours
+    take-up draw at the contract rate. Every family claims in the claim-all pair, so a newly eligible family's
+    30-hours cost is ``rate`` times its cost there. Its Tax-Free Childcare is the netted top-up if it claims the
+    new hours and the top-up before netting if it does not, weighted ``rate`` and ``1 - rate``. The Tax-Free
+    Childcare and hours-usage draws are held as drawn.
+    """
+    b, r = runs["baseline"], runs["reform"]
+    bc, rc = expected["baseline_claim_all"], expected["reform_claim_all"]
+    w = _weights(b, r, year, "hh")
+    if not np.array_equal(w, _weights(bc, rc, year, "hh")):
+        raise ValueError(f"{year}: household weights differ between the drawn and claim-all pairs")
+    drawn_free = (r(year, "hh_free") - b(year, "hh_free")) * w
+    drawn_tfc = (r(year, "hh_tfc") - b(year, "hh_tfc")) * w
+    all_free = (rc(year, "hh_free") - bc(year, "hh_free")) * w
+    exp_tfc = (rate * rc(year, "hh_tfc") + (1 - rate) * rc(year, "hh_tfc_before_netting") - bc(year, "hh_tfc")) * w
+    return {
+        "drawn": {"thirty_hours": drawn_free, "tax_free_childcare": drawn_tfc},
+        "expected": {"thirty_hours": rate * all_free, "tax_free_childcare": exp_tfc},
+        "claim_all_thirty_hours": all_free,
+    }
+
+
+def expected_costs(runs, expected, years=YEARS, rate=EXTENDED_TAKE_UP_RATE):
+    """Static gross costs (£bn) on the expected basis, and the 30 hours' change per 0.01 of the take-up rate (£m)."""
+    out = {"thirty_hours": {}, "tax_free_childcare": {}, "total": {}, "thirty_hours_per_point_m": {},
+           "take_up_rate": rate}
+    for y in years:
+        h = household_changes(runs, expected, y, rate)
+        k = str(y)
+        out["thirty_hours"][k] = _bn(h["expected"]["thirty_hours"].sum())
+        out["tax_free_childcare"][k] = _bn(h["expected"]["tax_free_childcare"].sum())
+        out["total"][k] = round(out["thirty_hours"][k] + out["tax_free_childcare"][k], 3)
+        out["thirty_hours_per_point_m"][k] = int(round(float(h["claim_all_thirty_hours"].sum()) / 100 / 1e6))
+    return out
+
+
+def household_source_codes(runs, year):
+    """Each simulated household's FRS source household (an integer code), read from the pinned release.
+
+    Microcosm copies an FRS household several times (SPI, high-value-home and CGT copies), so copies of one source
+    household are not independent. The dataset's ``household_source_id`` is joined to the simulation's households
+    through its person ids; every member of a household must share one source household.
+    """
+    import pandas as pd
+
+    from .datasets import dataset_path
+
+    b = runs["baseline"]
+    path = dataset_path()
+    person = pd.read_hdf(path, "person")[["person_id", "person_household_id"]]
+    household = pd.read_hdf(path, "household")[["household_id", "household_source_id"]]
+    if household["household_source_id"].isna().any():
+        raise ValueError("a household has no source household id")
+    hh_of_person = pd.Series(person["person_household_id"].to_numpy(), index=person["person_id"].to_numpy())
+    source_of_hh = pd.Series(household["household_source_id"].to_numpy(), index=household["household_id"].to_numpy())
+    p_source = source_of_hh.loc[hh_of_person.loc[b(year, "p_id")].to_numpy()].to_numpy()
+    codes, uniques = pd.factorize(p_source)
+    p_household = b(year, "p_household")
+    hh_code = np.full(len(b(year, "hh_weight")), -1, dtype=np.int64)
+    hh_code[p_household] = codes
+    if (hh_code < 0).any():
+        raise ValueError("a household has no members")
+    if not np.array_equal(hh_code[p_household], codes):
+        raise ValueError("a household's members come from different source households")
+    return hh_code, len(uniques)
+
+
+def bootstrap(runs, expected, years=(2027, 2029), draws=BOOTSTRAP_DRAWS, seed=BOOTSTRAP_SEED):
+    """Sampling uncertainty of the static costs: a bootstrap over FRS source households.
+
+    Each draw resamples the source households with replacement, each with all its Microcosm copies, the release
+    weights fixed (calibration is not redone), and ignores the FRS's clustering, so it is a floor on the
+    uncertainty. Also counts the source households the 30-hours cost rests on and their effective number (Kish,
+    over their shares of the cost). Aggregates only.
+    """
+    rng = np.random.default_rng(seed)
+    out = {"draws": draws, "seed": seed, "by_year": {}}
+    for y in years:
+        code, n = household_source_codes(runs, y)
+        counts = rng.multinomial(n, np.full(n, 1.0 / n), size=draws)
+        h = household_changes(runs, expected, y)
+        year_out = {}
+        for basis in ("drawn", "expected"):
+            legs = {leg: np.bincount(code, weights=h[basis][leg], minlength=n) for leg in h[basis]}
+            legs["total"] = legs["thirty_hours"] + legs["tax_free_childcare"]
+            year_out[basis] = {}
+            for leg, per_source in legs.items():
+                sample = counts @ per_source / BN
+                p5, p95 = np.percentile(sample, [5, 95])
+                year_out[basis][leg] = {"sd_bn": round(float(sample.std(ddof=1)), 3), "p5_bn": round(float(p5), 3),
+                                        "p95_bn": round(float(p95), 3)}
+        cost = np.bincount(code, weights=h["drawn"]["thirty_hours"], minlength=n)
+        gaining = cost[cost > GAIN_THRESHOLD]
+        year_out["source_households_30_hours"] = int(round(len(gaining), -1))
+        year_out["effective_source_households_30_hours"] = int(round(float(gaining.sum() ** 2 / (gaining ** 2).sum()), -1))
+        out["by_year"][str(y)] = year_out
+    return out
+
+
+def age_profile_sensitivity(runs, year=LEAD_YEAR):
+    """The 30-hours cost with the newly entitled 1-to-4-year-olds spread evenly across those ages (£bn change).
+
+    Holds their weighted number fixed and gives each age a quarter of it at that age's mean cost per newly entitled
+    child. One-sided: the release has few 1-year-olds in families over £100,000, the dearest age to fund. Also
+    each age's share of children in families with a parent over £100,000 (%).
+    """
+    b, r = runs["baseline"], runs["reform"]
+    age, w = b(year, "p_age"), b(year, "p_weight")
+    gain = r(year, "p_free_value") - b(year, "p_free_value")
+    newly = gain > GAIN_THRESHOLD
+    number, cost = {}, {}
+    for a in (1, 2, 3, 4):
+        m = newly & (age == a)
+        number[a], cost[a] = float(w[m].sum()), float((gain * w)[m].sum())
+    total_number = sum(number.values())
+    even = sum(total_number / 4 * cost[a] / number[a] for a in number)
+    over = b(year, "bu_any_over")[b(year, "p_benunit")]
+    child = b(year, "p_is_child")
+    share = {str(a): round(float(100 * w[child & over & (age == a)].sum() / w[child & (age == a)].sum()), 1)
+             for a in range(5)}
+    return {"year": year, "even_spread_bn": _bn(even - sum(cost.values())), "share_over_limit_by_age_pct": share,
+            "babies_bn": _bn((gain * w)[newly & (age == 0)].sum())}
