@@ -732,10 +732,6 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
           </Expandable>
           <RangeNote data={data} basis={chosen.id} />
         </ExpandableGroup>
-        <p className="mt-3 text-sm text-slate-600" data-testid="uncertainty-method-link">
-          On Methodology: why the central cost uses <a href="?tab=method#take-up-method">expected take-up</a>, and why
-          the <a href="?tab=method#age-profile">age profile</a> can only push it up.
-        </p>
       </Section>
 
     </div>

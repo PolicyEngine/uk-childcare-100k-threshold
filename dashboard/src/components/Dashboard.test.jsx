@@ -433,15 +433,14 @@ describe("the take-up control", () => {
     expect(document.getElementById("take-up-rates").closest("details")).not.toBeNull();
   });
 
-  it("groups the boxes under the range chart and links to the take-up and age notes on Methodology", () => {
+  it("groups the boxes under the range chart, with no pointer line to Methodology under them", () => {
     render(<LandingTab data={data} />);
     const group = screen.getByTestId("uncertainty-notes");
     expect(group.className).toContain("expandable-group");
     expect([...group.children].map((c) => c.dataset.testid)).toEqual(["uncertainty-expandable", "note-range"]);
     expect(screen.queryByTestId("take-up-note")).toBeNull();
     expect(screen.queryByTestId("note-age")).toBeNull();
-    const links = within(screen.getByTestId("uncertainty-method-link")).getAllByRole("link");
-    expect(links.map((a) => a.getAttribute("href"))).toEqual(["?tab=method#take-up-method", "?tab=method#age-profile"]);
+    expect(screen.queryByTestId("uncertainty-method-link")).toBeNull();
   });
 
   it("adds the labour supply response to the chosen basis's cost", () => {
