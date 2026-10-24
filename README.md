@@ -9,7 +9,7 @@ The universal 15 hours for 3- and 4-year-olds is unaffected.
 ## Data and model
 
 - **Data:** Microcosm UK 2024-25, the national release cut on 23 October 2026 (`microcosm-uk-2024-25-national-20261023T075039Z-a133f37a`, from PolicyEngine/microcosm#1338 at 829c1bc26), pinned by this repository at commit `c3a751d9` with sha256 `64f83900…` and verified before every run. It is the only dataset. The release has its own signed certification; no policyengine.py bundle registers it yet, so the population runs pass the verified file to `managed_microsimulation()` with `allow_unmanaged=True`.
-- **Model:** policyengine-uk 2.147.2 (with policyengine-core 3.33.3), the version the release manifest pins, pinned in `pyproject.toml`, run through policyengine.py 6.10.0 (whose own bundle carries 2.132.6, so it is installed without its `[uk]` extra).
+- **Model:** policyengine-uk 2.147.2 (with policyengine-core 3.33.3), the version the release manifest pins, pinned in `pyproject.toml`, run through policyengine.py 6.10.2 (whose own bundle carries 2.132.6, so it is installed without its `[uk]` extra).
 - **Weighting:** microdf throughout; no weights are applied by hand.
 - **No fallbacks:** a missing token, a sha256 mismatch, a stale cached run or a missing provenance field stops the build.
 

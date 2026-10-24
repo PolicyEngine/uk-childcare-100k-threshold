@@ -57,10 +57,15 @@ describe("the page", () => {
     }
   });
 
-  it("names the policyengine.py version and the dataset in the footer, from the file", () => {
+  it("names the policyengine.py version in the footer, from the file, and links the replication code", () => {
     render(<Dashboard data={data} />);
-    const text = screen.getByTestId("replication").textContent;
-    expect(text).toContain(`policyengine.py ${data.meta.policyengine} on Microcosm UK 2024-25. Replication code`);
+    const footer = screen.getByTestId("replication");
+    expect(footer.textContent).toBe(
+      `Built with policyengine.py ${data.meta.policyengine}. Replication code: PolicyEngine/uk-childcare-100k-threshold.`,
+    );
+    expect(within(footer).getByRole("link", { name: "PolicyEngine/uk-childcare-100k-threshold" }).getAttribute("href")).toBe(
+      "https://github.com/PolicyEngine/uk-childcare-100k-threshold",
+    );
   });
 
   it("states the modelled period in the intro, from the file", () => {

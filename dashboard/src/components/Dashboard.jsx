@@ -66,15 +66,15 @@ function getInitialTab(tabParam) {
   return TAB_OPTIONS.some((t) => t.id === tab) ? tab : DEFAULT_TAB;
 }
 
-/** "Replication code: PolicyEngine/uk-childcare-100k-threshold." */
+/** "Built with policyengine.py <version from results meta>. Replication code: PolicyEngine/uk-childcare-100k-threshold." */
 export function ReplicationLine({ meta }) {
   return (
     <p data-testid="replication">
       Built with{" "}
       <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noopener noreferrer">
         policyengine.py {meta.policyengine}
-      </a>{" "}
-      on {(meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "")}. Replication code:{" "}
+      </a>
+      . Replication code:{" "}
       <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
         PolicyEngine/uk-childcare-100k-threshold
       </a>
