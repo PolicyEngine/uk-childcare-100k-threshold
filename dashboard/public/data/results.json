@@ -28,9 +28,9 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-24T22:09:38+00:00",
-  "git_revision": "bb99328c55208f6bdf5d269251e6c9d6bde21706",
-  "aggregation_sha256": "e25469f5af755277594d260487569cb297335e8f7da6775efc17e0888059c63b",
+  "generated_at": "2026-10-24T22:42:07+00:00",
+  "git_revision": "f59ef990c4271ed1b52323f9501bc6423631c2ff",
+  "aggregation_sha256": "ed9b8f54e2ba4403e215352febdea40fa3cea9f39e60054f86b35e11187d8623",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 71.6,
@@ -25597,7 +25597,7 @@
    "modelled": "Both runs keep every family's earnings, hours of work, pension contributions and childcare spending as they are; [Labour supply](#labour-supply) sets out the response.",
    "sources": [
     {
-     "label": "OBR participation and income elasticities",
+     "label": "OBR income elasticities",
      "url": "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf"
     },
     {
@@ -25609,12 +25609,12 @@
      "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/docs/METHOD.md"
     }
    ],
-   "alternative": "Parents respond: partners move into work and parents in work change their hours",
+   "alternative": "Parents in work change their hours",
    "effect_bn": {
-    "2026": -0.145,
-    "2027": -0.156,
-    "2028": -0.161,
-    "2029": -0.163
+    "2026": -0.155,
+    "2027": -0.167,
+    "2028": -0.172,
+    "2029": -0.179
    }
   },
   {
@@ -25793,318 +25793,6 @@
   }
  ],
  "labour_supply": {
-  "extensive": {
-   "offset_bn": {
-    "central": {
-     "2026": -0.01,
-     "2027": -0.011,
-     "2028": -0.011,
-     "2029": -0.016
-    },
-    "low": {
-     "2026": -0.004,
-     "2027": -0.005,
-     "2028": -0.005,
-     "2029": -0.005
-    },
-    "high": {
-     "2026": -0.016,
-     "2027": -0.018,
-     "2028": -0.019,
-     "2029": -0.033
-    }
-   },
-   "tax_and_ni_bn": {
-    "central": {
-     "2026": -0.009,
-     "2027": -0.01,
-     "2028": -0.011,
-     "2029": -0.016
-    },
-    "low": {
-     "2026": -0.004,
-     "2027": -0.005,
-     "2028": -0.005,
-     "2029": -0.005
-    },
-    "high": {
-     "2026": -0.016,
-     "2027": -0.017,
-     "2028": -0.018,
-     "2029": -0.032
-    }
-   },
-   "entrants": {
-    "central": {
-     "2026": 1600,
-     "2027": 1700,
-     "2028": 1800,
-     "2029": 2200
-    },
-    "low": {
-     "2026": 600,
-     "2027": 700,
-     "2028": 700,
-     "2029": 700
-    },
-    "high": {
-     "2026": 2900,
-     "2027": 3100,
-     "2028": 3400,
-     "2029": 4400
-    }
-   },
-   "leavers": {
-    "central": {
-     "2026": 0,
-     "2027": 0,
-     "2028": 0,
-     "2029": 0
-    },
-    "low": {
-     "2026": 0,
-     "2027": 0,
-     "2028": 0,
-     "2029": 0
-    },
-    "high": {
-     "2026": 0,
-     "2027": 0,
-     "2028": 0,
-     "2029": 0
-    }
-   },
-   "ftes": {
-    "central": {
-     "2026": 800,
-     "2027": 800,
-     "2028": 900,
-     "2029": 1100
-    },
-    "low": {
-     "2026": 300,
-     "2027": 300,
-     "2028": 300,
-     "2029": 400
-    },
-    "high": {
-     "2026": 1400,
-     "2027": 1600,
-     "2028": 1700,
-     "2029": 2200
-    }
-   },
-   "earnings_bn": {
-    "central": {
-     "2026": 0.025,
-     "2027": 0.027,
-     "2028": 0.03,
-     "2029": 0.035
-    },
-    "low": {
-     "2026": 0.009,
-     "2027": 0.01,
-     "2028": 0.011,
-     "2029": 0.012
-    },
-    "high": {
-     "2026": 0.046,
-     "2027": 0.051,
-     "2028": 0.056,
-     "2029": 0.07
-    }
-   },
-   "implied_by_over_limit": {
-    "central": {
-     "2026": 300,
-     "2027": 400,
-     "2028": 400,
-     "2029": 400
-    },
-    "low": {
-     "2026": 100,
-     "2027": 100,
-     "2028": 100,
-     "2029": 100
-    },
-    "high": {
-     "2026": 700,
-     "2027": 700,
-     "2028": 800,
-     "2029": 800
-    }
-   },
-   "non_worker_rule_entrants": {
-    "central": {
-     "2026": 1000,
-     "2027": 1000,
-     "2028": 1000,
-     "2029": 1400
-    },
-    "low": {
-     "2026": 300,
-     "2027": 300,
-     "2028": 300,
-     "2029": 500
-    },
-    "high": {
-     "2026": 2000,
-     "2027": 2100,
-     "2028": 2100,
-     "2029": 2700
-    }
-   },
-   "entry_capped": {
-    "central": {
-     "2026": 300,
-     "2027": 300,
-     "2028": 300,
-     "2029": 0
-    },
-    "low": {
-     "2026": 0,
-     "2027": 0,
-     "2028": 0,
-     "2029": 0
-    },
-    "high": {
-     "2026": 800,
-     "2027": 800,
-     "2028": 800,
-     "2029": 0
-    }
-   },
-   "allocated_by_cell_level": {
-    "sex_couple_child_quintile": {
-     "central": {
-      "2026": 800,
-      "2027": 800,
-      "2028": 900,
-      "2029": 900
-     },
-     "low": {
-      "2026": 300,
-      "2027": 300,
-      "2028": 300,
-      "2029": 300
-     },
-     "high": {
-      "2026": 1600,
-      "2027": 1600,
-      "2028": 1700,
-      "2029": 1700
-     }
-    },
-    "sex_couple_child": {
-     "central": {
-      "2026": 1000,
-      "2027": 1100,
-      "2028": 1200,
-      "2029": 1300
-     },
-     "low": {
-      "2026": 300,
-      "2027": 400,
-      "2028": 400,
-      "2029": 400
-     },
-     "high": {
-      "2026": 2000,
-      "2027": 2200,
-      "2028": 2400,
-      "2029": 2600
-     }
-    },
-    "sex_couple": {
-     "central": {
-      "2026": 0,
-      "2027": 0,
-      "2028": 0,
-      "2029": 0
-     },
-     "low": {
-      "2026": 0,
-      "2027": 0,
-      "2028": 0,
-      "2029": 0
-     },
-     "high": {
-      "2026": 0,
-      "2027": 0,
-      "2028": 0,
-      "2029": 0
-     }
-    },
-    "everyone": {
-     "central": {
-      "2026": 0,
-      "2027": 0,
-      "2028": 0,
-      "2029": 0
-     },
-     "low": {
-      "2026": 0,
-      "2027": 0,
-      "2028": 0,
-      "2029": 0
-     },
-     "high": {
-      "2026": 0,
-      "2027": 0,
-      "2028": 0,
-      "2029": 0
-     }
-    }
-   },
-   "entry_sensitivity": {
-    "central_offset_m": {
-     "2026": -9.8,
-     "2027": -10.6,
-     "2028": -11.3,
-     "2029": -16.4
-    },
-    "same_cell_only": {
-     "offset_m": {
-      "2026": -4.3,
-      "2027": -4.4,
-      "2028": -4.5,
-      "2029": -8.5
-     },
-     "entrants": {
-      "2026": 600,
-      "2027": 600,
-      "2028": 600,
-      "2029": 900
-     },
-     "earnings_bn": {
-      "2026": 0.008,
-      "2027": 0.008,
-      "2028": 0.009,
-      "2029": 0.013
-     }
-    },
-    "worker_profile": {
-     "offset_m": {
-      "2026": -6.7,
-      "2027": -6.2,
-      "2028": -5.9,
-      "2029": -11.0
-     },
-     "entrants": {
-      "2026": 1600,
-      "2027": 1700,
-      "2028": 1800,
-      "2029": 2200
-     },
-     "earnings_bn": {
-      "2026": 0.033,
-      "2027": 0.04,
-      "2028": 0.045,
-      "2029": 0.05
-     }
-    }
-   }
-  },
   "intensive": {
    "offset_bn": {
     "central": {
@@ -26851,68 +26539,59 @@
   },
   "total_offset_bn": {
    "central": {
-    "2026": 0.145,
-    "2027": 0.156,
-    "2028": 0.161,
-    "2029": 0.163
+    "2026": 0.155,
+    "2027": 0.167,
+    "2028": 0.172,
+    "2029": 0.179
    },
    "low": {
-    "2026": 0.048,
-    "2027": 0.051,
-    "2028": 0.053,
-    "2029": 0.055
+    "2026": 0.052,
+    "2027": 0.056,
+    "2028": 0.058,
+    "2029": 0.06
    },
    "high": {
-    "2026": 0.291,
-    "2027": 0.314,
-    "2028": 0.323,
-    "2029": 0.326
+    "2026": 0.307,
+    "2027": 0.332,
+    "2028": 0.342,
+    "2029": 0.359
    }
   },
   "dynamic_cost_bn": {
    "central": {
-    "2026": 0.836,
-    "2027": 0.89,
-    "2028": 0.946,
-    "2029": 1.033
+    "2026": 0.826,
+    "2027": 0.879,
+    "2028": 0.935,
+    "2029": 1.017
    },
    "low": {
-    "2026": 0.933,
-    "2027": 0.995,
-    "2028": 1.054,
-    "2029": 1.141
+    "2026": 0.929,
+    "2027": 0.99,
+    "2028": 1.049,
+    "2029": 1.136
    },
    "high": {
-    "2026": 0.69,
-    "2027": 0.732,
-    "2028": 0.784,
-    "2029": 0.87
+    "2026": 0.674,
+    "2027": 0.714,
+    "2028": 0.765,
+    "2029": 0.837
    }
   },
   "population": {
    "2026": {
-    "responding_adults": 905000,
-    "hours_responding_adults": 930000,
-    "adults_moved_outside_population": 1300
+    "hours_responding_adults": 930000
    },
    "2027": {
-    "responding_adults": 961000,
-    "hours_responding_adults": 986000,
-    "adults_moved_outside_population": 1300
+    "hours_responding_adults": 986000
    },
    "2028": {
-    "responding_adults": 1009000,
-    "hours_responding_adults": 1035000,
-    "adults_moved_outside_population": 0
+    "hours_responding_adults": 1035000
    },
    "2029": {
-    "responding_adults": 1070000,
-    "hours_responding_adults": 1096000,
-    "adults_moved_outside_population": 0
+    "hours_responding_adults": 1096000
    }
   },
   "assumptions": {
-   "participation_elasticities": "[OBR Table A1](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=8), by sex, partner's work, age of youngest child and earnings quintile, converted to the gain to work and applied to the employed share ([Adam and Phillips, Appendix E](https://ifs.org.uk/sites/default/files/output_url_files/r75.pdf#page=132))",
    "price_elasticity_central": -0.15,
    "price_elasticity_low": -0.05,
    "price_elasticity_high": -0.3,
@@ -26923,9 +26602,8 @@
    },
    "hours_price_elasticity": -0.042,
    "income_elasticities": "[Table A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9), by sex, whether in a couple and age of youngest child: from -0.185 (a woman in a couple, youngest child 0-2) to -0.037 (a lone mother, youngest 0-4); -0.05 for a man in a couple",
-   "couples": "The OBR's groups ([Tables A1 and A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=8)) treat married and cohabiting couples alike, so we group adults by whether they are in a couple, not by legal marriage.",
+   "couples": "The OBR's income elasticity groups ([Table A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9)) treat married and cohabiting couples alike, so we group adults by whether they are in a couple, not by legal marriage.",
    "couples_issue_url": "https://github.com/PolicyEngine/policyengine-uk/issues/2190",
-   "hours_for_new_entrants": 18.8,
    "free_hours_displacement": 0.9053,
    "free_hours_displacement_range": {
     "low": 0.714,
@@ -26934,16 +26612,14 @@
    "hours_price_elasticity_status": "extrapolated scenario assumption, not an estimated price elasticity",
    "elasticity_scales_status": "illustrative, not a sourced uncertainty interval"
   },
-  "responding_population": "Both parents in families whose youngest child is under 12 and where a parent's income is over £100,000, leaving out the self-employed, students and people aged 60 and over, as the [OBR](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9) does. Those not in work may start, except disabled adults; those in work may change their hours.",
-  "not_modelled": "Bunching: parents who today keep their income at or just below £100,000 and would earn more without the limit.",
+  "responding_population": "Both parents in families whose youngest child is under 12 and where a parent's income is over £100,000, leaving out the self-employed, students and people aged 60 and over, as the [OBR](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9) does. Those in work may change their hours.",
+  "not_modelled": "Bunching (parents who today keep their income at or just below £100,000 earning more without the limit) and partners who do not work moving into work. CenTax estimate both; we do not model them.",
   "notes": [
-   "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the two offsets (moving into work and hours), at the same bound; the static total is the headline, on DfE's take-up by age, and the offsets are measured on the dataset's single take-up draw; the hours offset is its price effect (money back) plus its income effect (money out). On another take-up basis the dashboard subtracts the same offsets. They apply to the total: they are not split by scheme.",
-   "Moving into work (extensive margin): the OBR elasticities are the percentage change in the probability of working for a percentage change in the gain to work (net of the childcare a parent would buy), converted from in-work income by the gain over in-work income. As in Adam and Phillips (Appendix E) they apply to the employed share: new employment is the sum over working adults of their own response, and it is shared among the non-working adults like them (who are the ones entering): those in the same OBR cell (sex, couple, age band of the youngest child, earnings quintile), in proportion to their own response, or, where the cell has no responding non-worker, in the nearest coarser cell (allocated_by_cell_level). The offset is entrants' earnings less the rise in their household's net income (tax and National Insurance paid, less the childcare support the family now receives) and less the Tax-Free Childcare top-up on the care they start buying. Entrants placed in a coarser cell take the non-workers' earnings, gain and subsidy from other earnings quintiles; entry_sensitivity reports the offset with them dropped (same_cell_only) and with them given the weighted median hourly wage of the workers who imply them, gain and subsidy recomputed (worker_profile), at central elasticities.",
-   "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; the parts are an attribution that adds up to it (the price change recomputed alone, the income effect the remainder; the at-or-below group alone, the over group the remainder). Price effect: -0.042 times the change in the price of the family's marginal hour of paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive margin. The marginal price is net of all the childcare-linked cash support on the next pound of spend, the model's own (Tax-Free Childcare, the Universal Credit childcare element and the other payments tied to childcare_expenses), read by raising the family's spend by £1 (not 1%, which near a cap averages over spending beyond it), today and, under the reform, at the spend the family still makes once the funded hours displace paid care; intensive_price_basis publishes it at today's spend (original_spend) and with Tax-Free Childcare alone (tfc_only). The 30 funded hours are a fixed amount, conditional only on both parents meeting the minimum earnings test, so for a family that still buys paid care on top of them they do not change what an extra hour costs; they lower the marginal price (to zero) only where they are worth more than all the paid care the family buys. Income effect: the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities, assigned to married and cohabiting couples alike) times the household's static gain as a percentage of its disposable income, as policyengine-uk's apply_progression_responses applies them except for the income measure. The gain is on the same disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid childcare the newly funded hours displace (their value at the displacement rate below, capped at what the family pays), with the reform's cash income recomputed by the model on the care the family still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither elasticity is measured on parents over £100,000.",
+   "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the hours offset, at the same bound; the static total is the headline, on DfE's take-up by age, and the offset is measured on the dataset's single take-up draw; it is the price effect (money back) plus the income effect (money out). On another take-up basis the dashboard subtracts the same offset. It applies to the total: it is not split by scheme.",
+   "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; the parts are an attribution that adds up to it (the price change recomputed alone, the income effect the remainder; the at-or-below group alone, the over group the remainder). Price effect: -0.042 times the change in the price of the family's marginal hour of paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, treated as a 100% price fall; it is a total-hours estimate, which includes mothers who start work. The marginal price is net of all the childcare-linked cash support on the next pound of spend, the model's own (Tax-Free Childcare, the Universal Credit childcare element and the other payments tied to childcare_expenses), read by raising the family's spend by £1 (not 1%, which near a cap averages over spending beyond it), today and, under the reform, at the spend the family still makes once the funded hours displace paid care; intensive_price_basis publishes it at today's spend (original_spend) and with Tax-Free Childcare alone (tfc_only). The 30 funded hours are a fixed amount, conditional only on both parents meeting the minimum earnings test, so for a family that still buys paid care on top of them they do not change what an extra hour costs; they lower the marginal price (to zero) only where they are worth more than all the paid care the family buys. Income effect: the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities, assigned to married and cohabiting couples alike) times the household's static gain as a percentage of its disposable income, as policyengine-uk's apply_progression_responses applies them except for the income measure. The gain is on the same disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid childcare the newly funded hours displace (their value at the displacement rate below, capped at what the family pays), with the reform's cash income recomputed by the model on the care the family still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither elasticity is measured on parents over £100,000.",
    "Whether newly funded hours cover a family's paid care, and how much paid care they save it, is judged on value, with funded hours assumed to displace paid care at 90.5% of their value (1 - 54/570, IFS BN189, which counts all displaced non-family care as paid). It is an assumption, published at 71.4% (only subsidisable care displaced, 1 - 163/570) and 100% (intensive_displacement), at central elasticities.",
-   "Low and high scale every elasticity (participation, price and income) by 1/3 and 2. The range is illustrative, not a sourced uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
-   "The income and family-type breakdowns, who gains and the household calculator are static.",
-   "Outside the responding population the reform should leave every adult's gain to work unchanged. In 2026-27 (about 1,300 adults) and 2027-28 (about 1,300 adults) it does not: in 2026-27 these are non-working adults whose own income is just under £100,000, so entering work would take them over the limit; the reform raises their gain to work by under £100 a year. They are not given a response, and the effect on the cost is negligible."
+   "Low and high scale every elasticity (price and income) by 1/3 and 2. The range is illustrative, not a sourced uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
+   "The income and family-type breakdowns, who gains and the household calculator are static."
   ]
  },
  "benchmarks": [

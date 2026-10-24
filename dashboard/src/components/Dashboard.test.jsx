@@ -292,26 +292,26 @@ describe("the labour supply control", () => {
   const ls = data.labour_supply;
   const lead = String(LEAD_YEAR);
 
-  it("opens static, and switching a margin on changes the cost card and the URL", () => {
+  it("opens static, and switching the hours response on changes the cost card and the URL", () => {
     router.replace.mockClear();
     render(<Dashboard data={data} />);
-    expect(screen.getByTestId("toggle-extensive").getAttribute("aria-checked")).toBe("false");
+    // One response: partners moving into work is not published.
+    expect(screen.queryByTestId("toggle-extensive")).toBeNull();
     expect(screen.getByTestId("toggle-intensive").getAttribute("aria-checked")).toBe("false");
-    expect(screen.queryByTestId("toggle-extensive-bound")).toBeNull();
+    expect(screen.queryByTestId("toggle-intensive-bound")).toBeNull();
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(data.budget.gross_bn.total[lead]));
 
     fireEvent.click(screen.getByTestId("toggle-intensive"));
     const cost = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.central[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
-    expect(screen.getByTestId("card-cost").textContent).toContain("(hours)");
+    expect(screen.getByTestId("card-cost").textContent).toContain("(parents' hours)");
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=int", { scroll: false });
 
-    fireEvent.click(screen.getByTestId("toggle-extensive"));
-    fireEvent.change(screen.getByTestId("toggle-extensive-bound"), { target: { value: "high" } });
     fireEvent.change(screen.getByTestId("toggle-intensive-bound"), { target: { value: "high" } });
-    const both = data.budget.gross_bn.total[lead] - ls.extensive.offset_bn.high[lead] - ls.intensive.offset_bn.high[lead];
-    expect(screen.getByTestId("card-cost").textContent).toContain(bn(both));
-    expect(router.replace).toHaveBeenLastCalledWith("/?ls=ext%3Ahigh%2Cint%3Ahigh", { scroll: false });
+    const high = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.high[lead];
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(high));
+    expect(screen.getByTestId("card-cost").textContent).toContain("(parents' hours at the high setting)");
+    expect(router.replace).toHaveBeenLastCalledWith("/?ls=int%3Ahigh", { scroll: false });
   });
 
   it("sits under the tab bar on Budget impact only, the one tab it changes", () => {
@@ -353,20 +353,23 @@ describe("the labour supply control", () => {
     expect(screen.queryByTestId("ls-intensive")).toBeNull();
   });
 
-  it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
+  it("fills the comparison's dynamic cost: hours with the range when off, the chosen setting when on", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);
     // The key figure, then the range and what it covers on a second line.
     expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])}${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("partners moving into work and hours, net of the income effect; bunching not modelled");
-    const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
-    const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)}moving into work at the low setting`);
+    expect(off).toContain("parents' hours only, net of the income effect");
+    expect(ls.dynamic_cost_bn.central[f]).toBeCloseTo(data.budget.gross_bn.total[f] - ls.intensive.offset_bn.central[f], 3);
+    const on = textOf(<MethodTab data={data} setting={{ intensive: true, bounds: { intensive: "low" } }} />);
+    const cost = data.budget.gross_bn.total[f] - ls.intensive.offset_bn.low[f];
+    expect(on).toContain(`${bn(cost)}parents' hours at the low setting`);
+    // Nothing on the page reports partners moving into work as a result.
+    expect(off).not.toMatch(/Partners moving into work:|Moving into work/);
   });
 
-  it("shows the money back in the yearly chart only when a margin is on", () => {
+  it("shows the money back in the yearly chart only when the hours response is on", () => {
     expect(textOf(<LandingTab data={data} />)).not.toContain("Back from parents working more");
-    expect(textOf(<LandingTab data={data} setting={{ extensive: true, intensive: true, bound: "central" }} />)).toContain(
+    expect(textOf(<LandingTab data={data} setting={{ intensive: true, bound: "central" }} />)).toContain(
       "Back from parents working more",
     );
   });

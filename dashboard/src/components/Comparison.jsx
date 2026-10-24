@@ -73,8 +73,8 @@ const Link = ({ href, children }) => (
 );
 
 /**
- * Our cost once parents change how much they work, in the final year. With the labour supply control off it shows
- * both margins at central elasticities with the low-high range; with it on, the margins and elasticities chosen. The
+ * Our cost once parents change how much they work, in the final year: the static cost less the hours offset. With
+ * the hours switch off it shows central elasticities with the low-high range; with it on, the setting chosen. The
  * key figure and its detail come back separately, for the table's two lines.
  */
 export function dynamicCell(data, setting) {
@@ -85,7 +85,7 @@ export function dynamicCell(data, setting) {
     const d = ls.dynamic;
     return {
       main: formatBn(d.central[li], 2),
-      sub: `${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}, an illustrative range; partners moving into work and hours, net of the income effect; bunching not modelled`,
+      sub: `${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}, an illustrative range; parents' hours only, net of the income effect`,
     };
   }
   const cost = budget.rows[li].total - labourSupplyOffset(data, setting)[li];

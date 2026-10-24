@@ -569,15 +569,14 @@ export function householdRows(grid, choice) {
 
 export const LS_BOUNDS = ["central", "low", "high"];
 export const LS_BOUND_LABELS = { central: "Central", low: "Low", high: "High" };
-/** The page opens static: no margin on, central elasticities. */
+/** The page opens static: the hours response off, central elasticities. */
 export const STATIC_SETTING = {
-  extensive: false,
   intensive: false,
   bound: "central",
-  bounds: { extensive: "central", intensive: "central" },
+  bounds: { intensive: "central" },
 };
 
-/** The labour supply block: each margin's offset (£bn by year, positive = money back) and the dynamic cost. */
+/** The labour supply block: the hours offset (£bn by year, positive = money back) and the dynamic cost. */
 export function getLabourSupply(data) {
   const years = getYears(data);
   const ls = data?.labour_supply;
@@ -588,7 +587,6 @@ export function getLabourSupply(data) {
     );
   const out = {
     years,
-    extensive: { offset: read(["extensive", "offset_bn"]), entrants: read(["extensive", "entrants"]), ftes: read(["extensive", "ftes"]) },
     intensive: {
       offset: read(["intensive", "offset_bn"]),
       ftes: read(["intensive", "ftes"]),
@@ -608,13 +606,10 @@ export function getLabourSupply(data) {
   };
   if (!isText(ls.not_modelled)) fail("labour_supply.not_modelled", "missing");
   if (!isText(ls.responding_population)) fail("labour_supply.responding_population", "missing");
-  if (!isText(ls.assumptions?.participation_elasticities)) fail("labour_supply.assumptions.participation_elasticities", "missing");
   if (!isText(ls.assumptions?.income_elasticities)) fail("labour_supply.assumptions.income_elasticities", "missing");
   if (!isText(ls.assumptions?.couples)) fail("labour_supply.assumptions.couples", "missing");
   if (!isText(ls.assumptions?.couples_issue_url)) fail("labour_supply.assumptions.couples_issue_url", "missing");
-  for (const k of ["hours_for_new_entrants", "free_hours_displacement"]) {
-    if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
-  }
+  if (!isNum(ls.assumptions?.free_hours_displacement)) fail("labour_supply.assumptions.free_hours_displacement", "missing");
   for (const b of ["low", "high"]) {
     if (!isNum(ls.assumptions?.elasticity_scales?.[b])) fail(`labour_supply.assumptions.elasticity_scales.${b}`, "missing");
     if (!isNum(ls.assumptions?.free_hours_displacement_range?.[b])) fail(`labour_supply.assumptions.free_hours_displacement_range.${b}`, "missing");
@@ -622,22 +617,24 @@ export function getLabourSupply(data) {
   for (const k of ["hours_price_elasticity", "price_elasticity_central", "price_elasticity_low", "price_elasticity_high"]) {
     if (!isNum(ls.assumptions?.[k])) fail(`labour_supply.assumptions.${k}`, "missing");
   }
-  // The dynamic cost must be the static total less both offsets, or the page's adjusted figures would not match it.
+  // The dynamic cost must be the static total less the hours offset, or the page's adjusted figures would not match
+  // it. The page describes the offset as money back, so a negative one must fail here rather than be mislabelled.
   const total = byYear(data?.budget?.gross_bn?.total, years, "budget.gross_bn.total");
   for (const b of LS_BOUNDS) {
     years.forEach((y, i) => {
-      if (out.extensive.entrants[b][i] < 0) fail("labour_supply.extensive.entrants", `${b} ${y}: negative`);
+      if (out.intensive.offset[b][i] < 0) fail("labour_supply.intensive.offset_bn", `${b} ${y}: negative`);
       const hours = out.intensive.price[b][i] + out.intensive.income[b][i];
       if (Math.abs(out.intensive.offset[b][i] - hours) > 0.002) fail("labour_supply.intensive.offset_bn", `${b} ${y}: not price plus income`);
-      const expected = total[i] - out.extensive.offset[b][i] - out.intensive.offset[b][i];
-      if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less the offsets`);
+      const expected = total[i] - out.intensive.offset[b][i];
+      if (Math.abs(out.dynamic[b][i] - expected) > 0.002) fail("labour_supply.dynamic_cost_bn", `${b} ${y}: not static less the hours offset`);
     });
   }
   return out;
 }
 
-const LS_KEYS = { extensive: "ext", intensive: "int" };
-const LS_WORDS = { extensive: "moving into work", intensive: "hours" };
+// One response, parents' hours. `ext` in an older URL (partners moving into work, no longer published) is ignored.
+const LS_KEYS = { intensive: "int" };
+const LS_WORDS = { intensive: "parents' hours" };
 
 /** A response's own setting (low, central or high); `bound` is the shared default. */
 export const boundOf = (setting, margin) => setting.bounds?.[margin] ?? setting.bound ?? "central";
@@ -674,15 +671,14 @@ export function labourSupplyParams(setting) {
   return on.length ? [["ls", on.join(",")]] : [];
 }
 
-export const isStatic = (setting) => !setting.extensive && !setting.intensive;
+export const isStatic = (setting) => !setting.intensive;
 
-/** Which responses are on, in words: "moving into work and hours at the high setting". */
+/** The response in words: "parents' hours" or "parents' hours at the high setting". */
 export function labourSupplyLabel(setting) {
   const on = Object.keys(LS_KEYS)
     .filter((m) => setting[m])
     .map((m) => (boundOf(setting, m) === "central" ? LS_WORDS[m] : `${LS_WORDS[m]} at the ${boundOf(setting, m)} setting`));
-  if (on.length === 0) return "static: no change in work";
-  return on.length > 1 ? `${on.slice(0, -1).join(", ")} and ${on.at(-1)}` : on[0];
+  return on.length === 0 ? "static: no change in work" : on.join(" and ");
 }
 
 /** The money back (£bn by year, positive = less cost) from the responses switched on, each at its own setting. */

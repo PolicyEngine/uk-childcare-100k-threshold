@@ -171,15 +171,8 @@ function BarList({ items, selected, onSelect, format }) {
 
 export const OFFSET_KEY = "labour_supply";
 
-/**
- * The labour supply series' name, by its sign: money back when the response lowers the cost in every year, an
- * extra cost when it raises it in every year (moving into work alone does), and neutral wording when the sign varies.
- */
-export function offsetLabel(offsets) {
-  if (offsets.every((v) => v >= 0)) return "Back from parents working more";
-  if (offsets.every((v) => v <= 0)) return "Added by the labour supply response";
-  return "Labour supply response";
-}
+/** The labour supply series' name: the hours response brings money back (getLabourSupply fails on a negative one). */
+export const OFFSET_NAME = "Back from parents working more";
 
 /**
  * The yearly chart's rows and series. With a margin on, the chart carries the labour supply response as a signed
@@ -187,7 +180,7 @@ export function offsetLabel(offsets) {
  */
 export function costChartData(budget, offsets, dynamic) {
   const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), [OFFSET_KEY]: -offsets[i] }));
-  return { rows, series: dynamic ? [...SCHEMES, OFFSET_KEY] : [...SCHEMES], offsetName: offsetLabel(offsets) };
+  return { rows, series: dynamic ? [...SCHEMES, OFFSET_KEY] : [...SCHEMES], offsetName: OFFSET_NAME };
 }
 
 /** What the tooltip's total adds up for one row: every series the chart draws. */
@@ -616,9 +609,9 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
             value={formatBn(cost[li], 2)}
             detail={
               dynamic
-                ? `After the labour supply response (${labourSupplyLabel(setting)}): ${formatBn(lead.total, 2)} static, ${
-                    offsets[li] >= 0 ? `${formatMoneyBn(offsets[li])} back from parents working more` : `${formatMoneyBn(-offsets[li])} more, as the response raises the cost`
-                  }`
+                ? `After the labour supply response (${labourSupplyLabel(setting)}): ${formatBn(lead.total, 2)} static, ${formatMoneyBn(
+                    offsets[li],
+                  )} back from parents working more`
                 : "Extra government spending on both schemes"
             }
             testId="card-cost"
@@ -702,13 +695,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
         {dynamic ? (
           <p className="mb-3 text-sm text-slate-600" data-testid="chart-setting">
             Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see{" "}
-            <a href="?tab=method#labour-supply">Methodology</a>):{" "}
-            {offsets.every((v) => v >= 0)
-              ? "the grey bars below zero are the money back from parents working more"
-              : offsets.every((v) => v <= 0)
-                ? "the grey bars on top are the extra cost the response adds"
-                : "the grey bars are the labour supply response, below zero where it brings money back and on top where it adds to the cost"}
-            , not split by scheme; hover for the cost after the response.
+            <a href="?tab=method#labour-supply">Methodology</a>): the grey bars below zero are the money back from
+            parents working more, not split by scheme; hover for the cost after the response.
           </p>
         ) : null}
         <CostChart rows={chart.rows} series={chart.series} offsetName={chart.offsetName} />
