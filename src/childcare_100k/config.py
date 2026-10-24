@@ -84,17 +84,86 @@ SCENARIOS = {
 # Expected mode (expectation.py, #7): the take-up contract's working-parent rate for the 30 hours,
 # extended_childcare from 6 April 2024, in take_up_contract.json at PolicyEngine/microcosm 829c1bc26
 # (the commit the release was cut from). The universal flag is nested under it at a conditional
-# rate of zero, so the pair sets both. The central cost is this rate times the pair's cost.
+# rate of zero, so the pair sets both. The contract take-up basis (TAKE_UP_BASES below) is this rate
+# times the pair's cost.
 EXTENDED_TAKE_UP_RATE = 0.8361
 EXTENDED_TAKE_UP_SOURCE_URL = (
     "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/"
     "packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
 )
 CLAIM_30_HOURS = {"would_claim_extended_childcare": True, "would_claim_universal_childcare": True}
+# The child-level take-up bases (TAKE_UP_BASES below) also have every child use its funded hours: the dataset's
+# under-2 usage draw (max_free_entitlement_hours_used, 0 or 30, drawn for children aged 0) is set to 30 for
+# everyone, since DfE's and CenTax's rates already count whether the child uses the hours. The family's weekly
+# hours cap (maximum_extended_childcare_hours_usage, how many hours a child who uses them takes) stays as drawn.
+CHILD_USAGE_VARIABLE = "max_free_entitlement_hours_used"
+CLAIM_AND_USE_30_HOURS = {**CLAIM_30_HOURS, CHILD_USAGE_VARIABLE: 30.0}
 EXPECTED_SCENARIOS = {
     "baseline_claim_all": {"params": [], "inputs": CLAIM_30_HOURS},
     "reform_claim_all": {"params": _REFORM, "inputs": CLAIM_30_HOURS, "base": "baseline_claim_all"},
+    "baseline_claim_use_all": {"params": [], "inputs": CLAIM_AND_USE_30_HOURS},
+    "reform_claim_use_all": {"params": _REFORM, "inputs": CLAIM_AND_USE_30_HOURS, "base": "baseline_claim_use_all"},
 }
+
+# ── Take-up of the 30 hours among newly eligible children (the take-up toggle) ─────────────────────────
+# Three bases for who takes up the 30 hours once the limit goes (María Juaristi, 24 October 2026). DfE's rates by
+# age are the headline: they are official and by age, and most of the cost is for under-3s, where the flat contract
+# rate (83.6%) is well above DfE's at 9-11 months and age 1 (42%, 70%) and about level at 2 (84%). DfE's and
+# CenTax's rates are child-level take-up (registered children over DfE's estimate of eligible children), so they
+# include whether the family claims and whether the child uses the hours. Each applies to each child's change in
+# funded hours in the claim-and-use pair above (every family claiming, every child using its hours), by the child's
+# DfE age: its age on 31 December of the model year (the year less policyengine-uk's ``birth_year``), the age DfE's
+# January census counts it by. DfE age 0 is the 9-11-month-olds of the spring term; a child born September to
+# December who is funded for the summer term before it starts reception (aged 4 then) has DfE age 5 and takes the
+# 3-and-4 rate. DfE's caveats on the rates (provisional; parental leave; 2-year-olds) are in docs/METHOD.md. The
+# contract basis is the expected mode of #7: the take-up contract's flat family rate on the claim-all pair, with
+# every family's hours as drawn.
+DFE_TAKE_UP_URL = (
+    "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025"
+)
+CENTAX_REPORT_URL = (
+    "https://centax.org.uk/wp-content/uploads/2026/09/"
+    "AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf"
+)
+TAKE_UP_BASES = {
+    "dfe": {
+        "label": "DfE, by age",
+        "description": "DfE's take-up of the working-parent hours in January 2025: 42% at 9-11 months, 70% at "
+                       "age 1, 84% at 2 and 91% at 3 and 4, child by child",
+        "unit": "child",
+        # Estimated % of eligible children registered, January 2025 ("Funded early education and childcare",
+        # reporting year 2025, published 31 July 2025; formerly "Education provision: children under 5 years of age").
+        # DfE age 5 (the summer term before reception) is in DfE's 3-and-4 group, so on every basis it keeps the
+        # rate of ages 3 and 4 (tests/test_take_up.py checks it).
+        "rates_by_dfe_age": {0: 0.42, 1: 0.70, 2: 0.84, 3: 0.91, 4: 0.91, 5: 0.91},
+        "source": "DfE, Funded early education and childcare, January 2025",
+        "source_url": DFE_TAKE_UP_URL,
+        "pair": ("baseline_claim_use_all", "reform_claim_use_all"),
+    },
+    "centax": {
+        "label": "CenTax, under 3 and 3-4",
+        "description": "CenTax's assumption: 73% of children under 3 and 91% of 3- and 4-year-olds (DfE's 2025 "
+                       "take-up for the two groups), child by child",
+        "unit": "child",
+        # Removing the childcare cliff-edge (September 2026), pp. 33-34 and 75: newly eligible parents take up as
+        # today, 73% of parents of 9-month- to 2-year-olds and 91% of parents of 3- and 4-year-olds (DfE, 2025).
+        "rates_by_dfe_age": {0: 0.73, 1: 0.73, 2: 0.73, 3: 0.91, 4: 0.91, 5: 0.91},
+        "source": "CenTax, Removing the childcare cliff-edge, pp. 33-34 and 75",
+        "source_url": CENTAX_REPORT_URL,
+        "pair": ("baseline_claim_use_all", "reform_claim_use_all"),
+    },
+    "contract": {
+        "label": "Microcosm, one rate",
+        "description": f"The take-up contract's flat rate, {EXTENDED_TAKE_UP_RATE:.1%} of families, family by "
+                       "family, with the dataset's draws of the hours used",
+        "unit": "family",
+        "rate": EXTENDED_TAKE_UP_RATE,
+        "source": "Microcosm take-up contract (829c1bc26)",
+        "source_url": EXTENDED_TAKE_UP_SOURCE_URL,
+        "pair": ("baseline_claim_all", "reform_claim_all"),
+    },
+}
+HEADLINE_TAKE_UP_BASIS = "dfe"
 # Bootstrap over FRS source households (aggregate.bootstrap): each source household is drawn with all
 # its Microcosm copies, the release weights fixed.
 BOOTSTRAP_DRAWS = 2000
@@ -203,10 +272,7 @@ CONSERVATIVE_SOURCE_URL = (
 CONSERVATIVE_ANNOUNCEMENT_URL = (
     "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge"
 )
-CENTAX_REPORT_URL = (
-    "https://centax.org.uk/wp-content/uploads/2026/09/"
-    "AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf"
-)
+# CENTAX_REPORT_URL is with the take-up bases above.
 
 # ── Labour supply (labour_supply.py, hours_response.py) ──────────────────
 # Ported from PolicyEngine/free-childcare-reform (src/free_childcare_reform/sources.py),

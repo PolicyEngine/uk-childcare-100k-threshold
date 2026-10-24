@@ -20,8 +20,11 @@ import {
   getRecipients,
   getReform,
   getSensitivities,
+  getTakeUp,
   getThirtyHoursComponents,
   getUncertainty,
+  parseTakeUp,
+  takeUpParams,
   getValidation,
   getYears,
   LEAD_YEAR,
@@ -76,15 +79,62 @@ describe("the results file", () => {
   it("puts the headline inside its bootstrap range and the single draw beside it", () => {
     const u = getUncertainty(data);
     const b = getBudget(data);
+    expect(u.basis.id).toBe(data.budget.take_up.headline);
     for (const r of u.rows) {
       const row = b.rows.find((x) => x.year === r.year);
       expect(r.thirty).toBe(row.thirty_hours);
-      expect(r.expected.thirty_hours.p5_bn).toBeLessThan(row.thirty_hours);
-      expect(row.thirty_hours).toBeLessThan(r.expected.thirty_hours.p95_bn);
-      expect(r.expected.total.sd_bn).toBeGreaterThanOrEqual(r.expected.thirty_hours.sd_bn);
+      expect(r.chosen.thirty_hours.p5_bn).toBeLessThan(row.thirty_hours);
+      expect(row.thirty_hours).toBeLessThan(r.chosen.thirty_hours.p95_bn);
+      expect(r.chosen.total.sd_bn).toBeGreaterThanOrEqual(r.chosen.thirty_hours.sd_bn);
       expect(r.effectiveSourceHouseholds).toBeLessThanOrEqual(r.sourceHouseholds);
     }
     expect(u.age.even_spread_bn).toBeGreaterThan(0);
+  });
+
+  it("puts each take-up basis's cost inside its own bootstrap range", () => {
+    const t = getTakeUp(data);
+    for (const id of t.order) {
+      const u = getUncertainty(data, id);
+      const b = getBudget(data, id);
+      for (const r of u.rows) {
+        const row = b.rows.find((x) => x.year === r.year);
+        expect(r.thirty, id).toBe(row.thirty_hours);
+        expect(r.chosen, id).toBe(r[id]);
+        expect(r.chosen.thirty_hours.p5_bn).toBeLessThan(row.thirty_hours);
+        expect(row.thirty_hours).toBeLessThan(r.chosen.thirty_hours.p95_bn);
+      }
+    }
+  });
+
+  it("offers three take-up bases, DfE's by age the headline, whose costs and recipients add up", () => {
+    const t = getTakeUp(data);
+    expect(t.headline).toBe("dfe");
+    expect(t.order).toEqual(["dfe", "centax", "contract"]);
+    const head = getBudget(data).rows;
+    getBudget(data, t.headline).rows.forEach((r, i) => expect(r.total).toBe(head[i].total));
+    for (const id of t.order) {
+      const b = t.bases[id];
+      expect(b.budget.rows.map((r) => r.total)).toEqual(b.range.central);
+      for (const y of years) {
+        const r = b.recipients[y];
+        expect(r.by_scheme.thirty_hours).toBeLessThanOrEqual(r.families_gaining);
+        expect(r.by_scheme.tax_free_childcare).toBeLessThanOrEqual(r.families_gaining);
+        expect(r.families_gaining % 1000).toBe(0);
+        // Totals only: no breakdown by age, region or family on a take-up basis.
+        expect(Object.keys(r).sort()).toEqual(["by_scheme", "children_by_scheme", "children_gaining", "families_gaining", "mean_gain_gbp"]);
+      }
+    }
+    expect(t.bases.dfe.rates_by_dfe_age).toMatchObject({ 0: 0.42, 1: 0.7, 2: 0.84, 3: 0.91, 4: 0.91 });
+    expect(t.bases.centax.rates_by_dfe_age).toMatchObject({ 0: 0.73, 1: 0.73, 2: 0.73, 3: 0.91, 4: 0.91 });
+    expect(t.bases.contract.rate).toBe(0.8361);
+  });
+
+  it("reads the take-up basis from the URL and writes it back, the headline by default", () => {
+    expect(parseTakeUp(null, data)).toBe("dfe");
+    expect(parseTakeUp("nonsense", data)).toBe("dfe");
+    expect(parseTakeUp("centax", data)).toBe("centax");
+    expect(takeUpParams("dfe", data)).toEqual([]);
+    expect(takeUpParams("contract", data)).toEqual([["takeup", "contract"]]);
   });
 
   it("never has a single suppressed region or family type, so none can be worked out from the UK total", () => {
@@ -139,9 +189,21 @@ describe("validation throws, naming the block", () => {
 
   it("on a bootstrap range that leaves out the headline, or a missing uncertainty block", () => {
     const y = Object.keys(data.budget.uncertainty.by_year)[0];
-    throwsOn(() => getUncertainty(mutate(`budget.uncertainty.by_year.${y}.expected.thirty_hours.p95_bn`, 0.1)), "budget.uncertainty.by_year");
-    throwsOn(() => getUncertainty(mutate(`budget.uncertainty.by_year.${y}.expected.thirty_hours.sd_bn`, 0)), "budget.uncertainty.by_year");
-    throwsOn(() => getUncertainty(mutate("budget.thirty_hours_take_up.rate", 1.5)), "budget.thirty_hours_take_up");
+    throwsOn(() => getUncertainty(mutate(`budget.uncertainty.by_year.${y}.dfe.thirty_hours.p95_bn`, 0.1)), "budget.uncertainty.by_year");
+    throwsOn(() => getUncertainty(mutate(`budget.uncertainty.by_year.${y}.dfe.thirty_hours.sd_bn`, 0)), "budget.uncertainty.by_year");
+    throwsOn(() => getUncertainty(mutate(`budget.uncertainty.by_year.${y}.centax`, undefined, { remove: true })), "budget.uncertainty.by_year");
+    throwsOn(() => getUncertainty(mutate("budget.take_up.bases.contract.rate", 1.5)), "budget.take_up.bases.contract.rate");
+  });
+
+  it("on a take-up block whose headline is not the published headline, or that is incomplete", () => {
+    throwsOn(() => getTakeUp(mutate(`budget.take_up.bases.dfe.gross_bn.thirty_hours.${final}`, 9)), "budget.take_up.bases.dfe");
+    throwsOn(() => getTakeUp(mutate("budget.take_up.headline", "nonsense")), "budget.take_up.headline");
+    throwsOn(() => getTakeUp(mutate("budget.take_up.order", ["dfe", "nonsense"])), "budget.take_up.order");
+    throwsOn(() => getTakeUp(mutate("budget.take_up.bases.centax.rates_by_dfe_age", {})), "budget.take_up.bases.centax.rates_by_dfe_age");
+    throwsOn(() => getTakeUp(mutate("budget.take_up.bases.centax.source_url", undefined, { remove: true })), "budget.take_up.bases.centax");
+    throwsOn(() => getTakeUp(mutate(`budget.take_up.bases.contract.range_bn.central.${final}`, 9)), "budget.take_up.bases.contract.range_bn");
+    throwsOn(() => getTakeUp(mutate(`budget.take_up.bases.dfe.recipients.${final}.families_gaining`, null)), "budget.take_up.bases.dfe.recipients");
+    expect(() => validateResults(mutate("budget.take_up", undefined, { remove: true }))).toThrow(/budget.take_up/);
   });
 
   it("on a missing block that the page reads", () => {

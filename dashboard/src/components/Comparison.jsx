@@ -6,6 +6,7 @@ import {
   getBudget,
   getLabourSupply,
   getModellingAssumptions,
+  getTakeUp,
   isStatic,
   labourSupplyLabel,
   labourSupplyOffset,
@@ -96,6 +97,10 @@ export function dynamicCell(data, setting) {
 }
 
 export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
+  // Always on the headline take-up basis: the effect column is measured from it, so another basis's cost here would
+  // not match the rows below. The take-up toggle is on Budget impact.
+  const takeUp = getTakeUp(data);
+  const headline = takeUp.bases[takeUp.headline];
   const budget = getBudget(data);
   const last = budget.rows.at(-1);
   const li = budget.years.length - 1;
@@ -112,7 +117,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
         ["Schemes covered", "30 hours and Tax-Free Childcare", "", "Free hours only", "30 hours and Tax-Free Childcare", ""],
         [
           `Static cost, ${nb(last.year)}`,
-          `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)})`,
+          `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)}; take-up: ${headline.label})`,
           "",
           `${formatBn(central.staticBn, 2)} (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)}; ${formatBn(centaxBeforeBunching, 2)} before their deduction for parents keeping income just under £100,000)`,
           "Not given",
@@ -156,12 +161,30 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
           <span key="u">{a.under_ones.source_says}. <Link href={a.under_ones.source.url}>{a.under_ones.source.label}</Link></span>,
         ],
         [
-          "Who claims",
+          "Who takes up the 30 hours",
           a.take_up.ours,
           eff("take_up"),
+          `As today (DfE, 2025): ${takeUp.bases.centax?.rates_text ?? "not stated"}`,
+          "Not stated",
+          <span key="t">
+            DfE&apos;s January 2025 take-up by age. <Link href={a.take_up.source.url}>{a.take_up.source.label}</Link>
+          </span>,
+        ],
+        [
+          "One take-up rate for every family",
+          a.take_up_contract.ours,
+          eff("take_up_contract"),
+          "",
+          "Not stated",
+          <span key="tc">{a.take_up_contract.source_says}. <Link href={a.take_up_contract.source.url}>{a.take_up_contract.source.label}</Link></span>,
+        ],
+        [
+          "Who claims Tax-Free Childcare",
+          a.tfc_take_up.ours,
+          eff("tfc_take_up"),
           "Not costed: free hours only",
           "Not stated",
-          <span key="t">{a.take_up.source_says}. <Link href={a.take_up.source.url}>{a.take_up.source.label}</Link></span>,
+          <span key="tt">{a.tfc_take_up.source_says}. <Link href={a.tfc_take_up.source.url}>{a.tfc_take_up.source.label}</Link></span>,
         ],
         [
           "Income the limit tests",

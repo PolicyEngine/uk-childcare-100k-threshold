@@ -28,35 +28,39 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-23T18:15:14+00:00",
-  "git_revision": "1091c368ce61e789c0df93d9622627174106445b",
-  "aggregation_sha256": "eb80da33b30fcdc5fc43f37d3021438c01fb0480beb15b3d5b4d64c842ffac69",
+  "generated_at": "2026-10-24T13:23:52+00:00",
+  "git_revision": "97897c1b33b655131069b736d5bc317d5c4eb19e",
+  "aggregation_sha256": "314ade8d107f6d3d28e7f80177f0eddd00da46aa0f78b01604e309ba9264714f",
   "min_cell_size": 10,
   "run_seconds": {
-   "microcosm_uk_2024_25/baseline": 70.6,
-   "microcosm_uk_2024_25/reform": 121.0,
-   "microcosm_uk_2024_25/baseline_hours30": 68.1,
-   "microcosm_uk_2024_25/reform_hours30": 105.5,
-   "microcosm_uk_2024_25/baseline_routed": 50.5,
-   "microcosm_uk_2024_25/reform_routed": 102.5,
-   "microcosm_uk_2024_25/baseline_tfc_all": 60.5,
-   "microcosm_uk_2024_25/reform_tfc_all": 112.5,
-   "microcosm_uk_2024_25/labour_supply": 4737.5,
-   "microcosm_uk_2024_25/baseline_claim_all": 108.9,
-   "microcosm_uk_2024_25/reform_claim_all": 152.8
+   "microcosm_uk_2024_25/baseline": 83.9,
+   "microcosm_uk_2024_25/reform": 132.3,
+   "microcosm_uk_2024_25/baseline_hours30": 84.2,
+   "microcosm_uk_2024_25/reform_hours30": 133.5,
+   "microcosm_uk_2024_25/baseline_routed": 76.2,
+   "microcosm_uk_2024_25/reform_routed": 133.9,
+   "microcosm_uk_2024_25/baseline_tfc_all": 74.5,
+   "microcosm_uk_2024_25/reform_tfc_all": 133.1,
+   "microcosm_uk_2024_25/labour_supply": 6220.6,
+   "microcosm_uk_2024_25/baseline_claim_all": 75.5,
+   "microcosm_uk_2024_25/reform_claim_all": 134.6,
+   "microcosm_uk_2024_25/baseline_claim_use_all": 75.5,
+   "microcosm_uk_2024_25/reform_claim_use_all": 133.2
   },
   "peak_rss_gb": {
-   "microcosm_uk_2024_25/baseline": 5.4,
-   "microcosm_uk_2024_25/reform": 6.0,
-   "microcosm_uk_2024_25/baseline_hours30": 7.9,
-   "microcosm_uk_2024_25/reform_hours30": 8.9,
-   "microcosm_uk_2024_25/baseline_routed": 12.7,
-   "microcosm_uk_2024_25/reform_routed": 19.3,
-   "microcosm_uk_2024_25/baseline_tfc_all": 8.4,
-   "microcosm_uk_2024_25/reform_tfc_all": 8.8,
-   "microcosm_uk_2024_25/labour_supply": 16.6,
-   "microcosm_uk_2024_25/baseline_claim_all": 4.2,
-   "microcosm_uk_2024_25/reform_claim_all": 4.2
+   "microcosm_uk_2024_25/baseline": 13.0,
+   "microcosm_uk_2024_25/reform": 18.1,
+   "microcosm_uk_2024_25/baseline_hours30": 13.3,
+   "microcosm_uk_2024_25/reform_hours30": 18.8,
+   "microcosm_uk_2024_25/baseline_routed": 13.8,
+   "microcosm_uk_2024_25/reform_routed": 18.9,
+   "microcosm_uk_2024_25/baseline_tfc_all": 13.2,
+   "microcosm_uk_2024_25/reform_tfc_all": 18.8,
+   "microcosm_uk_2024_25/labour_supply": 20.1,
+   "microcosm_uk_2024_25/baseline_claim_all": 13.7,
+   "microcosm_uk_2024_25/reform_claim_all": 18.7,
+   "microcosm_uk_2024_25/baseline_claim_use_all": 13.2,
+   "microcosm_uk_2024_25/reform_claim_use_all": 18.9
   }
  },
  "reform": {
@@ -78,30 +82,30 @@
  "budget": {
   "gross_bn": {
    "thirty_hours": {
-    "2026": 0.869,
-    "2027": 0.929,
-    "2028": 0.982,
-    "2029": 1.067
+    "2026": 0.845,
+    "2027": 0.902,
+    "2028": 0.955,
+    "2029": 1.037
    },
    "tax_free_childcare": {
-    "2026": 0.135,
-    "2027": 0.142,
-    "2028": 0.151,
-    "2029": 0.158
+    "2026": 0.136,
+    "2027": 0.144,
+    "2028": 0.152,
+    "2029": 0.159
    },
    "total": {
-    "2026": 1.004,
-    "2027": 1.071,
-    "2028": 1.133,
-    "2029": 1.225
+    "2026": 0.981,
+    "2027": 1.046,
+    "2028": 1.107,
+    "2029": 1.196
    }
   },
   "net_bn": {
    "total": {
-    "2026": 1.004,
-    "2027": 1.071,
-    "2028": 1.133,
-    "2029": 1.224
+    "2026": 0.981,
+    "2027": 1.046,
+    "2028": 1.107,
+    "2029": 1.195
    }
   },
   "single_draw_bn": {
@@ -124,14 +128,367 @@
     "2029": 1.276
    }
   },
-  "thirty_hours_take_up": {
-   "rate": 0.8361,
-   "rate_source_url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json",
-   "per_point_m": {
-    "2026": 10,
-    "2027": 11,
-    "2028": 12,
-    "2029": 13
+  "take_up": {
+   "headline": "dfe",
+   "order": [
+    "dfe",
+    "centax",
+    "contract"
+   ],
+   "age": "A child-level rate applies by the child's DfE age: its age on 31 December of the year (the year less its birth year), the age DfE's January census counts it by. DfE age 0 is the 9-11-month-olds funded from the spring term; a child born September to December who is funded for the summer term before it starts reception (aged 4 then) has DfE age 5 and takes the 3-and-4 rate. Each child takes up the hours independently of its siblings.",
+   "bases": {
+    "dfe": {
+     "label": "DfE, by age",
+     "description": "DfE's take-up of the working-parent hours in January 2025: 42% at 9-11 months, 70% at age 1, 84% at 2 and 91% at 3 and 4, child by child",
+     "unit": "child",
+     "source": "DfE, Funded early education and childcare, January 2025",
+     "source_url": "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025",
+     "gross_bn": {
+      "thirty_hours": {
+       "2026": 0.845,
+       "2027": 0.902,
+       "2028": 0.955,
+       "2029": 1.037
+      },
+      "tax_free_childcare": {
+       "2026": 0.136,
+       "2027": 0.144,
+       "2028": 0.152,
+       "2029": 0.159
+      },
+      "total": {
+       "2026": 0.981,
+       "2027": 1.046,
+       "2028": 1.107,
+       "2029": 1.196
+      }
+     },
+     "net_bn": {
+      "total": {
+       "2026": 0.981,
+       "2027": 1.046,
+       "2028": 1.107,
+       "2029": 1.195
+      }
+     },
+     "range_bn": {
+      "low": {
+       "2026": 0.979,
+       "2027": 1.044,
+       "2028": 1.104,
+       "2029": 1.193
+      },
+      "central": {
+       "2026": 0.981,
+       "2027": 1.046,
+       "2028": 1.107,
+       "2029": 1.196
+      },
+      "high": {
+       "2026": 1.033,
+       "2027": 1.102,
+       "2028": 1.165,
+       "2029": 1.264
+      }
+     },
+     "recipients": {
+      "2026": {
+       "families_gaining": 235000,
+       "children_gaining": 311000,
+       "by_scheme": {
+        "thirty_hours": 136000,
+        "tax_free_childcare": 165000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 152000,
+        "tax_free_childcare": 222000
+       },
+       "mean_gain_gbp": 4172
+      },
+      "2027": {
+       "families_gaining": 248000,
+       "children_gaining": 330000,
+       "by_scheme": {
+        "thirty_hours": 142000,
+        "tax_free_childcare": 173000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 159000,
+        "tax_free_childcare": 233000
+       },
+       "mean_gain_gbp": 4216
+      },
+      "2028": {
+       "families_gaining": 261000,
+       "children_gaining": 346000,
+       "by_scheme": {
+        "thirty_hours": 150000,
+        "tax_free_childcare": 184000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 167000,
+        "tax_free_childcare": 247000
+       },
+       "mean_gain_gbp": 4239
+      },
+      "2029": {
+       "families_gaining": 282000,
+       "children_gaining": 369000,
+       "by_scheme": {
+        "thirty_hours": 163000,
+        "tax_free_childcare": 194000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 181000,
+        "tax_free_childcare": 258000
+       },
+       "mean_gain_gbp": 4236
+      }
+     },
+     "rates_by_dfe_age": {
+      "0": 0.42,
+      "1": 0.7,
+      "2": 0.84,
+      "3": 0.91,
+      "4": 0.91,
+      "5": 0.91
+     },
+     "rates_text": "42% at 9-11 months, 70% at 1, 84% at 2 and 91% at 3 and 4"
+    },
+    "centax": {
+     "label": "CenTax, under 3 and 3-4",
+     "description": "CenTax's assumption: 73% of children under 3 and 91% of 3- and 4-year-olds (DfE's 2025 take-up for the two groups), child by child",
+     "unit": "child",
+     "source": "CenTax, Removing the childcare cliff-edge, pp. 33-34 and 75",
+     "source_url": "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf",
+     "gross_bn": {
+      "thirty_hours": {
+       "2026": 0.822,
+       "2027": 0.878,
+       "2028": 0.93,
+       "2029": 1.011
+      },
+      "tax_free_childcare": {
+       "2026": 0.139,
+       "2027": 0.146,
+       "2028": 0.155,
+       "2029": 0.161
+      },
+      "total": {
+       "2026": 0.961,
+       "2027": 1.024,
+       "2028": 1.085,
+       "2029": 1.172
+      }
+     },
+     "net_bn": {
+      "total": {
+       "2026": 0.961,
+       "2027": 1.024,
+       "2028": 1.085,
+       "2029": 1.171
+      }
+     },
+     "range_bn": {
+      "low": {
+       "2026": 0.959,
+       "2027": 1.022,
+       "2028": 1.082,
+       "2029": 1.169
+      },
+      "central": {
+       "2026": 0.961,
+       "2027": 1.024,
+       "2028": 1.085,
+       "2029": 1.172
+      },
+      "high": {
+       "2026": 1.013,
+       "2027": 1.08,
+       "2028": 1.143,
+       "2029": 1.24
+      }
+     },
+     "recipients": {
+      "2026": {
+       "families_gaining": 237000,
+       "children_gaining": 315000,
+       "by_scheme": {
+        "thirty_hours": 135000,
+        "tax_free_childcare": 166000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 152000,
+        "tax_free_childcare": 223000
+       },
+       "mean_gain_gbp": 4060
+      },
+      "2027": {
+       "families_gaining": 249000,
+       "children_gaining": 333000,
+       "by_scheme": {
+        "thirty_hours": 141000,
+        "tax_free_childcare": 174000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 159000,
+        "tax_free_childcare": 234000
+       },
+       "mean_gain_gbp": 4105
+      },
+      "2028": {
+       "families_gaining": 263000,
+       "children_gaining": 349000,
+       "by_scheme": {
+        "thirty_hours": 149000,
+        "tax_free_childcare": 185000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 166000,
+        "tax_free_childcare": 248000
+       },
+       "mean_gain_gbp": 4131
+      },
+      "2029": {
+       "families_gaining": 284000,
+       "children_gaining": 372000,
+       "by_scheme": {
+        "thirty_hours": 162000,
+        "tax_free_childcare": 195000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 180000,
+        "tax_free_childcare": 259000
+       },
+       "mean_gain_gbp": 4132
+      }
+     },
+     "rates_by_dfe_age": {
+      "0": 0.73,
+      "1": 0.73,
+      "2": 0.73,
+      "3": 0.91,
+      "4": 0.91,
+      "5": 0.91
+     },
+     "rates_text": "73% under 3 and 91% at 3 and 4"
+    },
+    "contract": {
+     "label": "Microcosm, one rate",
+     "description": "The take-up contract's flat rate, 83.6% of families, family by family, with the dataset's draws of the hours used",
+     "unit": "family",
+     "source": "Microcosm take-up contract (829c1bc26)",
+     "source_url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json",
+     "gross_bn": {
+      "thirty_hours": {
+       "2026": 0.869,
+       "2027": 0.929,
+       "2028": 0.982,
+       "2029": 1.067
+      },
+      "tax_free_childcare": {
+       "2026": 0.135,
+       "2027": 0.142,
+       "2028": 0.151,
+       "2029": 0.158
+      },
+      "total": {
+       "2026": 1.004,
+       "2027": 1.071,
+       "2028": 1.133,
+       "2029": 1.225
+      }
+     },
+     "net_bn": {
+      "total": {
+       "2026": 1.004,
+       "2027": 1.071,
+       "2028": 1.133,
+       "2029": 1.224
+      }
+     },
+     "range_bn": {
+      "low": {
+       "2026": 1.002,
+       "2027": 1.069,
+       "2028": 1.13,
+       "2029": 1.222
+      },
+      "central": {
+       "2026": 1.004,
+       "2027": 1.071,
+       "2028": 1.133,
+       "2029": 1.225
+      },
+      "high": {
+       "2026": 1.056,
+       "2027": 1.127,
+       "2028": 1.191,
+       "2029": 1.293
+      }
+     },
+     "recipients": {
+      "2026": {
+       "families_gaining": 235000,
+       "children_gaining": 313000,
+       "by_scheme": {
+        "thirty_hours": 131000,
+        "tax_free_childcare": 166000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 151000,
+        "tax_free_childcare": 223000
+       },
+       "mean_gain_gbp": 4279
+      },
+      "2027": {
+       "families_gaining": 247000,
+       "children_gaining": 331000,
+       "by_scheme": {
+        "thirty_hours": 136000,
+        "tax_free_childcare": 174000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 158000,
+        "tax_free_childcare": 235000
+       },
+       "mean_gain_gbp": 4330
+      },
+      "2028": {
+       "families_gaining": 261000,
+       "children_gaining": 347000,
+       "by_scheme": {
+        "thirty_hours": 144000,
+        "tax_free_childcare": 184000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 165000,
+        "tax_free_childcare": 248000
+       },
+       "mean_gain_gbp": 4350
+      },
+      "2029": {
+       "families_gaining": 281000,
+       "children_gaining": 370000,
+       "by_scheme": {
+        "thirty_hours": 156000,
+        "tax_free_childcare": 195000
+       },
+       "children_by_scheme": {
+        "thirty_hours": 179000,
+        "tax_free_childcare": 260000
+       },
+       "mean_gain_gbp": 4356
+      }
+     },
+     "rate": 0.8361,
+     "per_point_m": {
+      "2026": 10,
+      "2027": 11,
+      "2028": 12,
+      "2029": 13
+     }
+    }
    }
   },
   "uncertainty": {
@@ -156,7 +513,41 @@
        "p95_bn": 1.447
       }
      },
-     "expected": {
+     "dfe": {
+      "thirty_hours": {
+       "sd_bn": 0.137,
+       "p5_bn": 0.686,
+       "p95_bn": 1.138
+      },
+      "tax_free_childcare": {
+       "sd_bn": 0.026,
+       "p5_bn": 0.102,
+       "p95_bn": 0.188
+      },
+      "total": {
+       "sd_bn": 0.155,
+       "p5_bn": 0.8,
+       "p95_bn": 1.308
+      }
+     },
+     "centax": {
+      "thirty_hours": {
+       "sd_bn": 0.135,
+       "p5_bn": 0.665,
+       "p95_bn": 1.113
+      },
+      "tax_free_childcare": {
+       "sd_bn": 0.026,
+       "p5_bn": 0.104,
+       "p95_bn": 0.191
+      },
+      "total": {
+       "sd_bn": 0.153,
+       "p5_bn": 0.781,
+       "p95_bn": 1.285
+      }
+     },
+     "contract": {
       "thirty_hours": {
        "sd_bn": 0.145,
        "p5_bn": 0.699,
@@ -194,7 +585,41 @@
        "p95_bn": 1.609
       }
      },
-     "expected": {
+     "dfe": {
+      "thirty_hours": {
+       "sd_bn": 0.144,
+       "p5_bn": 0.811,
+       "p95_bn": 1.284
+      },
+      "tax_free_childcare": {
+       "sd_bn": 0.026,
+       "p5_bn": 0.12,
+       "p95_bn": 0.207
+      },
+      "total": {
+       "sd_bn": 0.161,
+       "p5_bn": 0.945,
+       "p95_bn": 1.482
+      }
+     },
+     "centax": {
+      "thirty_hours": {
+       "sd_bn": 0.142,
+       "p5_bn": 0.786,
+       "p95_bn": 1.257
+      },
+      "tax_free_childcare": {
+       "sd_bn": 0.026,
+       "p5_bn": 0.121,
+       "p95_bn": 0.21
+      },
+      "total": {
+       "sd_bn": 0.159,
+       "p5_bn": 0.923,
+       "p95_bn": 1.457
+      }
+     },
+     "contract": {
       "thirty_hours": {
        "sd_bn": 0.153,
        "p5_bn": 0.826,
@@ -234,10 +659,10 @@
   },
   "thirty_hours_components_bn": {
    "extended": {
-    "2026": 0.869,
-    "2027": 0.929,
-    "2028": 0.982,
-    "2029": 1.067
+    "2026": 0.845,
+    "2027": 0.902,
+    "2028": 0.955,
+    "2029": 1.037
    },
    "universal": {
     "2026": 0.0,
@@ -254,10 +679,10 @@
   },
   "tax_free_childcare_bn": {
    "central": {
-    "2026": 0.135,
-    "2027": 0.142,
-    "2028": 0.151,
-    "2029": 0.158
+    "2026": 0.136,
+    "2027": 0.144,
+    "2028": 0.152,
+    "2029": 0.159
    },
    "before_netting": {
     "2026": 0.184,
@@ -281,22 +706,22 @@
   },
   "range_bn": {
    "low": {
-    "2026": 1.002,
-    "2027": 1.069,
-    "2028": 1.13,
-    "2029": 1.222
+    "2026": 0.979,
+    "2027": 1.044,
+    "2028": 1.104,
+    "2029": 1.193
    },
    "central": {
-    "2026": 1.004,
-    "2027": 1.071,
-    "2028": 1.133,
-    "2029": 1.225
+    "2026": 0.981,
+    "2027": 1.046,
+    "2028": 1.107,
+    "2029": 1.196
    },
    "high": {
-    "2026": 1.056,
-    "2027": 1.127,
-    "2028": 1.191,
-    "2029": 1.293
+    "2026": 1.033,
+    "2027": 1.102,
+    "2028": 1.165,
+    "2029": 1.264
    }
   },
   "sensitivities": {
@@ -25027,22 +25452,94 @@
   },
   {
    "id": "take_up",
-   "title": "Who claims",
-   "ours": "The 30 hours' cost averaged over the take-up draw (84% of families claim); 97% of families carry a Tax-Free Childcare claim flag, but only those reporting paid registered childcare get a top-up",
+   "title": "Who takes up the 30 hours",
+   "ours": "DfE's take-up by age: 42% at 9-11 months, 70% at 1, 84% at 2 and 91% at 3 and 4",
+   "source_says": "DfE's January 2025 take-up of the working-parent hours, by age; CenTax use 73% under 3 and 91% at 3 and 4",
+   "source": {
+    "label": "DfE, Funded early education and childcare, January 2025",
+    "url": "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025"
+   },
+   "modelled": "Nobody over £100,000 is eligible today, so the data cannot say how many newly eligible families would take up the 30 hours. The dataset draws once whether each family would claim, at the take-up contract's flat rate (83.6%), and a few heavily weighted families decide much of the cost on that draw. The headline instead averages over take-up child by child: a pair of runs has every family claiming and every child using its hours, and each newly entitled child's cost there is multiplied by DfE's take-up for its age (registered over eligible children in January 2025: 42% at 9-11 months, 70% at 1, 84% at 2 and 91% at 3 and 4), by its age on 31 December, as DfE's census counts it. These rates already count whether a family applies and whether the child uses the hours, so they replace the dataset's claim and under-2 usage draws rather than adding to them; the hours a week a child who uses them takes are the dataset's draw. A child who takes up the new hours gets no Tax-Free Childcare on the care they replace; one who does not keeps its top-up (each weighted by the take-up chance). Most of the cost is for under-3s; the flat rate is well above DfE's at 9-11 months and age 1 (42% and 70%), about level at 2 (84%) and below it at 3 and 4 (91%). Budget impact switches between DfE's rates, CenTax's two rates and the flat rate.",
+   "sources": [
+    {
+     "label": "DfE, Funded early education and childcare, January 2025",
+     "url": "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025"
+    },
+    {
+     "label": "CenTax, Removing the childcare cliff-edge, pp. 33-34 and 75",
+     "url": "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf"
+    },
+    {
+     "label": "The 30-hours rate in the release's take-up contract",
+     "url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+    },
+    {
+     "label": "would_claim_extended_childcare",
+     "url": "https://github.com/PolicyEngine/policyengine-uk/blob/2.147.2/policyengine_uk/variables/gov/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"
+    },
+    {
+     "label": "Expected mode (expectation.py)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/expectation.py"
+    },
+    {
+     "label": "How we apply the rates (aggregate.py)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/aggregate.py"
+    },
+    {
+     "label": "Expected-mode costing (#7)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/7"
+    }
+   ],
+   "alternative": "CenTax's two rates: 73% under 3 and 91% at 3 and 4",
+   "effect_bn": {
+    "2026": -0.02,
+    "2027": -0.022,
+    "2028": -0.022,
+    "2029": -0.024
+   }
+  },
+  {
+   "id": "take_up_contract",
+   "title": "One take-up rate for every family",
+   "ours": "Take-up by the child's age, child by child",
+   "source_says": "The dataset's take-up contract has one rate for the working-parent hours",
+   "source": {
+    "label": "Microcosm take-up contract",
+    "url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+   },
+   "modelled": "The alternative is the expected mode before the take-up bases: the cost averaged over the dataset's draw at the contract's flat rate, 83.6% of families, with the dataset's draws of the hours used. A family that takes up the new hours gets no Tax-Free Childcare on the care they replace; one that does not keeps its top-up (each weighted by the rate). Each percentage point of that rate moves the 30 hours' cost by the amount on Budget impact.",
+   "sources": [
+    {
+     "label": "Microcosm take-up contract",
+     "url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
+    },
+    {
+     "label": "Expected mode (expectation.py)",
+     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/expectation.py"
+    }
+   ],
+   "alternative": "The take-up contract's flat rate: 83.6% of newly eligible families",
+   "effect_bn": {
+    "2026": 0.023,
+    "2027": 0.025,
+    "2028": 0.026,
+    "2029": 0.029
+   }
+  },
+  {
+   "id": "tfc_take_up",
+   "title": "Who claims Tax-Free Childcare",
+   "ours": "97% of families carry a Tax-Free Childcare claim flag, but only those reporting paid registered childcare get a top-up",
    "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
    "source": {
     "label": "Microcosm take-up contract",
     "url": "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
    },
-   "modelled": "The dataset draws once whether each family would claim the 30 hours, at the take-up contract's working-parent rate (83.6%). Because a few heavily weighted families decide much of the cost, the central figure averages over that draw: each newly eligible family's cost if it claims, times the rate (expectation.py). The figure on the single draw, and what each percentage point of the rate does to the cost, are on the Budget impact tab. The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and account counts, not a take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use is limited by reported spending (the table shows both). Nothing identifies take-up among families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly eligible families, about today's use among all eligible families.",
+   "modelled": "The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and account counts, not a take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use is limited by reported spending (the table shows both). Nothing identifies take-up among families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly eligible families, about today's use among all eligible families.",
    "sources": [
     {
      "label": "Microcosm take-up contract",
      "url": "https://github.com/PolicyEngine/microcosm/blob/main/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
-    },
-    {
-     "label": "would_claim_extended_childcare",
-     "url": "https://github.com/PolicyEngine/policyengine-uk/blob/2.147.2/policyengine_uk/variables/gov/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"
     },
     {
      "label": "would_claim_tfc",
@@ -25053,28 +25550,16 @@
      "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/aggregate.py"
     },
     {
-     "label": "Expected mode (expectation.py)",
-     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k/expectation.py"
-    },
-    {
-     "label": "The 30-hours rate in the release's take-up contract",
-     "url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
-    },
-    {
-     "label": "Expected-mode costing (#7)",
-     "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/7"
-    },
-    {
      "label": "Microcosm's take-up analysis (#8)",
      "url": "https://github.com/PolicyEngine/uk-childcare-100k-threshold/pull/8"
     }
    ],
    "alternative": "70% of newly eligible families claim Tax-Free Childcare",
    "effect_bn": {
-    "2026": -0.041,
-    "2027": -0.043,
-    "2028": -0.045,
-    "2029": -0.047
+    "2026": -0.042,
+    "2027": -0.045,
+    "2028": -0.046,
+    "2029": -0.048
    }
   },
   {
@@ -26263,22 +26748,22 @@
   },
   "dynamic_cost_bn": {
    "central": {
-    "2026": 0.859,
-    "2027": 0.915,
-    "2028": 0.972,
-    "2029": 1.062
+    "2026": 0.836,
+    "2027": 0.89,
+    "2028": 0.946,
+    "2029": 1.033
    },
    "low": {
-    "2026": 0.956,
-    "2027": 1.02,
-    "2028": 1.08,
-    "2029": 1.17
+    "2026": 0.933,
+    "2027": 0.995,
+    "2028": 1.054,
+    "2029": 1.141
    },
    "high": {
-    "2026": 0.713,
-    "2027": 0.757,
-    "2028": 0.81,
-    "2029": 0.899
+    "2026": 0.69,
+    "2027": 0.732,
+    "2028": 0.784,
+    "2029": 0.87
    }
   },
   "population": {
@@ -26329,7 +26814,7 @@
   "responding_population": "Every adult (the first two in each family; not self-employed, students or aged 60 and over, the OBR's exclusions) in a family whose youngest child is under 12 and in which at least one adult's income, as the limits test it, is over £100,000: the parent over the limit as well as their partner. Those not in work may move into work, except disabled adults (receiving DLA or PIP), whom the OBR excludes from participation (Table A4) but not from hours (Table A3); those in work may change their hours.",
   "not_modelled": "Bunching: parents who today keep their income at or just below £100,000 and would earn more without the limit.",
   "notes": [
-   "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the two offsets (moving into work and hours), at the same bound; the static total is the expected cost, the offsets are measured on the dataset's single take-up draw; the hours offset is its price effect (money back) plus its income effect (money out). They apply to the total: they are not split by scheme.",
+   "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The dynamic cost is the static total less the two offsets (moving into work and hours), at the same bound; the static total is the headline, on DfE's take-up by age, and the offsets are measured on the dataset's single take-up draw; the hours offset is its price effect (money back) plus its income effect (money out). On another take-up basis the dashboard subtracts the same offsets. They apply to the total: they are not split by scheme.",
    "Moving into work (extensive margin): the OBR elasticities are the percentage change in the probability of working for a percentage change in the gain to work (net of the childcare a parent would buy), converted from in-work income by the gain over in-work income. As in Adam and Phillips (Appendix E) they apply to the employed share: new employment is the sum over working adults of their own response, and it is shared among the non-working adults like them (who are the ones entering): those in the same OBR cell (sex, couple, age band of the youngest child, earnings quintile), in proportion to their own response, or, where the cell has no responding non-worker, in the nearest coarser cell (allocated_by_cell_level). The offset is entrants' earnings less the rise in their household's net income (tax and National Insurance paid, less the childcare support the family now receives) and less the Tax-Free Childcare top-up on the care they start buying. Entrants placed in a coarser cell take the non-workers' earnings, gain and subsidy from other earnings quintiles; entry_sensitivity reports the offset with them dropped (same_cell_only) and with them given the weighted median hourly wage of the workers who imply them, gain and subsidy recomputed (worker_profile), at central elasticities.",
    "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; the parts are an attribution that adds up to it (the price change recomputed alone, the income effect the remainder; the at-or-below group alone, the over group the remainder). Price effect: -0.042 times the change in the price of the family's marginal hour of paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours for mothers whose youngest child becomes eligible for full-time rather than part-time free care, treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive margin. The marginal price is net of all the childcare-linked cash support on the next pound of spend, the model's own (Tax-Free Childcare, the Universal Credit childcare element and the other payments tied to childcare_expenses), read by raising the family's spend by £1 (not 1%, which near a cap averages over spending beyond it), today and, under the reform, at the spend the family still makes once the funded hours displace paid care; intensive_price_basis publishes it at today's spend (original_spend) and with Tax-Free Childcare alone (tfc_only). The 30 funded hours are a fixed amount, conditional only on both parents meeting the minimum earnings test, so for a family that still buys paid care on top of them they do not change what an extra hour costs; they lower the marginal price (to zero) only where they are worth more than all the paid care the family buys. Income effect: the OBR income elasticities (Table A2, policyengine-uk's calculate_labour_net_income_elasticities, assigned to married and cohabiting couples alike) times the household's static gain as a percentage of its disposable income, as policyengine-uk's apply_progression_responses applies them except for the income measure. The gain is on the same disposable-income basis: the change in cash income (Tax-Free Childcare included) plus the paid childcare the newly funded hours displace (their value at the displacement rate below, capped at what the family pays), with the reform's cash income recomputed by the model on the care the family still buys, so Tax-Free Childcare and the Universal Credit childcare element on the displaced spend go; not the funded hours at government cost. intensive_income_basis publishes the gain with spending held fixed (paid_care_fixed_spend) and at government cost (government_cost). Neither elasticity is measured on parents over £100,000.",
    "Whether newly funded hours cover a family's paid care, and how much paid care they save it, is judged on value, with funded hours assumed to displace paid care at 90.5% of their value (1 - 54/570, IFS BN189, which counts all displaced non-family care as paid). It is an assumption, published at 71.4% (only subsidisable care displaced, 1 - 163/570) and 100% (intensive_displacement), at central elasticities.",
@@ -26342,10 +26827,10 @@
   {
    "source": "Conservative Party",
    "figure": "£0.7bn a year",
-   "ours": 1.067,
+   "ours": 1.037,
    "ours_label": "Static gross cost of the 30 funded hours in 2029-30",
    "year": 2029,
-   "like_for_like": "The Conservatives put the cost at about £700m a year when they announced the pledge (PA, BBC), to be paid for by cutting staff at arm's-length public bodies (about £1.6bn by the end of the decade); they published no method. City AM says the costing 'is based on a recent report by the Centre for the Analysis of Taxation' and that removing the Tax-Free Childcare limit as well 'pushed up the costs slightly'. CenTax (Removing the childcare cliff-edge: impacts and cost of reform, September 2026, Table 4.2) covers the free childcare hours only: a static cost of £980m in 2030 (CenTax label tax years by their later year, so this is 2029-30) and a net cost of £640m after £340m of extra revenue: £210m of tax from parents who no longer keep their income below £100,000 and £130m of tax and National Insurance from partners who enter work. The £0.7bn is therefore close to CenTax's net free-hours figure with a small addition for Tax-Free Childcare. Our figures are static, so the like-for-like comparison is our static cost of the 30 funded hours in 2029-30, £1.07bn, against CenTax's static £0.98bn (£1.07bn before their deduction for bunching): 9% above it (in 2027-28, £0.93bn against CenTax's £0.80bn for 2028, £0.86bn before bunching). Our total for both schemes, £1.23bn (range £1.22bn to £1.29bn), covers both schemes on the same static basis.",
+   "like_for_like": "The Conservatives put the cost at about £700m a year when they announced the pledge (PA, BBC), to be paid for by cutting staff at arm's-length public bodies (about £1.6bn by the end of the decade); they published no method. City AM says the costing 'is based on a recent report by the Centre for the Analysis of Taxation' and that removing the Tax-Free Childcare limit as well 'pushed up the costs slightly'. CenTax (Removing the childcare cliff-edge: impacts and cost of reform, September 2026, Table 4.2) covers the free childcare hours only: a static cost of £980m in 2030 (CenTax label tax years by their later year, so this is 2029-30) and a net cost of £640m after £340m of extra revenue: £210m of tax from parents who no longer keep their income below £100,000 and £130m of tax and National Insurance from partners who enter work. The £0.7bn is therefore close to CenTax's net free-hours figure with a small addition for Tax-Free Childcare. Our figures are static, so the like-for-like comparison is our static cost of the 30 funded hours in 2029-30, £1.04bn, against CenTax's static £0.98bn (£1.07bn before their deduction for bunching): 6% above it (in 2027-28, £0.90bn against CenTax's £0.80bn for 2028, £0.86bn before bunching). Our total for both schemes, £1.20bn (range £1.19bn to £1.26bn), covers both schemes on the same static basis.",
    "url": "https://www.cityam.com/badenoch-vows-to-end-100k-childcare-cliff-edge-introduced-under-last-tory-government/",
    "announcement_url": "https://www.conservatives.com/news/conservatives-pledge-to-abolish-absurd-childcare-cliff-edge",
    "underlying_source": "CenTax, Removing the childcare cliff-edge: impacts and cost of reform (2026)",
@@ -26360,7 +26845,7 @@
     "2029": 1.07
    },
    "underlying_net_bn": 0.64,
-   "difference_from_underlying_static_bn": 0.087
+   "difference_from_underlying_static_bn": 0.057
   }
  ],
  "limitations": [
@@ -26368,6 +26853,7 @@
   "The release is cut from Microcosm #1338 at 829c1bc26, before its last commit (a12885f9). So it does not key the under-2 working-parent take-up draw on DfE's age at 31 December (it uses age at 6 October, so its age-0 rate mixes 9-11-month-olds with children aged 12-14 months), and its DfE rows bind the January 2025 census, a year before the spring term of 2025-26. Both bear on the under-3 cost of the 30 hours. The next national release will be built on PolicyEngine/microcosm#1347, which carries the age-date fix (a12885f9) and #1344; on the Microcosm team's preview build with the fix, the 30 hours' cost moves by about -£0.02bn, and these figures will be rerun on that release.",
   "In the reform, each child's childcare spending is reduced by the value of its new funded hours at the funding rate before Tax-Free Childcare is computed. Fees are above funding rates, so this removes less spending than the hours replace and the Tax-Free Childcare leg may still be a little high. The hours response's income effect recomputes the family's cash income on the care it still buys, on its own displacement rule.",
   "A partner who does not work because of caring or incapacity qualifies through the benefits the data hold (policyengine-uk 2.147.2 applies SI 2022/1134 reg 14(4)/15(4) and SI 2015/448 reg 13), but not through limited capability for work, NI credits or carer's leave, which the data do not hold.",
+  "Take-up of the 30 hours among newly eligible families is DfE's January 2025 take-up among all eligible children, by age. Nothing measures it for families over £100,000, who are not eligible today: they may use formal childcare more than average, which would raise it, or claim less where the hours are worth little to them. DfE says its 2025 rates should be treated with caution and will be revised next year; its estimate of eligible 9-11-month-olds does not account for maternity or paternity leave; and its 2-year-olds under the working-parent entitlement include some who should have been recorded under the disadvantaged 2-year-old offer, which may put the 84% too high. The under-3 rates were measured on the 15-hour offer, before it rose to 30 hours in September 2025; take-up of 30 hours may differ. CenTax's two rates and the dataset's flat rate are on Budget impact; the breakdowns by family, income and region, who gains by age, the range's adjustments and the labour supply offsets are measured on the dataset's single take-up draw.",
   "Funded hours, baseline context: the baseline's free-hours spending in 2026-27 is about 4% above DfE's illustrative total (see baseline_validation). DfE's totals are illustrative (based partly on forecasts) and are context only: matching the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ.",
   "In 2027-28 the ten largest gaining families (by weight times gain, on the single take-up draw) carry 31% of the static cost and the largest alone 6%. The sampling uncertainty this leaves is on the Budget impact tab.",
   "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), so no suppressed cell can be recovered from the published UK totals."

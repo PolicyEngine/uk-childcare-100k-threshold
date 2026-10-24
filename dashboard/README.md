@@ -32,6 +32,13 @@ than print a placeholder. Vercel builds with bun (`vercel.json`) so the prebuild
 
 The page leads with 2027-28 (`LEAD_YEAR`); 2026-27 is more than half over, so tables label it illustrative.
 
+Budget impact has a take-up toggle for the 30 hours among newly eligible families: DfE's rates by age (the
+headline, and what the page shows without the toggle), CenTax's two rates, and the dataset's one flat rate. It is kept
+in the URL as `?takeup=centax` or `?takeup=contract` (none for the headline), and switches the cost cards, the yearly
+chart, the families gaining and the bootstrap table to `budget.take_up.bases[id]`. Labels, descriptions and sources
+come from the file. The comparison on Methodology stays on the headline, since the effects in its rows are measured
+from it, and Who gains stays on the dataset's single take-up draw, like every breakdown.
+
 ### Schema
 
 Costs are positive £bn of extra government spending. Year keys are fiscal-year start years as strings
@@ -47,9 +54,13 @@ budget               gross_bn {thirty_hours, tax_free_childcare, total}       ea
                      thirty_hours_components_bn {extended, universal, targeted}
                      range_bn {low, central, high}                            central = gross_bn.total
                      sensitivities {effects_bn {id: {...}}, low [ids], high [ids], descriptions {id: str}}
-                     single_draw_bn {thirty_hours, tax_free_childcare, total}  gross_bn is the expected cost
-                     thirty_hours_take_up {rate, rate_source_url, per_point_m {...}}
-                     uncertainty {draws, method, reproduces_url, by_year {"2027": {expected, drawn:
+                     single_draw_bn {thirty_hours, tax_free_childcare, total}  gross_bn is the headline basis's
+                     take_up {headline: "dfe", order ["dfe", "centax", "contract"], age, bases {id: {label,
+                       description, unit "child" | "family", source, source_url, gross_bn, net_bn {total},
+                       range_bn {low, central, high}, recipients {"2027": {families_gaining, children_gaining,
+                       by_scheme, children_by_scheme, mean_gain_gbp}}, child: rates_by_dfe_age, rates_text;
+                       family: rate, per_point_m {...}}}}
+                     uncertainty {draws, method, reproduces_url, by_year {"2027": {dfe, centax, contract, drawn:
                        {thirty_hours, tax_free_childcare, total: {sd_bn, p5_bn, p95_bn}},
                        source_households_30_hours, effective_source_households_30_hours}}}
                      age_profile_sensitivity {year, even_spread_bn, centax_gradient_bn, babies_bn,
