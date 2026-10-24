@@ -554,7 +554,7 @@ export default function WhoGainsTab({ data }) {
       <Section
         id="recipients"
         title="How many families and children gain?"
-        lead={`Families and children who gain from each scheme in ${fy}, the year chosen above. A family gains if its support rises by more than £1 a year. Many gain from both schemes, so the two scheme bars add up to more than "either or both". Use Show to count children instead, or to see the children gaining by age: Tax-Free Childcare covers children up to 11, so many of them are of school age.`}
+        lead={`Families and children who gain from each scheme in ${fy}, the year chosen above. A family gains if its support rises by more than £1 a year. Many gain from both schemes, so the two scheme bars add up to more than "either or both". Use Show to count children instead, or to see the children gaining by age: Tax-Free Childcare covers children up to 11, so many of them are of school age. Like the breakdowns above, these counts are on the dataset's single draw of who claims the 30 hours; Budget impact gives the totals on each take-up basis.`}
         details={
           <>
             <p>

@@ -22,6 +22,9 @@ import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../l
 const years = data.meta.years;
 const final = years.at(-1);
 const total = (y) => data.budget.gross_bn.total[String(y)];
+const takeUp = data.budget.take_up;
+// Families and children gaining on the headline take-up basis, as Budget impact shows them.
+const headlineRecipients = (y) => takeUp.bases[takeUp.headline].recipients[String(y)];
 
 describe("the page", () => {
   it("renders every tab without broken or placeholder text", () => {
@@ -83,7 +86,7 @@ describe("budget impact", () => {
     expect(card).toContain(bn(total(LEAD_YEAR)));
     expect(card).not.toMatch(/Range/);
     expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[LEAD_YEAR])} and ${bn(g.tax_free_childcare[LEAD_YEAR])}`);
-    const rec = data.recipients[LEAD_YEAR];
+    const rec = headlineRecipients(LEAD_YEAR);
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
     if (rec.mean_gain_gbp !== null) expect(screen.getByTestId("card-families").textContent).toContain(gbp(rec.mean_gain_gbp));
   });
@@ -92,12 +95,12 @@ describe("budget impact", () => {
     render(<LandingTab data={data} />);
     fireEvent.click(within(screen.getByTestId("card-cost")).getByRole("button", { name: new RegExp(fy(final)) }));
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(final)));
-    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(data.recipients[final].families_gaining));
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(headlineRecipients(final).families_gaining));
   });
 
   it("shows one scheme in both cards when it is clicked, and both again on a second click", () => {
     render(<LandingTab data={data} />);
-    const rec = data.recipients[LEAD_YEAR];
+    const rec = headlineRecipients(LEAD_YEAR);
     const bar = () => within(screen.getByTestId("card-families")).getByRole("button", { name: /^Tax-Free Childcare/ });
     fireEvent.click(bar());
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.by_scheme.tax_free_childcare));
@@ -352,6 +355,72 @@ describe("the labour supply control", () => {
     expect(textOf(<LandingTab data={data} setting={{ extensive: true, intensive: true, bound: "central" }} />)).toContain(
       "Back from parents working more",
     );
+  });
+});
+
+describe("the take-up control", () => {
+  const lead = String(LEAD_YEAR);
+  const basis = (id) => takeUp.bases[id];
+
+  it("opens on the headline, DfE's rates by age, and offers every basis with its label and source", () => {
+    render(<Dashboard data={data} />);
+    const control = screen.getByTestId("take-up-control");
+    expect(within(control).getAllByRole("radio")).toHaveLength(takeUp.order.length);
+    expect(screen.getByTestId(`take-up-${takeUp.headline}`).getAttribute("aria-checked")).toBe("true");
+    for (const id of takeUp.order) {
+      expect(control.textContent).toContain(basis(id).label);
+      expect(within(control).getByRole("link", { name: basis(id).source }).getAttribute("href")).toBe(basis(id).source_url);
+    }
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(LEAD_YEAR)));
+  });
+
+  it.each(["centax", "contract"])("switches the headline figures to %s and keeps it in the URL", (id) => {
+    router.replace.mockClear();
+    render(<Dashboard data={data} />);
+    fireEvent.click(screen.getByTestId(`take-up-${id}`));
+    expect(screen.getByTestId(`take-up-${id}`).getAttribute("aria-checked")).toBe("true");
+    const g = basis(id).gross_bn;
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(g.total[lead]));
+    expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[lead])} and ${bn(g.tax_free_childcare[lead])}`);
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(basis(id).recipients[lead].families_gaining));
+    expect(screen.getByTestId("uncertainty-table").textContent).toContain(basis(id).label);
+    expect(screen.getByTestId("take-up-note").textContent).toContain(basis(id).source);
+    expect(router.replace).toHaveBeenLastCalledWith(`/?takeup=${id}`, { scroll: false });
+    // Back to the headline: the URL is clean again.
+    fireEvent.click(screen.getByTestId(`take-up-${takeUp.headline}`));
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(LEAD_YEAR)));
+    expect(router.replace).toHaveBeenLastCalledWith("/", { scroll: false });
+  });
+
+  it("adds the labour supply response to the chosen basis's cost", () => {
+    render(<Dashboard data={data} />);
+    fireEvent.click(screen.getByTestId("take-up-centax"));
+    fireEvent.click(screen.getByTestId("toggle-intensive"));
+    const cost = basis("centax").gross_bn.total[lead] - data.labour_supply.intensive.offset_bn.central[lead];
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
+  });
+
+  it("opens on the basis the URL names, and shows only on Budget impact", () => {
+    searchParams.set("takeup", "contract");
+    try {
+      render(<Dashboard data={data} />);
+      expect(screen.getByTestId("take-up-contract").getAttribute("aria-checked")).toBe("true");
+      expect(screen.getByTestId("card-cost").textContent).toContain(bn(basis("contract").gross_bn.total[lead]));
+      fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
+      expect(screen.queryByTestId("take-up-control")).toBeNull();
+      fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
+      expect(screen.queryByTestId("take-up-control")).toBeNull();
+      expect(screen.getByTestId("comparison-table").textContent).toContain(bn(basis("contract").gross_bn.total[String(final)]));
+    } finally {
+      searchParams.delete("takeup");
+    }
+  });
+
+  it("works without the control: each tab alone shows the headline", () => {
+    const g = takeUp.bases[takeUp.headline].gross_bn;
+    expect(textOf(<LandingTab data={data} />)).toContain(bn(g.total[lead]));
+    expect(textOf(<MethodTab data={data} />)).toContain(bn(g.total[String(final)]));
+    expect(textOf(<MethodTab data={data} />)).toContain(basis(takeUp.headline).rates_text);
   });
 });
 

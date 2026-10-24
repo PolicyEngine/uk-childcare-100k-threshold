@@ -8,6 +8,7 @@ import {
   getMeta,
   getModellingAssumptions,
   getReform,
+  getTakeUp,
   getValidation,
   isNum,
   STATIC_SETTING,
@@ -392,8 +393,10 @@ function LabourSupplySection({ data }) {
   );
 }
 
-export default function MethodTab({ data, setting = STATIC_SETTING }) {
+export default function MethodTab({ data, setting = STATIC_SETTING, basis }) {
   const meta = getMeta(data);
+  const takeUp = getTakeUp(data);
+  const headline = takeUp.bases[takeUp.headline];
   const reform = getReform(data);
   const validation = getValidation(data);
   const limitations = getLimitations(data);
@@ -421,11 +424,16 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             hours before Tax-Free Childcare is worked out, so the top-up is not paid on care the hours replace.
             Families gaining, and how much, come from the same comparison, household by household.
           </li>
-          <li>
-            The data decide once, by a random draw, whether each family would claim the 30 hours. Another pair of runs
-            has every family claiming, and the central cost is each newly eligible family&apos;s cost there times the
-            take-up rate, so it does not depend on the luck of that draw (How certain is the cost?, on Budget impact).
-            Who gains, by family and income, comes from the single draw.
+          <li data-testid="method-take-up">
+            Nobody over £100,000 is eligible today, so the data cannot say how many newly eligible families would take
+            up the 30 hours, and the dataset&apos;s single random draw of who claims leaves a few heavily weighted
+            families deciding much of the cost. So another pair of runs has every family claiming and every child
+            using its hours, and the central cost is each newly entitled child&apos;s cost there times{" "}
+            <a href={headline.source_url} target="_blank" rel="noreferrer">
+              DfE&apos;s take-up for its age
+            </a>{" "}
+            ({headline.rates_text}). Budget impact also shows the cost on CenTax&apos;s two rates and on the
+            dataset&apos;s one flat rate. Who gains, by family and income, comes from the single draw.
           </li>
           <li>
             The headline costing is static: parents work, earn and pay for childcare exactly as they do today in both
@@ -500,7 +508,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         detailsTitle="Each choice in full, the effect in every year, and sources"
       >
         <Expandable title="Show the comparison table" testId="comparison-expandable">
-          <UnifiedComparison data={data} setting={setting} />
+          <UnifiedComparison data={data} setting={setting} basis={basis} />
         </Expandable>
       </Section>
 

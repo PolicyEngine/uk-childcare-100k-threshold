@@ -9,12 +9,15 @@ import {
   fyLabel,
   getLabourSupply,
   getMeta,
+  getTakeUp,
   getYears,
   boundOf,
   labourSupplyParams,
   LS_BOUND_LABELS,
   LS_BOUNDS,
   parseLabourSupply,
+  parseTakeUp,
+  takeUpParams,
 } from "../lib/dataHelpers";
 import { TabLayout } from "./ui";
 
@@ -186,6 +189,65 @@ export function LabourSupplyControl({ data, setting, onChange }) {
   );
 }
 
+/**
+ * Who takes up the 30 hours among newly eligible children: one choice of three, the headline (DfE's rates by age)
+ * selected by default. It changes the cost figures on Budget impact and the comparison on Methodology, so it sits
+ * beside the labour supply control.
+ */
+export function TakeUpControl({ data, basis, onChange }) {
+  const t = getTakeUp(data);
+  return (
+    <fieldset className="mb-4" data-testid="take-up-control">
+      <legend className="mb-2 text-sm font-semibold text-slate-800">Who takes up the 30 hours among newly eligible families</legend>
+      <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="30 hours take-up">
+        {t.order.map((id) => {
+          const b = t.bases[id];
+          const on = id === basis;
+          return (
+            <div
+              key={id}
+              className={`flex flex-col rounded-xl border px-4 py-2.5 transition-colors ${
+                on ? "border-[color:var(--pe-color-primary-600)] bg-[color:var(--pe-color-primary-50)]" : "border-slate-200 bg-white"
+              }`}
+            >
+              <button
+                type="button"
+                role="radio"
+                aria-checked={on}
+                data-testid={`take-up-${id}`}
+                onClick={() => onChange(id)}
+                className="flex w-full items-center justify-between gap-3 text-left"
+              >
+                <span>
+                  <span className="font-semibold text-slate-900">{b.label}</span>
+                  {id === t.headline ? (
+                    <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Headline</span>
+                  ) : null}
+                </span>
+                <span
+                  aria-hidden
+                  className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
+                    on ? "border-[color:var(--pe-color-primary-600)]" : "border-slate-300"
+                  }`}
+                >
+                  {on ? <span className="h-2 w-2 rounded-full bg-[color:var(--pe-color-primary-600)]" /> : null}
+                </span>
+              </button>
+              <p className="mt-0.5 text-sm leading-5 text-slate-600">{b.description}.</p>
+              <p className="mt-auto pt-1.5 text-xs text-slate-500">
+                Source:{" "}
+                <a href={b.source_url} target="_blank" rel="noreferrer" className="underline">
+                  {b.source}
+                </a>
+              </p>
+            </div>
+          );
+        })}
+      </div>
+    </fieldset>
+  );
+}
+
 export function Dashboard({ data }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -212,20 +274,38 @@ export function Dashboard({ data }) {
     setSetting(parseLabourSupply(lsParam, boundParam));
   }
 
-  function replaceUrl(tab, ls) {
-    const params = new URLSearchParams([...(tab === DEFAULT_TAB ? [] : [["tab", tab]]), ...labourSupplyParams(ls)]);
+  // The 30 hours take-up basis, kept in the URL as ?takeup=centax; the headline (DfE by age) by default.
+  const takeUpParam = searchParams.get("takeup");
+  const [basis, setBasis] = useState(() => parseTakeUp(takeUpParam, data));
+  const [seenTakeUp, setSeenTakeUp] = useState(takeUpParam);
+  if (takeUpParam !== seenTakeUp) {
+    setSeenTakeUp(takeUpParam);
+    setBasis(parseTakeUp(takeUpParam, data));
+  }
+
+  function replaceUrl(tab, ls, takeUp) {
+    const params = new URLSearchParams([
+      ...(tab === DEFAULT_TAB ? [] : [["tab", tab]]),
+      ...labourSupplyParams(ls),
+      ...takeUpParams(takeUp, data),
+    ]);
     const query = params.toString();
     router.replace(query ? `/?${query}` : "/", { scroll: false });
   }
 
   function handleTabChange(tab) {
     setActiveTab(tab);
-    replaceUrl(tab, setting);
+    replaceUrl(tab, setting, basis);
   }
 
   function handleSettingChange(next) {
     setSetting(next);
-    replaceUrl(activeTab, next);
+    replaceUrl(activeTab, next, basis);
+  }
+
+  function handleBasisChange(next) {
+    setBasis(next);
+    replaceUrl(activeTab, setting, next);
   }
 
   return (
@@ -274,13 +354,18 @@ export function Dashboard({ data }) {
           ))}
         </div>
 
-        {/* Only Budget impact changes with the labour supply setting, so the control shows only there. */}
-        {activeTab === "budget" ? <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} /> : null}
+        {/* Only Budget impact's figures change with the take-up and labour supply settings, so the controls show only there. */}
+        {activeTab === "budget" ? (
+          <>
+            <TakeUpControl data={data} basis={basis} onChange={handleBasisChange} />
+            <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} />
+          </>
+        ) : null}
 
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
-          {activeTab === "budget" && <LandingTab data={data} setting={setting} />}
+          {activeTab === "budget" && <LandingTab data={data} setting={setting} basis={basis} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
-          {activeTab === "method" && <MethodTab data={data} setting={setting} />}
+          {activeTab === "method" && <MethodTab data={data} setting={setting} basis={basis} />}
         </TabLayout>
 
         <footer className="mt-12 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">

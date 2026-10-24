@@ -8,8 +8,7 @@ import {
   fyLabel,
   getBenchmarks,
   getBudget,
-  getBudgetComparisons,
-  getRecipients,
+  getTakeUp,
   getUncertainty,
   isNum,
   isStatic,
@@ -263,14 +262,14 @@ export function netGrossGapM(net, gross) {
 /** Each scheme side by side: where it applies, what it gives, who qualifies today and what the reform changes. */
 const bnRange = (lo, hi) => `${formatBn(lo, 2)} to ${formatBn(hi, 2)}`;
 
-/** The bootstrap's standard deviation and 5th-95th percentile beside the headline, and the take-up and age checks. */
-export function UncertaintyTable({ data }) {
-  const u = getUncertainty(data);
+/** The bootstrap's standard deviation and 5th-95th percentile on the take-up basis chosen, and the single draw. */
+export function UncertaintyTable({ data, basis }) {
+  const u = getUncertainty(data, basis);
   const rows = [
-    ["30 hours: standard deviation", (r) => formatBn(r.expected.thirty_hours.sd_bn, 2)],
-    ["30 hours: 5th to 95th percentile", (r) => bnRange(r.expected.thirty_hours.p5_bn, r.expected.thirty_hours.p95_bn)],
-    ["Both schemes: standard deviation", (r) => formatBn(r.expected.total.sd_bn, 2)],
-    ["Both schemes: 5th to 95th percentile", (r) => bnRange(r.expected.total.p5_bn, r.expected.total.p95_bn)],
+    ["30 hours: standard deviation", (r) => formatBn(r.chosen.thirty_hours.sd_bn, 2)],
+    ["30 hours: 5th to 95th percentile", (r) => bnRange(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
+    ["Both schemes: standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
+    ["Both schemes: 5th to 95th percentile", (r) => bnRange(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
     ["30 hours on the dataset's single take-up draw", (r) => formatBn(r.singleThirty, 2)],
   ];
   return (
@@ -278,7 +277,7 @@ export function UncertaintyTable({ data }) {
       <table className="data-table" data-testid="uncertainty-table">
         <thead>
           <tr>
-            <th />
+            <th className="text-left font-normal text-slate-500">Take-up: {u.basis.label}</th>
             {u.rows.map((r) => (
               <th key={r.year} className="text-right">
                 {nb(r.year)}
@@ -303,9 +302,44 @@ export function UncertaintyTable({ data }) {
   );
 }
 
+/** How the chosen take-up basis turns the cost if every newly eligible child takes up the hours into the cost. */
+function TakeUpNote({ data, u, lead }) {
+  const t = getTakeUp(data);
+  const b = u.basis;
+  const link = (
+    <a href={b.source_url} target="_blank" rel="noreferrer">
+      {b.source}
+    </a>
+  );
+  if (b.unit === "family") {
+    return (
+      <li data-testid="take-up-note">
+        On this basis the cost averages over who claims the 30 hours family by family: each newly eligible
+        family&apos;s cost if it claims, times the take-up rate in the {link} ({formatPct(100 * b.rate, 1)}). The
+        dataset draws once whether each family claims, and its heavily weighted newly eligible families drew a claim
+        more often than the rate, so the single draw is higher. Each percentage point of the rate moves the 30
+        hours&apos; cost by about £{b.per_point_m[String(lead.year)]}m in {nb(lead.year)}.
+      </li>
+    );
+  }
+  const headline = t.bases[t.headline];
+  return (
+    <li data-testid="take-up-note">
+      On this basis the cost averages over who takes up the 30 hours child by child: each newly entitled child&apos;s
+      cost with every family claiming and every child using its hours, times the take-up for its age ({link}:{" "}
+      {b.rates_text}). {t.age}{" "}
+      The rates already count whether a family applies and whether the child uses the hours, so they replace the
+      dataset&apos;s own draw of who claims.
+      {b.id === t.headline
+        ? " DfE's rates are the headline: they are official and by age, and most of the cost is for under-3s, where the dataset's flat rate is well above DfE's at 9-11 months and age 1 and about level at 2."
+        : ` The headline uses ${headline.label}.`}
+    </li>
+  );
+}
+
 /** The notes under the uncertainty table: what the range leaves out, take-up and the age profile. */
-export function UncertaintyNotes({ data }) {
-  const u = getUncertainty(data);
+export function UncertaintyNotes({ data, basis }) {
+  const u = getUncertainty(data, basis);
   const lead = u.rows.find((r) => r.year === LEAD_YEAR) ?? u.rows[0];
   const share = u.age.share_over_limit_by_age_pct;
   const others = [0, 2, 3, 4].map((k) => share[String(k)]);
@@ -313,7 +347,7 @@ export function UncertaintyNotes({ data }) {
   const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
   const centaxInside = u.rows.every((r) => {
     const c = centax[String(r.year)];
-    return isNum(c) && r.expected.thirty_hours.p5_bn <= c && c <= r.expected.thirty_hours.p95_bn;
+    return isNum(c) && r.chosen.thirty_hours.p5_bn <= c && c <= r.chosen.thirty_hours.p95_bn;
   });
   const [lo, hi] = [Math.min(u.age.even_spread_bn, u.age.centax_gradient_bn), Math.max(u.age.even_spread_bn, u.age.centax_gradient_bn)];
   return (
@@ -323,7 +357,8 @@ export function UncertaintyNotes({ data }) {
         with all its Microcosm copies, {u.draws.toLocaleString("en-GB")}{" "}
         times with the weights fixed; it holds the
         calibration fixed and ignores the survey&apos;s clustering. The 30 hours&apos; cost in {nb(lead.year)} rests
-        on about {lead.sourceHouseholds} FRS households, an effective number of about {lead.effectiveSourceHouseholds}.{" "}
+        on about {lead.sourceHouseholds} FRS households on the single take-up draw, an effective number of about{" "}
+        {lead.effectiveSourceHouseholds}.{" "}
         {centaxInside ? "CenTax's static costs for both years lie inside the range. " : ""}On the single take-up draw
         the bootstrap reproduces{" "}
         <a href={u.sourceUrl} target="_blank" rel="noreferrer">
@@ -331,24 +366,15 @@ export function UncertaintyNotes({ data }) {
         </a>
         .
       </li>
-      <li>
-        The central cost averages over who claims the 30 hours: each newly eligible family&apos;s cost if it claims,
-        times the{" "}
-        <a href={u.rateUrl} target="_blank" rel="noreferrer">
-          take-up rate
-        </a>{" "}
-        ({formatPct(100 * u.rate, 1)}). The dataset draws once whether each family claims, and its heavily weighted
-        newly eligible families drew a claim more often than the rate, so the single draw is higher. Each percentage
-        point of the rate moves the 30 hours&apos; cost by about £{u.perPoint[u.years.indexOf(lead.year)]}m in{" "}
-        {nb(lead.year)}.
-      </li>
+      <TakeUpNote data={data} u={u} lead={lead} />
       <li>
         The age profile can only push the cost up. The release has few 1-year-olds in families with a parent over
         £100,000 ({pct(share["1"])}, against {pct(Math.min(...others))} to {pct(Math.max(...others))}{" "}
         at the other
         ages under 5), and no source independent of the survey crosses income with a child&apos;s age. Spreading the
         newly entitled 1-to-4-year-olds evenly across those ages, or on CenTax&apos;s gradient between under-3s and
-        3-to-4s, raises the 30 hours&apos; cost in {nb(u.age.year)} by about {formatBn(lo, 2)} to {formatBn(hi, 2)}.
+        3-to-4s, raises the 30 hours&apos; cost on the single take-up draw in {nb(u.age.year)} by about{" "}
+        {formatBn(lo, 2)} to {formatBn(hi, 2)}.
       </li>
     </ul>
   );
@@ -394,16 +420,19 @@ function SchemesTable() {
   );
 }
 
-export default function LandingTab({ data, setting = STATIC_SETTING }) {
-  const budget = getBudget(data);
+export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
+  const takeUp = getTakeUp(data);
+  const chosen = takeUp.bases[basis ?? takeUp.headline];
+  const budget = getBudget(data, chosen.id);
   const dynamic = !isStatic(setting);
   const offsets = labourSupplyOffset(data, setting);
   const cost = budget.rows.map((r, i) => r.total - offsets[i]);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const [scheme, setScheme] = useState(null);
   const lead = budget.rows[li];
-  const recipients = getRecipients(data, lead.year);
-  const cmp = getBudgetComparisons(data);
+  // Families and children gaining on the chosen take-up basis (totals only; the breakdowns are on Who gains).
+  const recipients = chosen.recipients[lead.year];
+  const cmp = { net: chosen.net };
   const chart = costChartData(budget, offsets, dynamic);
   const gapM = netGrossGapM(cmp.net, budget.rows.map((r) => r.total));
   const fy = nb(lead.year);
@@ -413,7 +442,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
+        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year, with take-up of the 30 hours on the basis chosen above (${chosen.label}${chosen.id === takeUp.headline ? ", the headline" : ""}). Click a year's bar to change the year, or a scheme to show it alone.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -517,8 +546,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
         title="How certain is the cost?"
         lead="The static cost rests on a small number of survey households, so it carries sampling uncertainty. The table gives it beside the central figures above, for the first full year and the last."
       >
-        <UncertaintyTable data={data} />
-        <UncertaintyNotes data={data} />
+        <UncertaintyTable data={data} basis={chosen.id} />
+        <UncertaintyNotes data={data} basis={chosen.id} />
       </Section>
 
     </div>

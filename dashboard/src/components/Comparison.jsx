@@ -6,6 +6,7 @@ import {
   getBudget,
   getLabourSupply,
   getModellingAssumptions,
+  getTakeUp,
   isStatic,
   labourSupplyLabel,
   labourSupplyOffset,
@@ -83,20 +84,29 @@ const Link = ({ href, children }) => (
  * Our cost once parents change how much they work, in the final year. With the labour supply control off it shows
  * both margins at central elasticities with the low-high range; with it on, the margins and elasticities chosen.
  */
-export function dynamicCell(data, setting) {
-  const budget = getBudget(data);
+export function dynamicCell(data, setting, basis) {
+  const takeUp = getTakeUp(data);
+  const id = basis ?? takeUp.headline;
+  const budget = getBudget(data, id);
   const li = budget.years.length - 1;
   const ls = getLabourSupply(data);
   if (isStatic(setting)) {
-    const d = ls.dynamic;
-    return `${formatBn(d.central[li], 2)} (${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}, an illustrative range; moving into work, and hours net of the income effect; bunching not modelled)`;
+    // The published dynamic cost is the headline's; on another take-up basis it is that basis's static cost less the
+    // same offsets.
+    const total = budget.rows[li].total;
+    const d = id === takeUp.headline
+      ? Object.fromEntries(["central", "low", "high"].map((b) => [b, ls.dynamic[b][li]]))
+      : Object.fromEntries(["central", "low", "high"].map((b) => [b, total - ls.extensive.offset[b][li] - ls.intensive.offset[b][li]]));
+    return `${formatBn(d.central, 2)} (${formatBn(d.high, 2)} to ${formatBn(d.low, 2)}, an illustrative range; moving into work, and hours net of the income effect; bunching not modelled)`;
   }
   const cost = budget.rows[li].total - labourSupplyOffset(data, setting)[li];
   return `${formatBn(cost, 2)} (${labourSupplyLabel(setting)})`;
 }
 
-export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
-  const budget = getBudget(data);
+export function UnifiedComparison({ data, setting = STATIC_SETTING, basis }) {
+  const takeUp = getTakeUp(data);
+  const chosen = takeUp.bases[basis ?? takeUp.headline];
+  const budget = getBudget(data, chosen.id);
   const last = budget.rows.at(-1);
   const li = budget.years.length - 1;
   const a = Object.fromEntries(getModellingAssumptions(data).map((r) => [r.id, r]));
@@ -112,7 +122,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
         ["Schemes covered", "30 hours and Tax-Free Childcare", "", "Free hours only", "30 hours and Tax-Free Childcare", ""],
         [
           `Static cost, ${nb(last.year)}`,
-          `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)})`,
+          `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)}; take-up: ${chosen.label})`,
           "",
           `${formatBn(central.staticBn, 2)} (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)}; ${formatBn(centaxBeforeBunching, 2)} before their deduction for parents keeping income just under £100,000)`,
           "Not given",
@@ -120,7 +130,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
         ],
         [
           `After parents change how much they work, ${nb(last.year)}`,
-          <span key="dyn" data-testid="dynamic-cell">{dynamicCell(data, setting)}</span>,
+          <span key="dyn" data-testid="dynamic-cell">{dynamicCell(data, setting, chosen.id)}</span>,
           "",
           `${formatBn(central.netBn, 2)} (${net(low.netBn)} to ${net(high.netBn)})`,
           "About £0.7bn a year; basis not stated",
@@ -156,12 +166,30 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
           <span key="u">{a.under_ones.source_says}. <Link href={a.under_ones.source.url}>{a.under_ones.source.label}</Link></span>,
         ],
         [
-          "Who claims",
+          "Who takes up the 30 hours",
           a.take_up.ours,
           eff("take_up"),
+          `As today (DfE, 2025): ${takeUp.bases.centax?.rates_text ?? "not stated"}`,
+          "Not stated",
+          <span key="t">
+            DfE&apos;s January 2025 take-up by age. <Link href={a.take_up.source.url}>{a.take_up.source.label}</Link>
+          </span>,
+        ],
+        [
+          "One take-up rate for every family",
+          a.take_up_contract.ours,
+          eff("take_up_contract"),
+          "",
+          "Not stated",
+          <span key="tc">{a.take_up_contract.source_says}. <Link href={a.take_up_contract.source.url}>{a.take_up_contract.source.label}</Link></span>,
+        ],
+        [
+          "Who claims Tax-Free Childcare",
+          a.tfc_take_up.ours,
+          eff("tfc_take_up"),
           "Not costed: free hours only",
           "Not stated",
-          <span key="t">{a.take_up.source_says}. <Link href={a.take_up.source.url}>{a.take_up.source.label}</Link></span>,
+          <span key="tt">{a.tfc_take_up.source_says}. <Link href={a.tfc_take_up.source.url}>{a.tfc_take_up.source.label}</Link></span>,
         ],
         [
           "Income the limit tests",
