@@ -107,8 +107,10 @@ EXPECTED_SCENARIOS = {
 
 # ── Take-up of the 30 hours among newly eligible children (the take-up toggle) ─────────────────────────
 # Three bases for who takes up the 30 hours once the limit goes (María Juaristi, 24 October 2026). DfE's rates by
-# age are the headline: they are official and by age, and most of the cost is for under-3s, where the flat contract
-# rate (83.6%) is well above DfE's at 9-11 months and age 1 (42%, 70%) and about level at 2 (84%). DfE's and
+# age are the headline: the release is calibrated to DfE's January 2025 registration counts, so baseline and reform
+# then sit on the same take-up by age. Against them the contract basis is above DfE's at 9-11 months (about 73% once
+# the dataset's usage draw is counted) and at age 1, level at 2 and below at 3 and 4; the split of the gap by age is
+# aggregate.contract_gap_by_dfe_age, published as budget.take_up.contract_gap_by_dfe_age. DfE's and
 # CenTax's rates are child-level take-up (registered children over DfE's estimate of eligible children), so they
 # include whether the family claims and whether the child uses the hours. Each applies to each child's change in
 # funded hours in the claim-and-use pair above (every family claiming, every child using its hours), by the child's
@@ -128,6 +130,7 @@ CENTAX_REPORT_URL = (
 TAKE_UP_BASES = {
     "dfe": {
         "label": "DfE, by age",
+        "short_label": "DfE by age",
         "description": "DfE's take-up of the working-parent hours in January 2025: 42% at 9-11 months, 70% at "
                        "age 1, 84% at 2 and 91% at 3 and 4, child by child",
         "unit": "child",
@@ -142,6 +145,7 @@ TAKE_UP_BASES = {
     },
     "centax": {
         "label": "CenTax, under 3 and 3-4",
+        "short_label": "CenTax",
         "description": "CenTax's assumption: 73% of children under 3 and 91% of 3- and 4-year-olds (DfE's 2025 "
                        "take-up for the two groups), child by child",
         "unit": "child",
@@ -154,8 +158,9 @@ TAKE_UP_BASES = {
     },
     "contract": {
         "label": "Microcosm, one rate",
-        "description": f"The take-up contract's flat rate, {EXTENDED_TAKE_UP_RATE:.1%} of families, family by "
-                       "family, with the dataset's draws of the hours used",
+        "short_label": f"Flat {EXTENDED_TAKE_UP_RATE:.1%}",
+        "description": "The dataset's take-up contract: one rate for every newly eligible family, family by family, "
+                       "with the dataset's under-2 usage draw",
         "unit": "family",
         "rate": EXTENDED_TAKE_UP_RATE,
         "source": "Microcosm take-up contract (829c1bc26)",

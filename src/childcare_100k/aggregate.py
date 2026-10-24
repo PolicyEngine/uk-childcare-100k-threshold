@@ -749,6 +749,39 @@ def basis_components(runs, expected, basis, years=YEARS):
     return out
 
 
+CONTRACT_GAP_AGE_GROUPS = {"0": (0,), "1": (1,), "2": (2,), "3-5": (3, 4, 5)}
+
+
+def contract_gap_by_dfe_age(expected, year=LEAD_YEAR):
+    """Why the headline moved from the contract basis to DfE's: the 30 hours' cost on each by DfE age (£m).
+
+    ``every_child_m``: the claim-and-use pair (every family claiming, every child using its hours). ``contract_m``:
+    the contract rate on the claim-all pair, where the hours used are the dataset's draws, so at age 0 it also
+    carries the under-2 usage draw; ``contract_effective_rate`` is its cost over every child's, the rate it applies
+    in effect. ``gap_m``: contract less DfE, by age group, adding up to the gap in the 30 hours' cost.
+    """
+    contract, dfe = TAKE_UP_BASES["contract"], TAKE_UP_BASES["dfe"]
+    bc, rc = (expected[s] for s in contract["pair"])
+    use_rc = expected[dfe["pair"][1]]
+    if not np.array_equal(rc(year, "p_id"), use_rc(year, "p_id")):
+        raise ValueError(f"{year}: people differ between the claim-all and claim-and-use pairs")
+    w = rc(year, "p_weight")
+    age = rc(year, "p_dfe_age")
+    claim_all = (rc(year, "p_free_value") - bc(year, "p_free_value")) * w * contract["rate"]
+    c = person_changes(expected, year, "dfe")
+    every = c["hours"] * w
+    on_dfe = c["rate"] * c["hours"] * w
+    out = {"year": year, "every_child_m": {}, "contract_m": {}, "dfe_m": {}, "gap_m": {}, "contract_effective_rate": {}}
+    for key, ages in CONTRACT_GAP_AGE_GROUPS.items():
+        m = np.isin(age, ages)
+        e, k, d = (float(x[m].sum()) / 1e6 for x in (every, claim_all, on_dfe))
+        out["every_child_m"][key], out["contract_m"][key], out["dfe_m"][key] = round(e), round(k), round(d)
+        out["gap_m"][key] = round(k - d)
+        out["contract_effective_rate"][key] = round(k / e, 3) if e > 0 else None
+    out["gap_total_m"] = round(float(claim_all.sum() - on_dfe.sum()) / 1e6)
+    return out
+
+
 def _any_member(benunit, chance, n):
     """The chance that at least one member of each benefit unit has an event, members independent."""
     miss = np.clip(1 - chance, 0.0, 1.0)
