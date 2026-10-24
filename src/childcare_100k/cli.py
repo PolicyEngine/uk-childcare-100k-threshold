@@ -51,7 +51,7 @@ from .config import (
 from .datasets import MICROCOSM, POLICYENGINE_UK_VERSION
 from .engine import JOBS, SOURCE_DIR, is_current, load_meta, run_isolated
 from .household import cliff_example, household_grid
-from .validation import DFE_FUNDING_URL, baseline_validation
+from .validation import DFE_FUNDING_URL, HMRC_TFC_URL, baseline_validation
 
 
 def _git_revision():
@@ -139,9 +139,12 @@ def _provenance_meta(metas):
 
 
 DATASET_STATUS = (
-    "Cut on 23 October 2026 from PolicyEngine/microcosm 829c1bc26, a head of #1338 before its last commit (#1338 "
-    "merged later that day at a12885f9), with its own signed release certification, and run on policyengine-uk "
-    "2.147.2, the version its manifest pins. It is the latest national release (latest-national.json has pointed "
+    "Cut on 23 October 2026 from PolicyEngine/microcosm "
+    "[829c1bc26](https://github.com/PolicyEngine/microcosm/commit/829c1bc26), a head of "
+    "[#1338](https://github.com/PolicyEngine/microcosm/pull/1338) before its last commit (#1338 merged later that day "
+    "at [a12885f9](https://github.com/PolicyEngine/microcosm/commit/a12885f9)), with its own signed release "
+    "certification, and run on [policyengine-uk 2.147.2](https://github.com/PolicyEngine/policyengine-uk/tree/2.147.2), "
+    "the version its manifest pins. It is the latest national release (latest-national.json has pointed "
     "at it since 23 October 2026). No policyengine.py bundle registers it yet (6.10.2's still registers 6cba5d71), "
     "so this repository pins the file by revision and sha256."
 )
@@ -248,8 +251,8 @@ def data_limitations(rows):
     versus = f"about {abs(ratio):.0%} {'above' if ratio > 0 else 'below'}"
     return [(
         "Funded hours: baseline context",
-        f"The baseline's free-hours spending in 2026-27 is {versus} DfE's "
-        "illustrative total (see [Baseline validation](#validation)). DfE's totals are illustrative (based partly on forecasts) and "
+        f"The baseline's free-hours spending in 2026-27 is {versus} [DfE's illustrative total]({free['url']}) "
+        "(see [Baseline validation](#validation)). DfE's totals are illustrative (based partly on forecasts) and "
         "are context only: matching the aggregate baseline does not bound the incremental cost for newly eligible "
         "families above £100,000, whose take-up and hours may differ.",
     )]
@@ -397,7 +400,8 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
                     "flag, but only those reporting paid registered childcare get a top-up",
             "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
             "source": _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
-            "modelled": "The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and account counts, not a "
+            "modelled": "The Tax-Free Childcare draw is a claim flag fitted to "
+                        f"[HMRC's top-up and account counts]({HMRC_TFC_URL}), not a "
                         "take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use "
                         "is limited by reported spending (the table shows both). Nothing identifies take-up among "
                         "families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly "
