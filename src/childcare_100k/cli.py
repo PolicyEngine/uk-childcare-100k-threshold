@@ -12,8 +12,6 @@ import subprocess
 import time
 from datetime import datetime, timezone
 
-import numpy as np
-
 from . import aggregate as agg
 from .config import (
     BASELINE_LIMIT,
@@ -88,7 +86,8 @@ def run_all(rerun=False, log=print):
         if rerun or not is_current(scenario):
             run_isolated(scenario, REPO, log=log)
         metas[f"{PRIMARY_DATASET}/{scenario}"] = load_meta(scenario)
-    # The expected-mode pair (expectation.py) runs after the central baseline, which its reform does not need.
+    # The expected-mode pairs (expectation.py: claim-all and claim-and-use) run after the central baseline, which
+    # their reforms do not need.
     for scenario in expectation.JOBS:
         if rerun or not expectation.is_current(scenario):
             expectation.run_isolated(scenario, REPO, log=log)
