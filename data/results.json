@@ -28,9 +28,9 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-24T21:10:28+00:00",
-  "git_revision": "e7e71e248089fe5e2aca10fe3d77141b95eeeda0",
-  "aggregation_sha256": "e193402f2d7e665a31f042015eefc65f13c2fc6969ce8023698a49fdaf08d13c",
+  "generated_at": "2026-10-24T21:23:03+00:00",
+  "git_revision": "25a696a5587cf58579c1e32648c3bdbd4e219d2d",
+  "aggregation_sha256": "195dbb32d0d49766112e7a65511e83402f9faa499b4a7d64180381d3d7713ac1",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 71.6,
@@ -25714,7 +25714,7 @@
   {
    "id": "tfc_take_up",
    "title": "Who claims Tax-Free Childcare",
-   "ours": "97% of families carry a Tax-Free Childcare claim flag, but only those reporting paid registered childcare get a top-up",
+   "ours": "Families get a top-up only if they report paid registered childcare; 97% are set to claim",
    "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
    "source": {
     "label": "Microcosm take-up contract",

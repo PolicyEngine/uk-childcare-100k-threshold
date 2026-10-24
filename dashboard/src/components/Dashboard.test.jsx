@@ -251,7 +251,8 @@ describe("methodology", () => {
     const table = screen.getByTestId("comparison-table");
     const final = years.at(-1);
     for (const a of data.modelling_assumptions.filter((x) => x.effect_bn || x.id === "static")) {
-      expect(table.textContent, a.id).toContain(a.ours);
+      // A long choice is shown as its key point with the detail on a second line.
+      for (const part of a.ours.split(/: |; /)) expect(table.textContent, a.id).toContain(part);
       if (a.effect_bn) {
         const m = Math.round(a.effect_bn[final] * 1000);
         expect(table.textContent, a.id).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
@@ -359,11 +360,12 @@ describe("the labour supply control", () => {
   it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);
-    expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])} (${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("moving into work, and hours net of the income effect; bunching not modelled");
+    // The key figure, then the range and what it covers on a second line.
+    expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])}${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
+    expect(off).toContain("partners moving into work and hours, net of the income effect; bunching not modelled");
     const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
     const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)} (moving into work at the low setting)`);
+    expect(on).toContain(`${bn(cost)}moving into work at the low setting`);
   });
 
   it("shows the money back in the yearly chart only when a margin is on", () => {
@@ -469,9 +471,10 @@ describe("the take-up control", () => {
       // The comparison stays on the headline, whose effects its rows measure, whatever the basis chosen.
       const table = screen.getByTestId("comparison-table").textContent;
       const f = String(final);
-      expect(table).toContain(`${bn(basis(takeUp.headline).gross_bn.total[f])} (30 hours`);
-      expect(table).toContain(`take-up: ${basis(takeUp.headline).label}`);
-      expect(table).not.toContain(`${bn(basis("contract").gross_bn.total[f])} (30 hours`);
+      const staticCell = screen.getByTestId("static-cell").textContent;
+      expect(staticCell.startsWith(bn(basis(takeUp.headline).gross_bn.total[f]))).toBe(true);
+      expect(staticCell).toContain(`take-up: ${basis(takeUp.headline).label}`);
+      expect(table).not.toContain(`${bn(basis("contract").gross_bn.total[f])}30 hours`);
       expect(screen.getByTestId("dynamic-cell").textContent).toContain(bn(data.labour_supply.dynamic_cost_bn.central[f]));
     } finally {
       searchParams.delete("takeup");

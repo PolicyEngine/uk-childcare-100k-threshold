@@ -678,7 +678,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         id="assumptions"
         grouped
         title="How do we compare with other estimates?"
-        lead={`Our costing set against CenTax's, the Conservatives' figure, and the official sources and law, first on the cost and then on each modelling choice. The "If we change it" column shows how much the cost moves in ${fyLabel(meta.years.at(-1))} when we rerun with the alternative described under More detail; each change is separate and they do not add up.`}
+        lead={`Our costing set against CenTax's, the Conservatives' figure, and the official sources and law, first on the cost and then on each modelling choice. Each alternative is set out under "Each choice in full" below.`}
         details={
           <>
             <AssumptionNotes rows={modelling} takeUp={<AssumptionsTable rows={assumptions} />} />
