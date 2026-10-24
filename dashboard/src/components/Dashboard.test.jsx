@@ -304,13 +304,13 @@ describe("the labour supply control", () => {
     fireEvent.click(screen.getByTestId("toggle-intensive"));
     const cost = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.central[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
-    expect(screen.getByTestId("card-cost").textContent).toContain("(hours)");
+    expect(screen.getByTestId("card-cost").textContent).toContain("(parents' hours)");
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=int", { scroll: false });
 
     fireEvent.change(screen.getByTestId("toggle-intensive-bound"), { target: { value: "high" } });
     const high = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.high[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(high));
-    expect(screen.getByTestId("card-cost").textContent).toContain("(hours at the high setting)");
+    expect(screen.getByTestId("card-cost").textContent).toContain("(parents' hours at the high setting)");
     expect(router.replace).toHaveBeenLastCalledWith("/?ls=int%3Ahigh", { scroll: false });
   });
 
@@ -362,7 +362,7 @@ describe("the labour supply control", () => {
     expect(ls.dynamic_cost_bn.central[f]).toBeCloseTo(data.budget.gross_bn.total[f] - ls.intensive.offset_bn.central[f], 3);
     const on = textOf(<MethodTab data={data} setting={{ intensive: true, bounds: { intensive: "low" } }} />);
     const cost = data.budget.gross_bn.total[f] - ls.intensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)}hours at the low setting`);
+    expect(on).toContain(`${bn(cost)}parents' hours at the low setting`);
     // Nothing on the page reports partners moving into work as a result.
     expect(off).not.toMatch(/Partners moving into work:|Moving into work/);
   });

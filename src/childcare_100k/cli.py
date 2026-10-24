@@ -554,7 +554,7 @@ def build(metas):
                 "income_elasticities": "[Table A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9), by sex, whether in a couple and age of youngest child: from "
                                        "-0.185 (a woman in a couple, youngest child 0-2) to -0.037 (a lone "
                                        "mother, youngest 0-4); -0.05 for a man in a couple",
-                "couples": "The OBR's groups ([Tables A1 and A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=8)) treat married and cohabiting couples alike, "
+                "couples": "The OBR's income elasticity groups ([Table A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9)) treat married and cohabiting couples alike, "
                            "so we group adults by whether they are in a couple, not by legal marriage.",
                 "couples_issue_url": UPSTREAM_COUPLE_ISSUE_URL,
                 "free_hours_displacement": round(FREE_HOURS_DISPLACEMENT, 4),

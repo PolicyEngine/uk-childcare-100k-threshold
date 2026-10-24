@@ -634,7 +634,7 @@ export function getLabourSupply(data) {
 
 // One response, parents' hours. `ext` in an older URL (partners moving into work, no longer published) is ignored.
 const LS_KEYS = { intensive: "int" };
-const LS_WORDS = { intensive: "hours" };
+const LS_WORDS = { intensive: "parents' hours" };
 
 /** A response's own setting (low, central or high); `bound` is the shared default. */
 export const boundOf = (setting, margin) => setting.bounds?.[margin] ?? setting.bound ?? "central";
@@ -673,7 +673,7 @@ export function labourSupplyParams(setting) {
 
 export const isStatic = (setting) => !setting.intensive;
 
-/** The response in words: "hours" or "hours at the high setting". */
+/** The response in words: "parents' hours" or "parents' hours at the high setting". */
 export function labourSupplyLabel(setting) {
   const on = Object.keys(LS_KEYS)
     .filter((m) => setting[m])

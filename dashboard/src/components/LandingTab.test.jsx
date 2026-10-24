@@ -86,7 +86,7 @@ describe("the net-cost note", () => {
     const text = textOf(<LandingTab data={data} setting={STATIC} />);
     if (gap > 0 && gap <= 2) expect(text).toContain(`within £${gap}m`);
     expect(text).not.toContain("The cost is the same net of other taxes and benefits: nothing else changes");
-    expect(textOf(<LandingTab data={data} setting={BOTH} />)).not.toContain("Net of other taxes and benefits");
+    expect(textOf(<LandingTab data={data} setting={HOURS} />)).not.toContain("Net of other taxes and benefits");
   });
 
   it("measures the gap in £m", () => {
