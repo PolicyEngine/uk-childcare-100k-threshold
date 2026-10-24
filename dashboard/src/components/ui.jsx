@@ -90,10 +90,13 @@ export function Explainer({ children }) {
   );
 }
 
-/** A box closed by default; the title stays visible and opens the content. `compact` for a smaller box in a list. */
-export function Expandable({ title, children, testId, id, compact = false, className = "" }) {
+/**
+ * A box closed by default (`defaultOpen` opens it on load); the title stays visible and opens the content. `compact`
+ * for a smaller box in a list.
+ */
+export function Expandable({ title, children, testId, id, compact = false, className = "", defaultOpen = false }) {
   return (
-    <details className={`expandable group ${className}`} data-testid={testId} id={id}>
+    <details className={`expandable group ${className}`} data-testid={testId} id={id} open={defaultOpen || undefined}>
       <summary
         className={`flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-slate-800 ${
           compact ? "px-4 py-2.5 text-sm" : "px-4 py-3"

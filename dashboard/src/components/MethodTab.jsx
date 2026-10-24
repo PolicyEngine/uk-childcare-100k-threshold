@@ -304,28 +304,46 @@ function LabourSupplySection({ data }) {
       boxed={false}
       lead={
         <>
-          The headline costs are static: nobody changes how much they work. The Labour supply control on{" "}
-          <a href="?tab=budget">Budget impact</a> adds a response and shows a dynamic cost: the static cost less the
-          change in tax, National Insurance and childcare support that follows the change in work.
+          Our headline assumes nobody changes how much they work. The Labour supply switches on{" "}
+          <a href="?tab=budget">Budget impact</a> add a work response; the cost then shown is the static cost less the
+          change in tax, National Insurance and childcare support that follows.
         </>
       }
     >
-      <p className="max-w-[75ch] text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
-        In {year}, about {formatCount(entrants)} partners move into work, and they {extText}
-        {extOffset < 0
-          ? ": both parents must work for the family to qualify, so a partner's entry is what unlocks the 30 hours and Tax-Free Childcare."
-          : "."}{" "}
-        On hours, at central elasticities, as childcare gets cheaper the price effect brings back{" "}
-        {formatMoneyBn(ls.intensive.price.central[li])}, and as families are better off the income effect costs{" "}
-        {formatMoneyBn(-ls.intensive.income.central[li])}: a net {formatMoneyBn(ls.intensive.offset.central[li])} back.{" "}
-        <strong>Not modelled.</strong> {ls.notModelled} CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
-        <Ext href={CENTAX_TABLE_URL}>
-          {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
-          {formatBn(CENTAX.partnersBn, 2)} from partners entering work
-        </Ext>
-        ; our hours response has no CenTax counterpart.
-      </p>
       <ExpandableGroup className="mt-5" testId="labour-supply-details">
+        <Expandable title={`What we find, ${year}`} testId="ls-findings" compact defaultOpen>
+          <ul className="max-w-[75ch] list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
+            <li>
+              <strong>Partners moving into work:</strong> about {formatCount(entrants)}, who {extText}.
+              {extOffset < 0
+                ? " Both parents must work for the family to qualify, so a partner starting work unlocks the 30 hours and Tax-Free Childcare."
+                : ""}
+            </li>
+            <li>
+              <strong>Parents changing their hours:</strong> a net {formatMoneyBn(ls.intensive.offset.central[li])} back,
+              at central elasticities. The price effect brings back {formatMoneyBn(ls.intensive.price.central[li])}, as
+              cheaper childcare pulls hours up; the income effect costs {formatMoneyBn(-ls.intensive.income.central[li])},
+              as being better off pulls them down.
+            </li>
+          </ul>
+        </Expandable>
+        <Expandable title="Not modelled" testId="ls-not-modelled" compact>
+          <Prose>
+            <p>{ls.notModelled}</p>
+          </Prose>
+        </Expandable>
+        <Expandable title="Compared with CenTax" testId="ls-centax" compact>
+          <Prose>
+            <p>
+              CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
+              <Ext href={CENTAX_TABLE_URL}>
+                {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
+                {formatBn(CENTAX.partnersBn, 2)} from partners entering work
+              </Ext>
+              . Our hours response has no CenTax counterpart.
+            </p>
+          </Prose>
+        </Expandable>
         <Expandable title="Who responds" testId="ls-who" compact>
           <Prose>
             <p>
