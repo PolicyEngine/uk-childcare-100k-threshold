@@ -179,9 +179,9 @@ LIMITATIONS = [
     ),
     (
         "Take-up among newly eligible families",
-        "Take-up of the 30 hours among newly eligible families is [DfE's January 2025 take-up](https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025) among all eligible "
-        "children, by age. Nothing measures it for families over £100,000: they may use formal childcare more than "
-        "average, or claim less where the hours are worth little to them. DfE treats its 2025 rates with caution, "
+        "Nothing measures take-up of the 30 hours among families over £100,000, who are not eligible today. They "
+        "may use formal childcare more than average, or claim less where the hours are worth little to them. DfE "
+        "treats its [2025 rates](https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025) with caution, "
         "and the under-3 rates predate the rise to 30 hours in September 2025. CenTax's low-cost scenario assumes "
         f"{CENTAX_LIVE_ACCOUNT_SHARE:.0%} ([pp. 100-101](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=101)). "
         "Breakdowns by family, income and region use the dataset's own record of who claims, not DfE's rates.",
