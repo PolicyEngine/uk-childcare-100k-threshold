@@ -242,9 +242,7 @@ def _src(label, url):
     return {"label": label, "url": url}
 
 
-LSR_ALTERNATIVE = ("Parents respond: partners move into work (OBR participation elasticities), and parents in work "
-                   "change their hours as the price of an extra hour of childcare falls and as their family's "
-                   "income rises (a childcare-price and an OBR income elasticity)")
+LSR_ALTERNATIVE = "Parents respond: partners move into work and parents in work change their hours"
 
 
 def _rates_text(spec):

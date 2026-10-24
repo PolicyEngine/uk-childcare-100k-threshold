@@ -59,9 +59,8 @@ OFFICIAL = {
 
 
 CENSUS_NOTE = (
-    "Against the January 2025 census, which the dataset is calibrated to; DfE counted 501,700 under 3 and 388,700 "
-    "aged 3 and 4 in January 2026. Children are counted by age on 31 December, as DfE does; DfE's under-3 figure "
-    "includes 29,200 aged 9-11 months."
+    "Against the January 2025 census the dataset is calibrated to; DfE counted 501,700 under 3 and 388,700 aged 3 "
+    "and 4 in January 2026. The under-3 figure includes 29,200 aged 9-11 months."
 )
 
 
@@ -107,8 +106,8 @@ def rows_for(runs):
         out.append(_row("People with income of £100,000 or more", year,
                         int(round(_total(b(year, "p_income_before_deductions_at_least"), b(year, "p_weight")), -3)),
                         OFFICIAL[key], "people", HMRC_ITL_SOURCE + ", income before deductions", HMRC_ITL_URL, lab,
-                        "Model: net income before Gift Aid and pension contributions are deducted, HMRC's 'total "
-                        "income before any deductions'. The limits test adjusted net income, after those deductions."))
+                        "Income before pension contributions and Gift Aid, as HMRC counts it here; the limits test "
+                        "income after them."))
     funding = {VALIDATION_YEAR: ("ey_funding_bn_2025", DFE_FUNDING_2025_SOURCE, DFE_FUNDING_2025_URL),
                VALIDATION_YEAR + 1: ("ey_funding_bn", DFE_FUNDING_SOURCE, DFE_FUNDING_URL)}
     h = runs["baseline_hours30"]
@@ -117,11 +116,10 @@ def rows_for(runs):
         out.append(_row("Free early years entitlements spending (all three entitlements)", year,
                         round(_total(b(year, "hh_free"), b(year, "hh_weight")) / BN, 2), OFFICIAL[key], "£bn",
                         source, url, lab,
-                        "England. Model: universal, targeted and extended entitlements at DfE's funding rates, "
-                        "by term, from the date of birth."))
+                        "England, all three entitlements at DfE's funding rates."))
         out.append(_row("Free early years entitlements spending if every family used all 30 extended hours", year,
                         round(_total(h(year, "hh_free"), h(year, "hh_weight")) / BN, 2), OFFICIAL[key], "£bn",
-                        source, url, lab, "Sensitivity run: every family uses all 30 extended hours."))
+                        source, url, lab))
     return out
 
 
