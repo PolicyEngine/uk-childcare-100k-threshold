@@ -5,7 +5,6 @@ import {
   getLabourSupply,
   getLimitations,
   getMeta,
-  getModellingAssumptions,
   getReform,
   getTakeUp,
   getUncertainty,
@@ -15,7 +14,7 @@ import {
 } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatMoneyBn, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, CENTAX, UnifiedComparison } from "./Comparison";
-import { BulletList, DISCLOSURE_SUMMARY, Expandable, ListItem, RichText } from "./ui";
+import { BulletList, Expandable, ListItem, RichText } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
 export function formatUnit(value, unit) {
@@ -125,61 +124,6 @@ function ValidationTable({ rows }) {
       </table>
     </div>
   );
-}
-
-/** £bn as a signed £m figure: -0.015 -> "-£15m", 0.616 -> "+£616m". */
-const signedM = (v) => {
-  const m = Math.round(v * 1000);
-  return `${m > 0 ? "+" : m < 0 ? "-" : ""}£${Math.abs(m).toLocaleString("en-GB")}m`;
-};
-
-/** Each tested alternative and how much it moves the cost in every year. */
-function EffectsTable({ rows, years }) {
-  const tested = rows.filter((r) => r.effects);
-  return (
-    <div className="overflow-x-auto">
-      <table className="data-table" data-testid="effects-table">
-        <thead>
-          <tr>
-            <th>Alternative we test</th>
-            {years.map((y) => (
-              <th key={y} className="whitespace-nowrap">{fyLabel(y)}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {tested.map((r) => (
-            <tr key={r.id} data-testid={`effect-${r.id}`}>
-              <td>
-                <span className="font-medium text-slate-800">{r.title}:</span> {r.alternative}
-              </td>
-              {r.effects.map((v, i) => (
-                <td key={years[i]} className="whitespace-nowrap tabular-nums">{signedM(v)}</td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-/** Each modelling choice as a bullet: what we assume, then its sources. */
-function AssumptionNotes({ rows }) {
-  return rows.map((r) => (
-    <li key={r.id} id={r.id === "take_up" ? "take-up-rates" : undefined} data-testid={`choice-${r.id}`}>
-      <strong className="font-semibold text-slate-900">{r.title}.</strong> <RichText text={r.modelled} />{" "}
-      {(r.sources ?? []).map((x, i) => (
-        <span key={x.url + x.label}>
-          {i === 0 ? "Sources: " : "; "}
-          <a href={x.url} target="_blank" rel="noopener noreferrer">
-            {x.label}
-          </a>
-          {i === r.sources.length - 1 ? "." : ""}
-        </span>
-      ))}
-    </li>
-  ));
 }
 
 const OBR_NOTE_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf";
@@ -349,8 +293,7 @@ function TakeUpDetail({ data, limitation }) {
       ) : null}
       <p>
         <a href="?tab=budget#take-up-options">Budget impact</a>{" "}
-        switches between the options; why DfE&apos;s rates are the headline is under{" "}
-        <a href="#take-up-rates">Who takes up the 30 hours</a> below.
+        switches between the options, and <a href="#assumptions">the comparison table</a> shows what each changes.
       </p>
       {limitation ? (
         <p data-testid="take-up-limitation">
@@ -390,7 +333,6 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const fileLimitations = getLimitations(data);
   const takeUpLimitation = fileLimitations.find((l) => l.title === TAKE_UP_LIMITATION);
   const limitations = [...fileLimitations.filter((l) => l !== takeUpLimitation), ageProfileLimitation(data)];
-  const modelling = getModellingAssumptions(data);
   const years = `${fyLabel(meta.years[0])} to ${fyLabel(meta.years.at(-1))}`;
   const dataset = (meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "");
 
@@ -480,18 +422,9 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         <Expandable title="Show the comparison table" testId="comparison-expandable" compact>
           <UnifiedComparison data={data} setting={setting} />
         </Expandable>
-        <details className="group mt-2" data-testid="choices">
-          <summary className={DISCLOSURE_SUMMARY}>
-            Each choice in full
-            <span aria-hidden="true" className="transition-transform group-open:rotate-90">
-              ›
-            </span>
-          </summary>
-          <BulletList className="mt-2">
-            <AssumptionNotes rows={modelling} />
-          </BulletList>
-          <EffectsTable rows={modelling} years={meta.years} />
-        </details>
+        <p className="mt-3 text-sm leading-6 text-slate-600" data-testid="choices-method-link">
+          More on each choice is in the <Ext href={METHOD_URL}>method notes on GitHub</Ext>.
+        </p>
         <BenchmarkNotes data={data} Heading={Subhead} />
       </Card>
 

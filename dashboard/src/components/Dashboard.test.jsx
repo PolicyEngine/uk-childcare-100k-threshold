@@ -255,11 +255,20 @@ describe("methodology", () => {
       if (a.effect_bn) {
         const m = Math.round(a.effect_bn[final] * 1000);
         expect(table.textContent, a.id).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
-        const row = screen.getByTestId(`effect-${a.id}`);
-        const m0 = Math.round(a.effect_bn[years[0]] * 1000);
-        expect(row.textContent).toContain(`£${Math.abs(m0).toLocaleString("en-GB")}m`);
+        // The alternative it tests sits under the effect, as the one home for it.
+        const cell = screen.getByTestId(`effect-${a.id}`);
+        expect(cell.textContent).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
+        expect(cell.textContent).toContain(a.alternative);
       }
     }
+  });
+
+  it("has no separate list of the choices: the comparison table and one method-notes link carry them", () => {
+    render(<MethodTab data={data} />);
+    expect(screen.queryByTestId("choices")).toBeNull();
+    expect(screen.queryByTestId("effects-table")).toBeNull();
+    const card = document.getElementById("assumptions");
+    expect(within(card).getAllByRole("link", { name: /method notes on GitHub/i })).toHaveLength(1);
   });
 
   it("does not call the take-up rates equal above and below £100,000", () => {
@@ -424,8 +433,8 @@ describe("the take-up control", () => {
     expect(step.id).toBe("take-up-method");
     expect(step.textContent).toContain(`£${basis("contract").per_point_m[lead]}m`);
     expect(within(step).getByRole("link", { name: "Budget impact" }).getAttribute("href")).toBe("?tab=budget#take-up-options");
-    expect(within(step).getByRole("link", { name: "Who takes up the 30 hours" }).getAttribute("href")).toBe("#take-up-rates");
-    expect(document.getElementById("take-up-rates")).not.toBeNull();
+    expect(within(step).getByRole("link", { name: "the comparison table" }).getAttribute("href")).toBe("#assumptions");
+    expect(document.getElementById("assumptions")).not.toBeNull();
   });
 
   it("groups the boxes under the range chart, with no pointer line to Methodology under them", () => {

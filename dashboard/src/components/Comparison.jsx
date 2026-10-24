@@ -132,7 +132,9 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
   const a = Object.fromEntries(getModellingAssumptions(data).map((r) => [r.id, r]));
   const [central, high, low] = ["central", "high", "low"].map((id) => CENTAX_SCENARIOS.find((c) => c.id === id));
   const net = (v) => (v < 0 ? `raises ${formatBn(-v, 2)}` : formatBn(v, 2));
-  const eff = (id) => (a[id]?.effects ? signedM(a[id].effects[li]) : "Not tested");
+  // The effect, with the alternative it tests on a muted second line.
+  const eff = (id) =>
+    a[id]?.effects ? <Cell key="e" testId={`effect-${id}`} main={signedM(a[id].effects[li])} sub={a[id].alternative} /> : "Not tested";
   const benchmark = getBenchmarks(data)[0];
   const centaxBeforeBunching = benchmark?.underlying_static_before_bunching_by_year_bn?.[String(last.year)];
   const none = "—";
