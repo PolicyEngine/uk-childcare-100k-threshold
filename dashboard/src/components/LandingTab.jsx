@@ -647,7 +647,14 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
       <Section
         id="each-year"
         title="How much does it cost each year?"
-        lead="Extra government spending in each fiscal year from removing the limit, split between the 30 funded hours and Tax-Free Childcare. The £100,000 limit is not uprated, so as pay rises more parents pass it each year and the cost of removing it grows. Hover over a bar for its figures. The assumptions behind these figures, and what each one changes, are on the Methodology tab."
+        lead={
+          <>
+            Extra government spending in each fiscal year from removing the limit, split between the 30 funded hours and
+            Tax-Free Childcare. The £100,000 limit is not uprated, so as pay rises more parents pass it each year and the
+            cost of removing it grows. Hover over a bar for its figures. The assumptions behind these figures, and what
+            each one changes, are on the <a href="?tab=method#assumptions">Methodology tab</a>.
+          </>
+        }
         detailsTitle="How to read this chart"
         details={
           <>
@@ -668,8 +675,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
       >
         {dynamic ? (
           <p className="mb-3 text-sm text-slate-600" data-testid="chart-setting">
-            Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see
-            Methodology):{" "}
+            Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see{" "}
+            <a href="?tab=method#labour-supply">Methodology</a>):{" "}
             {offsets.every((v) => v >= 0)
               ? "the grey bars below zero are the money back from parents working more"
               : offsets.every((v) => v <= 0)

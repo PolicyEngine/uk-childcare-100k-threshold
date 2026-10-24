@@ -370,7 +370,7 @@ function LabourSupplySection({ data }) {
             </p>
             <p>
               Because the probability change applies to the employed share, new employment is the sum over working
-              adults of their own response (Adam and Phillips, Appendix E). It is shared among non-working adults like
+              adults of their own response. It is shared among non-working adults like
               them, who are the ones entering: those in the same OBR group (sex, couple, age of the youngest child and
               earnings quintile), in proportion to their own response, or, where that group has no responding
               non-worker, the nearest broader group
