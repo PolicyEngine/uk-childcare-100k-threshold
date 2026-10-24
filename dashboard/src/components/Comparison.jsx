@@ -29,9 +29,11 @@ export const CENTAX_SCENARIOS = [
 
 export function BenchmarkNotes({ data }) {
   const benchmark = getBenchmarks(data)[0];
+  // Two items of the list under the comparison table.
   return (
-    <div className="space-y-3" data-testid="benchmark">
-      <p>
+    <>
+      <li data-testid="benchmark">
+        <strong className="font-semibold text-slate-800">The Conservatives&apos; figure.</strong>{" "}
         The Conservatives put the cost at about £700m a year when they announced the pledge, to be paid for by
         cutting staff at arm&apos;s-length public bodies. Their{" "}
         <a href={benchmark.announcement_url} target="_blank" rel="noopener noreferrer">
@@ -47,16 +49,17 @@ export function BenchmarkNotes({ data }) {
         </a>
         , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
         &ldquo;pushed up the costs slightly&rdquo;.
-      </p>
-      <p data-testid="benchmark-like-for-like">
-        Compare figures on the same basis. Our 30 hours cost and CenTax&apos;s static cost both cover the free hours
+      </li>
+      <li data-testid="benchmark-like-for-like">
+        <strong className="font-semibold text-slate-800">Compare figures on the same basis.</strong>{" "}
+        Our 30 hours cost and CenTax&apos;s static cost both cover the free hours
         before any change in how much parents work, so they are the like-for-like pair. CenTax&apos;s net figures
         allow for parents earning more once the limit goes (fewer keep their income just below £100,000) and partners
         moving into work, which brings in extra tax. The party&apos;s £0.7bn is close to CenTax&apos;s central net
         figure plus a small addition for Tax-Free Childcare. CenTax label tax years by their later year, so their
         2030 is 2029-30.
-      </p>
-    </div>
+      </li>
+    </>
   );
 }
 

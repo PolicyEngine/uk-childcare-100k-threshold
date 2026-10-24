@@ -445,3 +445,51 @@ export function RichText({ text }) {
 export function plainText(text) {
   return String(text).replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1");
 }
+
+/** A plain bulleted (or numbered) list of items, with no box or rules between them. */
+export function BulletList({ children, testId, ordered = false, className = "" }) {
+  const Tag = ordered ? "ol" : "ul";
+  return (
+    <Tag
+      className={`${ordered ? "list-decimal" : "list-disc"} space-y-3 pl-5 text-sm leading-6 text-slate-600 marker:text-slate-400 ${className}`}
+      data-testid={testId}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+/**
+ * One item of a BulletList: a bold title and an optional summary on the bullet; any further detail sits behind a
+ * small "More" under it (or, with no summary, behind the title itself). `id` and `testId` go on the disclosure when
+ * there is one, so a link to `#id` opens it.
+ */
+export function ListItem({ title, summary, children, id, testId }) {
+  const head = (
+    <>
+      <strong className="font-semibold text-slate-800">{title}.</strong>
+      {summary ? <> {summary}</> : null}
+    </>
+  );
+  if (!children) {
+    return (
+      <li id={id} data-testid={testId}>
+        {head}
+      </li>
+    );
+  }
+  return (
+    <li>
+      {summary ? head : null}
+      <details className="group" id={id} data-testid={testId}>
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]">
+          {summary ? <span className="text-xs font-semibold text-slate-600">More</span> : head}
+          <span aria-hidden="true" className="text-xs text-slate-500 transition-transform group-open:rotate-90">
+            ›
+          </span>
+        </summary>
+        <div className="mt-1 space-y-2">{children}</div>
+      </details>
+    </li>
+  );
+}

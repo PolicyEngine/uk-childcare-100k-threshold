@@ -18,7 +18,7 @@ import {
 } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatMoneyBn, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, CENTAX, UnifiedComparison } from "./Comparison";
-import { Expandable, ExpandableGroup, ExpandableRow, RichText, Section } from "./ui";
+import { BulletList, Expandable, ListItem, RichText, Section } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
 export function formatUnit(value, unit) {
@@ -218,29 +218,23 @@ function EffectsTable({ rows, years }) {
   );
 }
 
+/** Each modelling choice as a bullet: what we assume, then its sources. */
 function AssumptionNotes({ rows, takeUp }) {
-  return (
-    <div className="space-y-3">
-      {rows.map((r) => (
-        <div key={r.id} id={r.id === "take_up" ? "take-up-rates" : undefined}>
-          <p>
-            <span className="font-semibold text-slate-700">{r.title}. </span>
-            <RichText text={r.modelled} />{" "}
-            {(r.sources ?? []).map((x, i) => (
-              <span key={x.url + x.label}>
-                {i === 0 ? "Sources: " : "; "}
-                <a href={x.url} target="_blank" rel="noopener noreferrer">
-                  {x.label}
-                </a>
-                {i === r.sources.length - 1 ? "." : ""}
-              </span>
-            ))}
-          </p>
-          {r.id === "take_up" ? <div className="mt-2">{takeUp}</div> : null}
-        </div>
+  return rows.map((r) => (
+    <li key={r.id} id={r.id === "take_up" ? "take-up-rates" : undefined} data-testid={`choice-${r.id}`}>
+      <strong className="font-semibold text-slate-800">{r.title}.</strong> <RichText text={r.modelled} />{" "}
+      {(r.sources ?? []).map((x, i) => (
+        <span key={x.url + x.label}>
+          {i === 0 ? "Sources: " : "; "}
+          <a href={x.url} target="_blank" rel="noopener noreferrer">
+            {x.label}
+          </a>
+          {i === r.sources.length - 1 ? "." : ""}
+        </span>
       ))}
-    </div>
-  );
+      {r.id === "take_up" ? <div className="mt-2">{takeUp}</div> : null}
+    </li>
+  ));
 }
 
 // £m to one decimal, signed: the entry sensitivities are a few £m.
@@ -259,9 +253,9 @@ const Ext = ({ href, children }) => (
   </a>
 );
 
-/** A box's content as prose, across the full width of the box. */
+/** Detail under a list item's "More". */
 function Prose({ children }) {
-  return <div className="space-y-2 text-sm leading-6 text-slate-600">{children}</div>;
+  return <div className="space-y-2">{children}</div>;
 }
 
 function LabourSupplySection({ data }) {
@@ -316,48 +310,43 @@ function LabourSupplySection({ data }) {
         </>
       }
     >
-      <ExpandableGroup className="mt-5" testId="labour-supply-details">
-        <Expandable title={`What we find, ${year}`} testId="ls-findings" compact defaultOpen>
-          <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
-            <li>
-              <strong>Partners moving into work:</strong> about {formatCount(entrants)}, who {extText}.
-              {extOffset < 0
-                ? " Both parents must work for the family to qualify, so a partner starting work unlocks the 30 hours and Tax-Free Childcare."
-                : ""}
-            </li>
-            <li>
-              <strong>Parents changing their hours:</strong> a net {formatMoneyBn(ls.intensive.offset.central[li])} back,
-              at central elasticities. The price effect brings back {formatMoneyBn(ls.intensive.price.central[li])}, as
-              cheaper childcare pulls hours up; the income effect costs {formatMoneyBn(-ls.intensive.income.central[li])},
-              as being better off pulls them down.
-            </li>
-          </ul>
-        </Expandable>
-        <Expandable title="Not modelled" testId="ls-not-modelled" compact>
-          <Prose>
-            <p>{ls.notModelled}</p>
-          </Prose>
-        </Expandable>
-        <Expandable title="Compared with CenTax" testId="ls-centax" compact>
-          <Prose>
-            <p>
+      <BulletList className="mt-5" testId="labour-supply-details">
+        <li data-testid="labour-supply-method">
+          <strong className="font-semibold text-slate-800">Partners moving into work, {year}:</strong> about{" "}
+          {formatCount(entrants)}, who {extText}.
+          {extOffset < 0
+            ? " Both parents must work for the family to qualify, so a partner starting work unlocks the 30 hours and Tax-Free Childcare."
+            : ""}
+        </li>
+        <li>
+          <strong className="font-semibold text-slate-800">Parents changing their hours, {year}:</strong> a net{" "}
+          {formatMoneyBn(ls.intensive.offset.central[li])} back, at central elasticities. The price effect brings back{" "}
+          {formatMoneyBn(ls.intensive.price.central[li])}, as cheaper childcare pulls hours up; the income effect costs{" "}
+          {formatMoneyBn(-ls.intensive.income.central[li])}, as being better off pulls them down.
+        </li>
+        <ListItem title="Not modelled" summary={ls.notModelled} testId="ls-not-modelled" />
+        <ListItem
+          title="Compared with CenTax"
+          testId="ls-centax"
+          summary={
+            <>
               CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
               <Ext href={CENTAX_TABLE_URL}>
                 {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
                 {formatBn(CENTAX.partnersBn, 2)} from partners entering work
               </Ext>
               . Our hours response has no CenTax counterpart.
-            </p>
-          </Prose>
-        </Expandable>
-        <Expandable title="Who responds" testId="ls-who" compact>
+            </>
+          }
+        />
+        <ListItem title="Who responds" testId="ls-who">
           <Prose>
             <p>
               <RichText text={raw.responding_population} />
             </p>
           </Prose>
-        </Expandable>
-        <Expandable title="Moving into work: method" testId="ls-extensive" compact>
+        </ListItem>
+        <ListItem title="Moving into work: method" testId="ls-extensive">
           <Prose>
             <p>
               The <Ext href={OBR_NOTE_URL}>OBR&apos;s participation elasticities</Ext> (
@@ -384,8 +373,8 @@ function LabourSupplySection({ data }) {
               money back.
             </p>
           </Prose>
-        </Expandable>
-        <Expandable title="Hours: method" testId="ls-intensive" compact>
+        </ListItem>
+        <ListItem title="Hours: method" testId="ls-intensive">
           <Prose>
             <p>
               Every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax
@@ -433,8 +422,8 @@ function LabourSupplySection({ data }) {
               {formatMoneyBn(-ls.intensive.over_limit.income.central[li])}.
             </p>
           </Prose>
-        </Expandable>
-        <Expandable title="Sensitivities" testId="ls-sensitivities" compact>
+        </ListItem>
+        <ListItem title="Sensitivities" testId="ls-sensitivities">
           <Prose>
             <p>
               <strong>Low and high.</strong> Every elasticity is multiplied by {scale(a.elasticity_scales.low)} and by{" "}
@@ -458,8 +447,8 @@ function LabourSupplySection({ data }) {
               </p>
             ) : null}
           </Prose>
-        </Expandable>
-        <Expandable title="Checks and known issues" testId="ls-checks" compact>
+        </ListItem>
+        <ListItem title="Checks and known issues" testId="ls-checks">
           <Prose>
             <p>
               <strong>Couples.</strong> <RichText text={a.couples} />{" "}
@@ -478,32 +467,18 @@ function LabourSupplySection({ data }) {
               </p>
             ) : null}
           </Prose>
-        </Expandable>
-      </ExpandableGroup>
+        </ListItem>
+      </BulletList>
     </Section>
   );
 }
 
-/** One step of the costing: a one-line summary, and its detail in a closed box when it has one. */
-function Step({ n, title, children, detail, id, testId }) {
-  const line = (
-    <span className="flex gap-3 font-normal text-slate-700">
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--pe-color-primary-50)] text-xs font-semibold text-[color:var(--pe-color-primary-700)]">
-        {n}
-      </span>
-      <span>
-        <strong className="font-semibold text-slate-800">{title}.</strong> {children}
-      </span>
-    </span>
-  );
-  return detail ? (
-    <Expandable title={line} id={id} testId={testId} compact>
-      <Prose>{detail}</Prose>
-    </Expandable>
-  ) : (
-    <ExpandableRow compact testId={testId}>
-      <div id={id}>{line}</div>
-    </ExpandableRow>
+/** One step of the costing, an item of a numbered list: a one-line summary, and its detail behind "More". */
+function Step({ title, children, detail, id, testId }) {
+  return (
+    <ListItem title={title} summary={children} id={id} testId={testId}>
+      {detail ? <Prose>{detail}</Prose> : null}
+    </ListItem>
   );
 }
 
@@ -588,8 +563,8 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="method-tab">
-      <Section id="model" title="How we cost it" lead="Five steps, from the data to the published figures. Open a step for its detail." boxed={false}>
-        <ExpandableGroup testId="method-steps">
+      <Section id="model" title="How we cost it" lead="Five steps, from the data to the published figures." boxed={false}>
+        <BulletList ordered className="mt-5" testId="method-steps">
           <Step n={1} title="Data" testId="method-step-data">
             <Ext href={MICROCOSM_URL}>{dataset}</Ext>: PolicyEngine&apos;s survey-based dataset of UK households,
             reweighted to official totals.
@@ -669,74 +644,63 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             The model package and the dataset release are fixed, and the dataset file&apos;s checksum is verified
             before each run, so the results can be rebuilt exactly.
           </Step>
-        </ExpandableGroup>
+        </BulletList>
       </Section>
 
       <LabourSupplySection data={data} />
 
       <Section
         id="assumptions"
-        grouped
+        boxed={false}
         title="How do we compare with other estimates?"
         lead={`Our costing set against CenTax's, the Conservatives' figure, and the official sources and law, first on the cost and then on each modelling choice. Each alternative is set out under "Each choice in full" below.`}
-        details={
-          <>
-            <AssumptionNotes rows={modelling} takeUp={<AssumptionsTable rows={assumptions} />} />
-            <EffectsTable rows={modelling} years={meta.years} />
-            <BenchmarkNotes data={data} />
-          </>
-        }
-        detailsTitle="Each choice in full, the effect in every year, and sources"
       >
         <Expandable title="Show the comparison table" testId="comparison-expandable">
           <UnifiedComparison data={data} setting={setting} />
         </Expandable>
+        <BulletList className="mt-5" testId="assumption-notes">
+          <AssumptionNotes rows={modelling} takeUp={<AssumptionsTable rows={assumptions} />} />
+          <ListItem title="The effect in every year" testId="effects">
+            <EffectsTable rows={modelling} years={meta.years} />
+          </ListItem>
+          <BenchmarkNotes data={data} />
+        </BulletList>
       </Section>
 
       <Section
         id="validation"
-        grouped
+        boxed={false}
         title="Baseline validation"
         lead="How the model's picture of today, before any reform, compares with official statistics."
-        details={
-          <p>
+      >
+        <Expandable title="Show the validation table" testId="validation-expandable">
+          <ValidationTable rows={validation} />
+        </Expandable>
+        <BulletList className="mt-5" testId="validation-notes">
+          <li>
             Tax-Free Childcare and the number of people over £100,000 match HMRC closely. The working-parent counts are
             measured as the dataset&apos;s calibration counts them, children funded in the January term by their age on
             31 December, and compared with DfE&apos;s January 2025 census, which the dataset is calibrated to: the 3-
             and 4-year-olds match, and under-3s are a little above. Funded-hours spending is close to DfE&apos;s
             illustrative total for 2026-27. Each official figure links to its source in the table.
-          </p>
-        }
-      >
-        <Expandable title="Show the validation table" testId="validation-expandable">
-          <ValidationTable rows={validation} />
-        </Expandable>
+          </li>
+        </BulletList>
       </Section>
 
-      <Section id="limitations" title="Limitations" lead="What the costing does not capture. Open one for its detail." boxed={false}>
-        <ExpandableGroup testId="limitations">
-          {limitations.map((l) => {
-            const line = (
-              <span className="font-normal text-slate-700">
-                <strong className="font-semibold text-slate-800">{l.title}.</strong> <RichText text={l.summary} />
-              </span>
-            );
-            const testId = `limitation-${l.id ?? l.title}`;
-            return l.detail ? (
-              <Expandable key={l.title} title={line} id={l.id} testId={testId} compact>
-                <Prose>
-                  <p>
-                    <RichText text={l.detail} />
-                  </p>
-                </Prose>
-              </Expandable>
-            ) : (
-              <ExpandableRow key={l.title} compact testId={testId}>
-                {line}
-              </ExpandableRow>
-            );
-          })}
-        </ExpandableGroup>
+      <Section id="limitations" title="Limitations" lead="What the costing does not capture." boxed={false}>
+        <BulletList className="mt-5" testId="limitations">
+          {limitations.map((l) => (
+            <ListItem
+              key={l.title}
+              title={l.title}
+              summary={<RichText text={l.summary} />}
+              id={l.id}
+              testId={`limitation-${l.id ?? l.title}`}
+            >
+              {l.detail ? <RichText text={l.detail} /> : null}
+            </ListItem>
+          ))}
+        </BulletList>
       </Section>
     </div>
   );
