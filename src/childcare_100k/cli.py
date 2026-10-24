@@ -29,7 +29,6 @@ from .config import (
     FREE_HOURS_DISPLACEMENT,
     FREE_HOURS_DISPLACEMENT_RANGE,
     HEADLINE_TAKE_UP_BASIS,
-    HOURS_FOR_NEW_ENTRANTS,
     HOURS_PRICE_ELASTICITY,
     LEAD_YEAR,
     MIN_CELL_RECORDS,
@@ -242,7 +241,7 @@ def _src(label, url):
     return {"label": label, "url": url}
 
 
-LSR_ALTERNATIVE = "Parents respond: partners move into work and parents in work change their hours"
+LSR_ALTERNATIVE = "Parents in work change their hours"
 
 
 def _rates_text(spec):
@@ -272,7 +271,7 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "modelled": "Both runs keep every family's earnings, hours of work, pension contributions and childcare spending "
                         "as they are; [Labour supply](#labour-supply) sets out the response.",
             "sources": [
-                _src("OBR participation and income elasticities", OBR_PARTICIPATION_URL),
+                _src("OBR income elasticities", OBR_PARTICIPATION_URL),
                 _src("Brewer et al., hours", BREWER_HOURS_URL),
                 METHOD_NOTES,
             ],
@@ -380,20 +379,6 @@ UNCERTAINTY_SOURCE_URL = "https://github.com/PolicyEngine/uk-childcare-100k-thre
 # 3-to-4s (her figure; aggregate.age_profile_sensitivity computes the even spread).
 CENTAX_GRADIENT_SENSITIVITY_BN = 0.13
 # Microcosm's analysis of the Tax-Free Childcare claim flag and the netting of new funded hours (#8, 22 October 2026).
-
-
-def moved_outside_note(population):
-    """Whether the reform changes anyone's gain to work outside the responding population."""
-    moved = {y: p["adults_moved_outside_population"] for y, p in population.items()}
-    if not any(moved.values()):
-        return ("Outside the responding population the reform leaves every adult's gain to work unchanged, in "
-                "every year.")
-    years = [y for y, v in moved.items() if v]
-    return ("Outside the responding population the reform should leave every adult's gain to work unchanged. In "
-            + " and ".join(f"{_fy(int(y))} (about {moved[y]:,.0f} adults)" for y in years)
-            + " it does not: in 2026-27 these are non-working adults whose own income is just under £100,000, so "
-            "entering work would take them over the limit; the reform raises their gain to work by under £100 a "
-            "year. They are not given a response, and the effect on the cost is negligible.")
 
 
 def _fy(year):
@@ -561,10 +546,6 @@ def build(metas):
         "labour_supply": {
             **lsr,
             "assumptions": {
-                "participation_elasticities": "[OBR Table A1](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=8), by sex, partner's work, age of youngest child and "
-                                              "earnings quintile, converted to the gain to work and applied to the "
-                                              "employed share ([Adam and Phillips, Appendix E]"
-                                              "(https://ifs.org.uk/sites/default/files/output_url_files/r75.pdf#page=132))",
                 "price_elasticity_central": PRICE_ELASTICITY_CENTRAL,
                 "price_elasticity_low": PRICE_ELASTICITY_LOW,
                 "price_elasticity_high": PRICE_ELASTICITY_HIGH,
@@ -576,7 +557,6 @@ def build(metas):
                 "couples": "The OBR's groups ([Tables A1 and A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=8)) treat married and cohabiting couples alike, "
                            "so we group adults by whether they are in a couple, not by legal marriage.",
                 "couples_issue_url": UPSTREAM_COUPLE_ISSUE_URL,
-                "hours_for_new_entrants": HOURS_FOR_NEW_ENTRANTS,
                 "free_hours_displacement": round(FREE_HOURS_DISPLACEMENT, 4),
                 "free_hours_displacement_range": {k: round(v, 4) for k, v in FREE_HOURS_DISPLACEMENT_RANGE.items()},
                 "hours_price_elasticity_status": "extrapolated scenario assumption, not an estimated price elasticity",
@@ -586,33 +566,19 @@ def build(metas):
                 "Both parents in families whose youngest child is under 12 and where a parent's income is over "
                 "£100,000, leaving out the self-employed, students and people aged 60 and over, as the "
                 "[OBR](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9) does. "
-                "Those not in work may start, except disabled adults; those in work may change their hours."
+                "Those in work may change their hours."
             ),
-            "not_modelled": "Bunching: parents who today keep their income at or just below "
-                            "£100,000 and would earn more without the limit.",
+            "not_modelled": "Bunching (parents who today keep their income at or just below £100,000 earning more "
+                            "without the limit) and partners who do not work moving into work. CenTax estimate both; "
+                            "we do not model them.",
             "notes": [
                 "The dynamic cost is an illustrative scenario, not a forecast: its hours price elasticity is "
                 "extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is "
                 "not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The "
-                "dynamic cost is the static total less the two offsets (moving into work and hours), at the same "
-                "bound; the static total is the headline, on DfE's take-up by age, and the offsets are measured on "
-                "the dataset's single take-up draw; the hours offset is its price effect (money back) plus its income "
-                "effect (money out). On another take-up basis the dashboard subtracts the same offsets. "
-                "They apply to the total: they are not split by scheme.",
-                "Moving into work (extensive margin): the OBR elasticities are the percentage change in the "
-                "probability of working for a percentage change in the gain to work (net of the childcare a parent "
-                "would buy), converted from in-work income by the gain over in-work income. As in Adam and "
-                "Phillips (Appendix E) they apply to the employed share: new employment is the sum over working "
-                "adults of their own response, and it is shared among the non-working adults like them (who are "
-                "the ones entering): those in the same OBR cell (sex, couple, age band of the youngest child, "
-                "earnings quintile), in proportion to their own response, or, where the cell has no responding "
-                "non-worker, in the nearest coarser cell (allocated_by_cell_level). The offset is entrants' earnings less the rise in their "
-                "household's net income (tax and National Insurance paid, less the childcare support the family "
-                "now receives) and less the Tax-Free Childcare top-up on the care they start buying. Entrants placed "
-                "in a coarser cell take the non-workers' earnings, gain and subsidy from other earnings quintiles; "
-                "entry_sensitivity reports the offset with them dropped (same_cell_only) and with them given the "
-                "weighted median hourly wage of the workers who imply them, gain and subsidy recomputed "
-                "(worker_profile), at central elasticities.",
+                "dynamic cost is the static total less the hours offset, at the same bound; the static total is the "
+                "headline, on DfE's take-up by age, and the offset is measured on the dataset's single take-up draw; "
+                "it is the price effect (money back) plus the income effect (money out). On another take-up basis the "
+                "dashboard subtracts the same offset. It applies to the total: it is not split by scheme.",
                 "Hours (intensive margin), for every responding adult in work, at or below £100,000 and over it, "
                 "in two parts. The model recomputes tax and benefits once, on everyone's combined earnings change; "
                 "the parts are an attribution that adds up to it (the price change recomputed alone, the income "
@@ -621,8 +587,8 @@ def build(metas):
                 "paid childcare, for adults whose family pays for childcare. The elasticity is an extrapolated "
                 "scenario assumption, not an estimated price elasticity: Brewer et al. estimate +0.600 weekly hours "
                 "for mothers whose youngest child becomes eligible for full-time rather than part-time free care, "
-                "treated as a 100% price fall; it is a total-hours estimate, so it overlaps with the extensive "
-                "margin. The marginal price is net of all the childcare-linked cash support on the next pound of "
+                "treated as a 100% price fall; it is a total-hours estimate, which includes mothers who start work. "
+                "The marginal price is net of all the childcare-linked cash support on the next pound of "
                 "spend, the model's own (Tax-Free Childcare, the Universal Credit childcare element and the other "
                 "payments tied to childcare_expenses), read by raising the family's spend by £1 (not 1%, which near a "
                 "cap averages over spending beyond it), today and, under the reform, at the spend the family still makes "
@@ -650,11 +616,10 @@ def build(metas):
                 "BN189, which counts all displaced non-family care as paid). It is an assumption, published at "
                 f"{FREE_HOURS_DISPLACEMENT_RANGE['low']:.1%} (only subsidisable care displaced, 1 - 163/570) and "
                 f"{FREE_HOURS_DISPLACEMENT_RANGE['high']:.0%} (intensive_displacement), at central elasticities.",
-                "Low and high scale every elasticity (participation, price and income) by 1/3 and 2. The range is illustrative, not a sourced "
+                "Low and high scale every elasticity (price and income) by 1/3 and 2. The range is illustrative, not a sourced "
                 "uncertainty interval: the factors are ratios of childcare-price elasticities of maternal "
                 "employment (-0.05 and -0.30 against -0.15), a different outcome from the elasticities they scale.",
                 "The income and family-type breakdowns, who gains and the household calculator are static.",
-                moved_outside_note(lsr["population"]),
             ],
         },
         "benchmarks": [

@@ -400,14 +400,13 @@ def _round_to(x, step):
 
 
 def labour_supply(static_total, years=YEARS):
-    """The labour supply job's aggregates, and the dynamic cost (static total less both margins' offsets).
+    """The labour supply job's hours aggregates, and the dynamic cost (static total less the hours offset).
 
     ``static_total`` is the published static gross total by year (``budget["total"]``),
     so the dynamic cost is the published static figure less the published offsets.
     Offsets are £bn a year, positive = money back to the Exchequer.
     """
     from .engine import LABOUR_SUPPLY_JOB
-    from .labour_supply import ENTRY_CELL_LEVELS, ENTRY_SENSITIVITIES
 
     load_meta(LABOUR_SUPPLY_JOB)  # raises on a provenance mismatch
     z = np.load(run_path(LABOUR_SUPPLY_JOB))
@@ -418,36 +417,9 @@ def labour_supply(static_total, years=YEARS):
     def by_year(margin, metric, fn):
         return {b: {str(y): fn(get(y, margin, b, metric)) for y in years} for b in BOUNDS}
 
-    extensive = {
-        "offset_bn": by_year("extensive", "offset", _bn),
-        "tax_and_ni_bn": by_year("extensive", "tax_and_ni", _bn),
-        "entrants": by_year("extensive", "entrants", lambda x: _round_to(x, 100)),
-        "leavers": by_year("extensive", "leavers", lambda x: _round_to(x, 100)),
-        "ftes": by_year("extensive", "ftes", lambda x: _round_to(x, 100)),
-        "earnings_bn": by_year("extensive", "earnings", _bn),
-        # Diagnostics for the participation rule (labour_supply.participation_response): the part of the
-        # entrants implied by workers over £100,000, and the entrants the earlier rule (e x dG/G applied to
-        # each non-worker) would give.
-        "implied_by_over_limit": by_year("extensive", "implied_by_over_limit", lambda x: _round_to(x, 100)),
-        "non_worker_rule_entrants": by_year("extensive", "non_worker_rule_entrants", lambda x: _round_to(x, 100)),
-        "entry_capped": by_year("extensive", "entry_capped", lambda x: _round_to(x, 100)),
-        # Where the implied entrants were placed (labour_supply.allocate_entrants): among non-workers in the
-        # same OBR cell, or, where it has none, in a coarser one.
-        "allocated_by_cell_level": {level: by_year("extensive", f"allocated_{level}", lambda x: _round_to(x, 100))
-                                    for level in ENTRY_CELL_LEVELS},
-        # Sensitivities, not in the dynamic cost (labour_supply.ENTRY_SENSITIVITIES), central elasticities: the
-        # entrants placed in a coarser cell dropped, or given the earnings of the workers who imply them. Offsets
-        # in £m to 0.1 (they are a few £m), with the central offset at the same precision.
-        "entry_sensitivity": {
-            "central_offset_m": {str(y): round(get(y, "extensive", "central", "offset") / 1e6, 1) for y in years},
-            **{name: {
-                "offset_m": {str(y): round(float(z[f"{y}/extensive_sensitivity/{name}/offset"]) / 1e6, 1)
-                             for y in years},
-                "entrants": {str(y): _round_to(z[f"{y}/extensive_sensitivity/{name}/entrants"], 100) for y in years},
-                "earnings_bn": {str(y): _bn(float(z[f"{y}/extensive_sensitivity/{name}/earnings"])) for y in years},
-            } for name in ENTRY_SENSITIVITIES},
-        },
-    }
+    # The labour supply job also computes a participation response (labour_supply.participation_response: partners
+    # moving into work). It is not published and not in the dynamic cost; only the check that every implied entrant
+    # found a non-worker (below) still reads it.
     # Hours response (hours_response.py) of every responding adult in work, split by their own income: a price
     # effect (positive: money back) and an income effect (negative: money out), and the net of the two.
     def group(margin):
@@ -501,8 +473,7 @@ def labour_supply(static_total, years=YEARS):
 
     intensive_income_basis = sensitivity("intensive_income_basis", INCOME_BASIS_SENSITIVITIES)
     intensive_price_basis = sensitivity("intensive_price_basis", PRICE_BASIS_SENSITIVITIES)
-    total = {b: {str(y): round(extensive["offset_bn"][b][str(y)] + intensive["offset_bn"][b][str(y)], 3)
-                 for y in years} for b in BOUNDS}
+    total = {b: dict(intensive["offset_bn"][b]) for b in BOUNDS}
     dynamic = {b: {str(y): round(static_total[str(y)] - total[b][str(y)], 3) for y in years} for b in BOUNDS}
     checks = {}
     for y in years:
@@ -510,8 +481,8 @@ def labour_supply(static_total, years=YEARS):
         if unallocated > 0:
             raise RuntimeError(f"{y}: {unallocated:,.0f} implied entrants found no non-worker to enter")
         moved = float(z[f"{y}/moved_outside_weighted"])
-        # Up to 0.2% of the responding adults may be moved outside the population, and the count is published
-        # (adults_moved_outside_population). On Microcosm a133f37a two survey records, about 1,300 weighted
+        # Up to 0.2% of the responding adults may be moved outside the population (it affects only the unpublished
+        # participation response, since the gain to work drives nothing else). On Microcosm a133f37a two survey records, about 1,300 weighted
         # adults in 2026-27 and 2027-28 (0.14% of the responding adults; none later), are non-workers whose own
         # income is just under £100,000, so entering work would take them over the limit. The 0.1% guard held
         # on a858c100 (about 100). The fix is to bring them into the population (issue #11), which needs every
@@ -519,11 +490,10 @@ def labour_supply(static_total, years=YEARS):
         if moved > MOVED_OUTSIDE_TOLERANCE * float(z[f"{y}/responding_adults"]):
             raise RuntimeError(f"{y}: the reform moves the gain to work of {moved:,.0f} adults outside the "
                                "responding population; the population filter misses someone")
-        checks[str(y)] = {"responding_adults": _k(z[f"{y}/responding_adults"]),
-                          "hours_responding_adults": _k(z[f"{y}/hours_responding_adults"]),
-                          "adults_moved_outside_population": _round_to(moved, 100)}
+        # The participation screen's counts (responding_adults, adults_moved_outside_population) belong to the
+        # unpublished participation response, so only the hours screen is published.
+        checks[str(y)] = {"hours_responding_adults": _k(z[f"{y}/hours_responding_adults"])}
     return {
-        "extensive": extensive,
         "intensive": intensive,
         "intensive_displacement": intensive_displacement,
         "intensive_income_basis": intensive_income_basis,

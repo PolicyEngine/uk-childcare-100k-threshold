@@ -96,18 +96,15 @@ function LabourSupplySection({ data }) {
   const raw = data.labour_supply;
   const li = ls.years.length - 1;
   const year = fyLabel(ls.years[li]);
-  const entrants = Math.round(ls.extensive.entrants.central[li] / 100) * 100;
-  const extOffset = ls.extensive.offset.central[li];
   const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
-  const extText = extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost` : `bring back ${formatMoneyBn(extOffset)}`;
   return (
     <Card
       id="labour-supply"
       title="Labour supply"
       lead={
         <>
-          Our headline assumes nobody changes how much they work. The Labour supply switches on{" "}
-          <a href="?tab=budget">Budget impact</a> add a work response: the cost then shown is the static cost less the
+          Our headline assumes nobody changes how much they work. The hours switch on{" "}
+          <a href="?tab=budget">Budget impact</a> adds a work response: the cost then shown is the static cost less the
           extra tax and National Insurance, net of the extra childcare support and benefits the response brings.
         </>
       }
@@ -115,13 +112,6 @@ function LabourSupplySection({ data }) {
       <Subhead>What we find, {year}</Subhead>
       <BulletList testId="labour-supply-details">
         <li data-testid="labour-supply-method">
-          <strong className="font-semibold text-slate-900">Partners moving into work:</strong> about{" "}
-          {formatCount(entrants)}, who {extText}.
-          {extOffset < 0
-            ? " Both parents must work for the family to qualify, so a partner starting work unlocks the 30 hours and Tax-Free Childcare."
-            : ""}
-        </li>
-        <li>
           <strong className="font-semibold text-slate-900">Parents changing their hours:</strong> a net{" "}
           {formatMoneyBn(ls.intensive.offset.central[li])} back, at central elasticities. The price effect brings back{" "}
           {formatMoneyBn(ls.intensive.price.central[li])}, as cheaper childcare pulls hours up; the income effect costs{" "}
@@ -140,8 +130,8 @@ function LabourSupplySection({ data }) {
               <Ext href={CENTAX_TABLE_URL}>
                 {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000
               </Ext>{" "}
-              is bunching, which we do not model; their {formatBn(CENTAX.partnersBn, 2)} from partners entering work
-              in {CENTAX.year} compares with our figure above. Our hours response has no CenTax counterpart.
+              and {formatBn(CENTAX.partnersBn, 2)} from partners entering work, in {CENTAX.year}, have no counterpart
+              here, and our hours response has none in theirs.
             </>
           }
         />
@@ -149,18 +139,6 @@ function LabourSupplySection({ data }) {
       <Subhead>Method</Subhead>
       <BulletList>
         <ListItem title="Who responds" testId="ls-who" summary={<RichText text={raw.responding_population} />} />
-        <ListItem
-          title="Moving into work"
-          testId="ls-extensive"
-          summary={
-            <>
-              The <Ext href={OBR_NOTE_URL}>OBR&apos;s participation elasticities</Ext>, applied to the gain from
-              working after childcare costs; entrants work {a.hours_for_new_entrants}{" "}
-              hours a week. Few move because a partner&apos;s gain is small next to the family&apos;s income, and their
-              tax is set against the support the family then gets.
-            </>
-          }
-        />
         <ListItem
           title="Hours"
           testId="ls-intensive"

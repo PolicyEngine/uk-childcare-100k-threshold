@@ -86,7 +86,7 @@ const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on
 const BREWER_URL =
   "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41";
 
-// The three controls at the top of Budget impact (Take-up and the two responses) share one card style and one
+// The two controls at the top of Budget impact (Take-up and the hours response) share one card style and one
 // style of closed "more" link, so they read as a set.
 const CONTROL_CARD = "flex flex-col rounded-xl border px-4 py-2.5";
 const CONTROL_SUMMARY =
@@ -161,8 +161,8 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
 }
 
 /**
- * Labour supply: the page opens static. Each response can be switched on; the setting picks low, central or high for
- * all of them. Only the cost figures on Budget impact and the comparison on Methodology change, so it is shown under
+ * Labour supply: the page opens static. The hours response can be switched on, with a low, central or high setting.
+ * Only the cost figures on Budget impact and the comparison on Methodology change, so it is shown under
  * the tab bar on Budget impact only; Methodology explains it.
  */
 export function LabourSupplyControl({ data, setting, onChange }) {
@@ -174,19 +174,8 @@ export function LabourSupplyControl({ data, setting, onChange }) {
     </a>
   );
   return (
-    // `contents`: the two cards sit in the controls grid beside the Take-up box.
+    // `contents`: the card sits in the controls grid beside the Take-up box.
     <div className="contents" data-testid="labour-supply-control">
-    <ResponseCard
-        on={setting.extensive}
-        onChange={(v) => onChange({ ...setting, extensive: v })}
-        bound={boundOf(setting, "extensive")}
-        onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, extensive: x } })}
-        tag="Whether people work"
-        title="Partners move into work"
-        description="A partner who doesn't work may start, now that working brings the family the 30 hours and Tax-Free Childcare. That support outweighs the tax they pay, so this adds to the cost."
-        source={link(OBR_ELASTICITIES_URL, "OBR participation elasticities")}
-        testId="toggle-extensive"
-      />
       <ResponseCard
         on={setting.intensive}
         onChange={(v) => onChange({ ...setting, intensive: v })}
@@ -284,7 +273,7 @@ export function Dashboard({ data }) {
     setActiveTab(getInitialTab(tabParam));
   }
 
-  // Labour supply, kept in the URL beside the tab (?ls=ext,int&bound=low); static by default.
+  // Labour supply, kept in the URL beside the tab (?ls=int:low); static by default.
   const lsParam = searchParams.get("ls");
   const boundParam = searchParams.get("bound");
   const [setting, setSetting] = useState(() => parseLabourSupply(lsParam, boundParam));
@@ -377,7 +366,7 @@ export function Dashboard({ data }) {
         {/* Only Budget impact's figures change with the take-up and labour supply settings, so the controls show only there. */}
         {activeTab === "budget" ? (
           // Closed, the cards stretch to one height with their "more" links on one line; once one is open, only it grows.
-          <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 has-[details[open]]:items-start" data-testid="budget-controls">
+          <div className="mb-8 grid gap-3 sm:grid-cols-2 has-[details[open]]:items-start" data-testid="budget-controls">
             <TakeUpControl data={data} basis={basis} onChange={handleBasisChange} />
             <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} />
           </div>
