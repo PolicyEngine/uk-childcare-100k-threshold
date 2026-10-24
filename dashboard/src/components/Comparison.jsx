@@ -34,15 +34,15 @@ export function BenchmarkNotes({ data }) {
       <p>
         The Conservatives put the cost at about £700m a year when they announced the pledge, to be paid for by
         cutting staff at arm&apos;s-length public bodies. Their{" "}
-        <a href={benchmark.announcement_url} target="_blank" rel="noreferrer">
+        <a href={benchmark.announcement_url} target="_blank" rel="noopener noreferrer">
           announcement
         </a>{" "}
         covers both the free hours and Tax-Free Childcare, but publishes no method.{" "}
-        <a href={benchmark.url} target="_blank" rel="noreferrer">
+        <a href={benchmark.url} target="_blank" rel="noopener noreferrer">
           City AM
         </a>{" "}
         says the figure is based on{" "}
-        <a href={benchmark.underlying_source_url} target="_blank" rel="noreferrer">
+        <a href={benchmark.underlying_source_url} target="_blank" rel="noopener noreferrer">
           CenTax&apos;s report
         </a>
         , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
@@ -70,7 +70,7 @@ const signedM = (v) => {
 };
 
 const Link = ({ href, children }) => (
-  <a href={href} target="_blank" rel="noreferrer">
+  <a href={href} target="_blank" rel="noopener noreferrer">
     {children}
   </a>
 );

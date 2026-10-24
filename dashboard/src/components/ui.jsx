@@ -110,6 +110,28 @@ export function Expandable({ title, children, testId, id, compact = false, class
 }
 
 /**
+ * Adjacent closed boxes as one box, stacked flush with a rule between them; `joined` attaches it to the bottom of the
+ * panel just above it (give that panel `joined-below`). The children are Expandables, or ExpandableRows for an item
+ * with nothing to open.
+ */
+export function ExpandableGroup({ children, joined = false, className = "", testId }) {
+  return (
+    <div className={`expandable-group ${joined ? "joined-above" : ""} ${className}`} data-testid={testId}>
+      {children}
+    </div>
+  );
+}
+
+/** An item in an ExpandableGroup with no detail to open: the same padding as a closed box's title, no chevron. */
+export function ExpandableRow({ children, testId, compact = false }) {
+  return (
+    <div className={`expandable-row ${compact ? "px-4 py-2.5 text-sm" : "px-4 py-3"}`} data-testid={testId}>
+      {children}
+    </div>
+  );
+}
+
+/**
  * A section's content (charts, tables, controls) in a box; its title and explanation stay outside. A footer is a
  * closed explanation joined to the bottom of the box, so it reads as part of what it explains.
  */
@@ -164,6 +186,20 @@ export function Section({ id, title, lead, details, detailsTitle = "More detail"
  */
 export function TabLayout({ sections, children }) {
   const [active, setActive] = useState(sections[0]?.id);
+  // A link to an anchor on this tab (from another tab, or a fresh load) opens the closed box it is in, or is, and
+  // scrolls to it once the tab has rendered.
+  useEffect(() => {
+    function openHash() {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      const el = id ? document.getElementById(id) : null;
+      if (!el) return;
+      for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
+      el.scrollIntoView({ block: "start" });
+    }
+    openHash();
+    window.addEventListener("hashchange", openHash);
+    return () => window.removeEventListener("hashchange", openHash);
+  }, []);
   useEffect(() => {
     function onScroll() {
       // The last section whose top has passed a line near the top of the window is the one being read.
@@ -350,4 +386,39 @@ export function SubTabs({ options, value, onChange }) {
       ))}
     </div>
   );
+}
+
+/**
+ * Text from results.json with its [label](url) links rendered: an internal link (starting "?" or "#") opens in the
+ * same tab, an external one in a new tab.
+ */
+export function RichText({ text }) {
+  if (typeof text !== "string") return text ?? null;
+  const parts = [];
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last = 0;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const [, label, href] = m;
+    const internal = href.startsWith("?") || href.startsWith("#");
+    parts.push(
+      internal ? (
+        <a key={m.index} href={href}>
+          {label}
+        </a>
+      ) : (
+        <a key={m.index} href={href} target="_blank" rel="noopener noreferrer">
+          {label}
+        </a>
+      ),
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
+/** The text of a [label](url)-marked string with the markup removed, for plain-text uses (aria labels, tests). */
+export function plainText(text) {
+  return String(text).replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1");
 }

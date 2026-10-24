@@ -526,9 +526,13 @@ export function getBenchmarks(data) {
   return rows;
 }
 
+/** The limitations: each a short title, a one-sentence summary and the detail (possibly empty). */
 export function getLimitations(data) {
   const rows = data?.limitations;
-  if (!(Array.isArray(rows) && rows.length > 0 && rows.every(isText))) fail("limitations", "missing");
+  if (!(Array.isArray(rows) && rows.length > 0)) fail("limitations", "missing");
+  rows.forEach((r, i) => {
+    if (!r || !isText(r.title) || !isText(r.summary) || typeof r.detail !== "string") fail(`limitations[${i}]`, "needs a title, a summary and a detail");
+  });
   return rows;
 }
 

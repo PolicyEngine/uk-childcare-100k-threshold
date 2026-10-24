@@ -15,6 +15,7 @@ import LandingTab, { rangeChartRows } from "./LandingTab";
 import { CENTAX } from "./Comparison";
 import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
+import { plainText, RichText } from "./ui";
 import { cliffSummary, getHouseholdGrid, getUncertainty, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
 import { formatBn, formatMoneyBn, formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
@@ -229,7 +230,10 @@ describe("methodology", () => {
     const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(data.baseline_validation.length);
     expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(9);
-    expect(within(screen.getByTestId("limitations")).getAllByRole("listitem")).toHaveLength(data.limitations.length);
+    // Every limitation in the file, plus the age profile, each a title and a one-sentence summary in one group.
+    const group = screen.getByTestId("limitations");
+    expect(group.children).toHaveLength(data.limitations.length + 1);
+    for (const l of data.limitations) expect(group.textContent).toContain(`${l.title}. ${plainText(l.summary)}`);
   });
 
   it("compares every modelling choice in one table, with each tested alternative's effect in £m from the file", () => {
@@ -256,7 +260,7 @@ describe("methodology", () => {
 
   it("reports the entry and income-basis sensitivities of the labour supply response", () => {
     render(<MethodTab data={data} />);
-    const text = screen.getByTestId("labour-supply-method").textContent;
+    const text = screen.getByTestId("section-labour-supply").textContent;
     const ls = data.labour_supply;
     const y = String(Object.keys(ls.extensive.offset_bn.central).at(-1));
     const b3 = (x) => formatBn(x, 3);
@@ -320,7 +324,7 @@ describe("the labour supply control", () => {
 
   it("explains labour supply on Methodology from the results file", () => {
     const text = textOf(<MethodTab data={data} />);
-    expect(text).toContain(ls.responding_population);
+    expect(text).toContain(plainText(ls.responding_population));
     expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
     expect(text).toContain(ls.not_modelled);
     expect(text).toContain(bn(CENTAX.parentsBn));
@@ -333,11 +337,13 @@ describe("the labour supply control", () => {
     const i = ls.intensive;
     expect(i.price_offset_bn.central[f]).toBeGreaterThanOrEqual(0);
     expect(i.income_offset_bn.central[f]).toBeLessThanOrEqual(0);
-    expect(text).toContain(ls.assumptions.income_elasticities);
+    expect(text).toContain(plainText(ls.assumptions.income_elasticities));
     expect(text).toContain(`price effect brings back ${formatMoneyBn(i.price_offset_bn.central[f])}`);
     expect(text).toContain(`${formatMoneyBn(i.over_limit.price_offset_bn.central[f])} from those over it`);
     expect(text).toContain(`income effect costs ${formatMoneyBn(-i.income_offset_bn.central[f])}`);
     expect(text).toContain(`a net ${formatMoneyBn(i.offset_bn.central[f])} back`);
+    // The overview gives the totals; the split by group is in the closed "Hours: method" box.
+    expect(screen.queryByTestId("ls-intensive")).toBeNull();
   });
 
   it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
@@ -404,7 +410,6 @@ describe("the take-up control", () => {
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(basis(id).recipients[lead].families_gaining));
     expect(screen.getByTestId("uncertainty-table").textContent).toContain(basis(id).short_label);
     expect(screen.getByTestId("range-legend-central").textContent).toContain(basis(id).short_label);
-    expect(screen.getByTestId("take-up-note").textContent).toContain(basis(id).short_label);
     expect(router.replace).toHaveBeenLastCalledWith(`/?takeup=${id}`, { scroll: false });
     // Back to the headline: the URL is clean again.
     choose(takeUp.headline);
@@ -412,16 +417,25 @@ describe("the take-up control", () => {
     expect(router.replace).toHaveBeenLastCalledWith("/", { scroll: false });
   });
 
-  it("gives the per-point effect only on the flat rate, and links the rates to the options box", () => {
-    render(<Dashboard data={data} />);
-    const note = () => screen.getByTestId("take-up-note");
-    expect(note().textContent).not.toContain("percentage point");
-    const link = within(note()).getByRole("link", { name: "the take-up for its age" });
-    expect(link.getAttribute("href")).toBe("#take-up-options");
-    fireEvent.click(link);
-    expect(screen.getByTestId("take-up-options").open).toBe(true);
-    choose("contract");
-    expect(note().textContent).toContain(`£${basis("contract").per_point_m[lead]}m`);
+  it("explains take-up on Methodology, with the flat rate's per-point effect and links to the options", () => {
+    render(<MethodTab data={data} />);
+    const step = screen.getByTestId("method-take-up");
+    expect(step.tagName).toBe("DETAILS");
+    expect(step.id).toBe("take-up-method");
+    expect(step.textContent).toContain(`£${basis("contract").per_point_m[lead]}m`);
+    expect(within(step).getByRole("link", { name: "Budget impact" }).getAttribute("href")).toBe("?tab=budget#take-up-options");
+    expect(within(step).getByRole("link", { name: "Who takes up the 30 hours" }).getAttribute("href")).toBe("#assumptions");
+  });
+
+  it("groups the boxes under the range chart and links to the take-up and age notes on Methodology", () => {
+    render(<LandingTab data={data} />);
+    const group = screen.getByTestId("uncertainty-notes");
+    expect(group.className).toContain("expandable-group");
+    expect([...group.children].map((c) => c.dataset.testid)).toEqual(["uncertainty-expandable", "note-range"]);
+    expect(screen.queryByTestId("take-up-note")).toBeNull();
+    expect(screen.queryByTestId("note-age")).toBeNull();
+    const links = within(screen.getByTestId("uncertainty-method-link")).getAllByRole("link");
+    expect(links.map((a) => a.getAttribute("href"))).toEqual(["?tab=method#take-up-method", "?tab=method#age-profile"]);
   });
 
   it("adds the labour supply response to the chosen basis's cost", () => {
@@ -476,7 +490,7 @@ describe("the range chart", () => {
       expect(both.range).toEqual([v[takeUp.headline].total.p5_bn, v[takeUp.headline].total.p95_bn]);
       expect(thirty.central).toBe(takeUp.bases[takeUp.headline].gross_bn.thirty_hours[y]);
       expect(both.central).toBe(takeUp.bases[takeUp.headline].gross_bn.total[y]);
-      expect(thirty.centax).toBe(centax[y]);
+      expect(thirty.centax).toBe(centax[y] ?? null);
       expect(thirty.single).toBe(data.budget.single_draw_bn.thirty_hours[y]);
       expect(both.centax).toBeNull();
     }
@@ -505,3 +519,29 @@ describe("who gains: the recipients view across years", () => {
   });
 });
 
+
+describe("links in the results file's text", () => {
+  it("renders [label](url) as links: external in a new tab, internal in the same one", () => {
+    render(<p data-testid="rt"><RichText text="See [the law](https://www.legislation.gov.uk/uksi/2015/448/regulation/15) and [below](#validation)." /></p>);
+    const [ext, int] = within(screen.getByTestId("rt")).getAllByRole("link");
+    expect(ext.getAttribute("target")).toBe("_blank");
+    expect(ext.getAttribute("rel")).toContain("noopener");
+    expect(int.getAttribute("target")).toBeNull();
+    expect(screen.getByTestId("rt").textContent).toBe("See the law and below.");
+    expect(plainText("a [b](c) d")).toBe("a b d");
+  });
+
+  it("leaves no raw markup on any tab", () => {
+    for (const el of [<LandingTab data={data} />, <WhoGainsTab data={data} />, <MethodTab data={data} />]) {
+      expect(textOf(el)).not.toMatch(/\]\((https?:|\?|#)/);
+    }
+  });
+});
+
+describe("who gains: the intros", () => {
+  it("says the single-draw point once on the tab", () => {
+    const text = textOf(<WhoGainsTab data={data} />);
+    expect(text.split("single draw of who claims").length - 1).toBe(1);
+    expect(text).toContain(`as the higher earner's pay rises to £140,000.`);
+  });
+});
