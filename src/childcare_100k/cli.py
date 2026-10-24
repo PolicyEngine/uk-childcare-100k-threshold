@@ -140,9 +140,9 @@ def _provenance_meta(metas):
 DATASET_STATUS = (
     "Cut on 23 October 2026 from PolicyEngine/microcosm 829c1bc26, a head of #1338 before its last commit (#1338 "
     "merged later that day at a12885f9), with its own signed release certification, and run on policyengine-uk "
-    "2.147.2, the version its manifest pins. It is "
-    "published as a non-default release (the national line still points at 6cba5d71). No policyengine.py bundle "
-    "registers it yet, so this repository pins the file by revision and sha256."
+    "2.147.2, the version its manifest pins. It is the latest national release (latest-national.json has pointed "
+    "at it since 23 October 2026). No policyengine.py bundle registers it yet (6.10.2's still registers 6cba5d71), "
+    "so this repository pins the file by revision and sha256."
 )
 
 LIMITATIONS = [

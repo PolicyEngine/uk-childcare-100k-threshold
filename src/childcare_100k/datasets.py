@@ -38,15 +38,17 @@ class DatasetSpec:
 
 
 # Release microcosm-uk-2024-25-national cut on 23 October 2026 from PolicyEngine/microcosm
-# 829c1bc26, the head of #1338 (tracked in #1339), which is still open: childcare take-up and the
-# DfE funded-childcare rows measured at the spring term, a working-parent take-up rate for each
-# age under 2, and the 9-11-months row bound. It does not carry #1338's later round-3 fix to key
-# the under-2 draw on DfE age, nor #1344 or #1347. Pinned by the commit of its immutable cut tag
-# (c3a751d9...); the dataset repository's main (29f6fcc3...) carried the same file when this was
-# pinned. The sha256 is the one in the release manifest, build manifest and certification. Its
-# manifest pins policyengine-uk 2.147.2, which carries policyengine-uk#2570 (reception and the
-# working-parent start from the term after 9 months, from the date of birth).
-# latest-national.json still points at 6cba5d71: the release is published as non-default.
+# 829c1bc26, a head of #1338 (tracked in #1339; #1338 merged later that day at a12885f9):
+# childcare take-up and the DfE funded-childcare rows measured at the spring term, a
+# working-parent take-up rate for each age under 2, and the 9-11-months row bound. It does not
+# carry #1338's later round-3 fix to key the under-2 draw on DfE age, nor #1344 or #1347. Pinned
+# by the commit of its immutable cut tag (c3a751d9...); the dataset repository's main carried the
+# same file (sha256 below) when this was pinned and again on 24 October 2026 (d9be8162...). The
+# sha256 is the one in the release manifest, build manifest and certification. Its manifest pins
+# policyengine-uk 2.147.2, which carries policyengine-uk#2570 (reception and the working-parent
+# start from the term after 9 months, from the date of birth).
+# latest-national.json has pointed at this release since 23 October 2026 (11:23 UTC): it is the
+# latest national release. policyengine.py 6.10.2's bundle still registers 6cba5d71.
 MICROCOSM = DatasetSpec(
     key="microcosm_uk_2024_25",
     label="Microcosm UK 2024-25 (national release, 23 October 2026)",
