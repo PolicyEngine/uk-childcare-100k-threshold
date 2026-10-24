@@ -84,29 +84,24 @@ const Link = ({ href, children }) => (
  * Our cost once parents change how much they work, in the final year. With the labour supply control off it shows
  * both margins at central elasticities with the low-high range; with it on, the margins and elasticities chosen.
  */
-export function dynamicCell(data, setting, basis) {
-  const takeUp = getTakeUp(data);
-  const id = basis ?? takeUp.headline;
-  const budget = getBudget(data, id);
+export function dynamicCell(data, setting) {
+  const budget = getBudget(data);
   const li = budget.years.length - 1;
   const ls = getLabourSupply(data);
   if (isStatic(setting)) {
-    // The published dynamic cost is the headline's; on another take-up basis it is that basis's static cost less the
-    // same offsets.
-    const total = budget.rows[li].total;
-    const d = id === takeUp.headline
-      ? Object.fromEntries(["central", "low", "high"].map((b) => [b, ls.dynamic[b][li]]))
-      : Object.fromEntries(["central", "low", "high"].map((b) => [b, total - ls.extensive.offset[b][li] - ls.intensive.offset[b][li]]));
-    return `${formatBn(d.central, 2)} (${formatBn(d.high, 2)} to ${formatBn(d.low, 2)}, an illustrative range; moving into work, and hours net of the income effect; bunching not modelled)`;
+    const d = ls.dynamic;
+    return `${formatBn(d.central[li], 2)} (${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}, an illustrative range; moving into work, and hours net of the income effect; bunching not modelled)`;
   }
   const cost = budget.rows[li].total - labourSupplyOffset(data, setting)[li];
   return `${formatBn(cost, 2)} (${labourSupplyLabel(setting)})`;
 }
 
-export function UnifiedComparison({ data, setting = STATIC_SETTING, basis }) {
+export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
+  // Always on the headline take-up basis: the effect column is measured from it, so another basis's cost here would
+  // not match the rows below. The take-up toggle is on Budget impact.
   const takeUp = getTakeUp(data);
-  const chosen = takeUp.bases[basis ?? takeUp.headline];
-  const budget = getBudget(data, chosen.id);
+  const headline = takeUp.bases[takeUp.headline];
+  const budget = getBudget(data);
   const last = budget.rows.at(-1);
   const li = budget.years.length - 1;
   const a = Object.fromEntries(getModellingAssumptions(data).map((r) => [r.id, r]));
@@ -122,7 +117,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING, basis }) {
         ["Schemes covered", "30 hours and Tax-Free Childcare", "", "Free hours only", "30 hours and Tax-Free Childcare", ""],
         [
           `Static cost, ${nb(last.year)}`,
-          `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)}; take-up: ${chosen.label})`,
+          `${formatBn(last.total, 2)} (30 hours ${formatBn(last.thirty_hours, 2)}; take-up: ${headline.label})`,
           "",
           `${formatBn(central.staticBn, 2)} (${formatBn(low.staticBn, 2)} to ${formatBn(high.staticBn, 2)}; ${formatBn(centaxBeforeBunching, 2)} before their deduction for parents keeping income just under £100,000)`,
           "Not given",
@@ -130,7 +125,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING, basis }) {
         ],
         [
           `After parents change how much they work, ${nb(last.year)}`,
-          <span key="dyn" data-testid="dynamic-cell">{dynamicCell(data, setting, chosen.id)}</span>,
+          <span key="dyn" data-testid="dynamic-cell">{dynamicCell(data, setting)}</span>,
           "",
           `${formatBn(central.netBn, 2)} (${net(low.netBn)} to ${net(high.netBn)})`,
           "About £0.7bn a year; basis not stated",

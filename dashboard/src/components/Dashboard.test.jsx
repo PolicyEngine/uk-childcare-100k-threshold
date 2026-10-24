@@ -366,6 +366,7 @@ describe("the take-up control", () => {
     render(<Dashboard data={data} />);
     const control = screen.getByTestId("take-up-control");
     expect(within(control).getAllByRole("radio")).toHaveLength(takeUp.order.length);
+    for (const id of takeUp.order) expect(within(control).getByRole("radio", { name: basis(id).label })).toBeTruthy();
     expect(screen.getByTestId(`take-up-${takeUp.headline}`).getAttribute("aria-checked")).toBe("true");
     for (const id of takeUp.order) {
       expect(control.textContent).toContain(basis(id).label);
@@ -410,7 +411,13 @@ describe("the take-up control", () => {
       expect(screen.queryByTestId("take-up-control")).toBeNull();
       fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
       expect(screen.queryByTestId("take-up-control")).toBeNull();
-      expect(screen.getByTestId("comparison-table").textContent).toContain(bn(basis("contract").gross_bn.total[String(final)]));
+      // The comparison stays on the headline, whose effects its rows measure, whatever the basis chosen.
+      const table = screen.getByTestId("comparison-table").textContent;
+      const f = String(final);
+      expect(table).toContain(`${bn(basis(takeUp.headline).gross_bn.total[f])} (30 hours`);
+      expect(table).toContain(`take-up: ${basis(takeUp.headline).label}`);
+      expect(table).not.toContain(`${bn(basis("contract").gross_bn.total[f])} (30 hours`);
+      expect(screen.getByTestId("dynamic-cell").textContent).toContain(bn(data.labour_supply.dynamic_cost_bn.central[f]));
     } finally {
       searchParams.delete("takeup");
     }

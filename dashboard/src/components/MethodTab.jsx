@@ -393,7 +393,7 @@ function LabourSupplySection({ data }) {
   );
 }
 
-export default function MethodTab({ data, setting = STATIC_SETTING, basis }) {
+export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const meta = getMeta(data);
   const takeUp = getTakeUp(data);
   const headline = takeUp.bases[takeUp.headline];
@@ -508,7 +508,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING, basis }) {
         detailsTitle="Each choice in full, the effect in every year, and sources"
       >
         <Expandable title="Show the comparison table" testId="comparison-expandable">
-          <UnifiedComparison data={data} setting={setting} basis={basis} />
+          <UnifiedComparison data={data} setting={setting} />
         </Expandable>
       </Section>
 

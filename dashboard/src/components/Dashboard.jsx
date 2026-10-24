@@ -214,6 +214,7 @@ export function TakeUpControl({ data, basis, onChange }) {
                 type="button"
                 role="radio"
                 aria-checked={on}
+                aria-label={b.label}
                 data-testid={`take-up-${id}`}
                 onClick={() => onChange(id)}
                 className="flex w-full items-center justify-between gap-3 text-left"
@@ -365,7 +366,7 @@ export function Dashboard({ data }) {
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
           {activeTab === "budget" && <LandingTab data={data} setting={setting} basis={basis} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
-          {activeTab === "method" && <MethodTab data={data} setting={setting} basis={basis} />}
+          {activeTab === "method" && <MethodTab data={data} setting={setting} />}
         </TabLayout>
 
         <footer className="mt-12 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">

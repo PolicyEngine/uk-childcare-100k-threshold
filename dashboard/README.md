@@ -35,9 +35,9 @@ The page leads with 2027-28 (`LEAD_YEAR`); 2026-27 is more than half over, so ta
 Budget impact has a take-up toggle for the 30 hours among newly eligible families: DfE's rates by age (the
 headline, and what the page shows without the toggle), CenTax's two rates, and the dataset's one flat rate. It is kept
 in the URL as `?takeup=centax` or `?takeup=contract` (none for the headline), and switches the cost cards, the yearly
-chart, the families gaining, the bootstrap table and the comparison on Methodology to `budget.take_up.bases[id]`.
-Labels, descriptions and sources come from the file. Who gains stays on the dataset's single take-up draw, like every
-breakdown.
+chart, the families gaining and the bootstrap table to `budget.take_up.bases[id]`. Labels, descriptions and sources
+come from the file. The comparison on Methodology stays on the headline, since the effects in its rows are measured
+from it, and Who gains stays on the dataset's single take-up draw, like every breakdown.
 
 ### Schema
 
