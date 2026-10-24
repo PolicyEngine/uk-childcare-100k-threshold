@@ -159,11 +159,11 @@ TAKE_UP_BASES = {
     "contract": {
         "label": "Microcosm, one rate",
         "short_label": f"Flat {EXTENDED_TAKE_UP_RATE:.1%}",
-        "description": "The dataset's take-up contract: one rate for every newly eligible family, family by family, "
-                       "with the dataset's under-2 usage draw",
+        "description": "Microcosm's assumption: one rate for every newly eligible family, whatever the children's "
+                       "ages",
         "unit": "family",
         "rate": EXTENDED_TAKE_UP_RATE,
-        "source": "Microcosm take-up contract (829c1bc26)",
+        "source": "Microcosm take-up settings",
         "source_url": EXTENDED_TAKE_UP_SOURCE_URL,
         "pair": ("baseline_claim_all", "reform_claim_all"),
     },

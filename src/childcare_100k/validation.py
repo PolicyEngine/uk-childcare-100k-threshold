@@ -59,10 +59,9 @@ OFFICIAL = {
 
 
 CENSUS_NOTE = (
-    "January 2025 census, which the release's DfE rows bind ([PolicyEngine/microcosm#1338](https://github.com/PolicyEngine/microcosm/pull/1338)); the model's 2025-26 spring "
-    "term is January 2026, when DfE counted 501,700 under 3 and 388,700 aged 3 and 4. Model: children whose working "
-    "parent hours, before the universal 15 are allocated, are funded in the term starting 1 January, by age on 31 "
-    "December (DfE's basis), as the release's rows count them. DfE's under-3 figure includes 29,200 aged 9-11 months."
+    "Against the January 2025 census, which the dataset is calibrated to; DfE counted 501,700 under 3 and 388,700 "
+    "aged 3 and 4 in January 2026. Children are counted by age on 31 December, as DfE does; DfE's under-3 figure "
+    "includes 29,200 aged 9-11 months."
 )
 
 

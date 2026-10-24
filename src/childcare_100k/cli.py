@@ -30,7 +30,6 @@ from .config import (
     HEADLINE_TAKE_UP_BASIS,
     HOURS_FOR_NEW_ENTRANTS,
     HOURS_PRICE_ELASTICITY,
-    HOURS_USAGE_VARIABLE,
     LEAD_YEAR,
     MIN_CELL_RECORDS,
     OBR_PARTICIPATION_URL,
@@ -139,92 +138,57 @@ def _provenance_meta(metas):
 
 
 DATASET_STATUS = (
-    "Cut on 23 October 2026 from PolicyEngine/microcosm "
-    "[829c1bc26](https://github.com/PolicyEngine/microcosm/commit/829c1bc26), a head of "
-    "[#1338](https://github.com/PolicyEngine/microcosm/pull/1338) before its last commit (#1338 merged later that day "
-    "at [a12885f9](https://github.com/PolicyEngine/microcosm/commit/a12885f9)), with its own signed release "
-    "certification, and run on [policyengine-uk 2.147.2](https://github.com/PolicyEngine/policyengine-uk/tree/2.147.2), "
-    "the version its manifest pins. It is the latest national release (latest-national.json has pointed "
-    "at it since 23 October 2026). No policyengine.py bundle registers it yet (6.10.2's still registers 6cba5d71), "
-    "so this repository pins the file by revision and sha256."
+    "The latest national release of Microcosm, published on 23 October 2026 and built from "
+    "[829c1bc26](https://github.com/PolicyEngine/microcosm/commit/829c1bc26). No policyengine.py bundle includes it "
+    "yet, so this repository pins the file by revision and checksum."
 )
 
 # CenTax, Removing the childcare cliff-edge, pp. 100-101: about 60% of parents below £100,000 held a live account
 # in 2022, the take-up in their low-cost scenario.
 CENTAX_LIVE_ACCOUNT_SHARE = 0.60
-# Among children eligible today, the share the release has receiving the working-parent hours at some point in
-# 2027-28 (annual, not January only, so a rough check against DfE's rates): review of #12, 24 October 2026.
-RELEASE_TAKE_UP_CHECK_URL = (
-    "https://github.com/PolicyEngine/uk-childcare-100k-threshold/pull/12#issuecomment-6385210332"
-)
-RELEASE_TAKE_UP_BY_AGE_PCT = {1: 75, 2: 82, 3: 90}
-RELEASE_TAKE_UP_TEXT = (
-    "The release itself sits close to DfE's rates: among children eligible today, about "
-    f"{RELEASE_TAKE_UP_BY_AGE_PCT[1]}% at age 1, {RELEASE_TAKE_UP_BY_AGE_PCT[2]}% at 2 and "
-    f"{RELEASE_TAKE_UP_BY_AGE_PCT[3]}% at 3 receive the hours at some point in 2027-28 (an annual measure, so a rough "
-    "check), as a build calibrated to DfE's January 2025 registration counts should; on DfE's rates, baseline and "
-    "reform therefore sit on the same take-up by age."
-)
-
 LIMITATIONS = [
     (
         "Expected, not realised, income",
-        "Eligibility uses each parent's realised annual adjusted net income, while the law tests the income a parent "
-        "expects when applying or reconfirming ([SI 2022/1134 reg 14(3)(c)(i)](https://www.legislation.gov.uk/uksi/2022/1134/regulation/14) and [15(3)(b)(i)](https://www.legislation.gov.uk/uksi/2022/1134/regulation/15); "
-        "[SI 2015/448 reg 15(1)](https://www.legislation.gov.uk/uksi/2015/448/regulation/15)). "
-        "A parent who expected to stay under £100,000 but ended the year above it can already receive support, and the "
-        "model counts it as a reform cost; a parent who expected to exceed £100,000 but ended below it is modelled as "
-        "eligible today. CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 claimed "
-        "and received some free childcare ([Removing the childcare cliff-edge](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=6), September 2026, pp. 5-6 and [59-60](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=60)). The "
-        "net direction for the cost is not known, and it is not tested.",
+        "We test each parent's income for the year as it turned out, while the law tests the income a parent "
+        "expects ([SI 2022/1134 reg 14](https://www.legislation.gov.uk/uksi/2022/1134/regulation/14) and "
+        "[15](https://www.legislation.gov.uk/uksi/2022/1134/regulation/15); "
+        "[SI 2015/448 reg 15](https://www.legislation.gov.uk/uksi/2015/448/regulation/15)). "
+        "CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 still received some "
+        "free childcare ([Removing the childcare cliff-edge, pp. 5-6](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=6)). "
+        "Which way this moves the cost is not known.",
     ),
     (
-        "The release predates the age-date fix",
-        "The release is cut from [Microcosm #1338](https://github.com/PolicyEngine/microcosm/pull/1338) at [829c1bc26](https://github.com/PolicyEngine/microcosm/commit/829c1bc26), before its last "
-        "commit ([a12885f9](https://github.com/PolicyEngine/microcosm/commit/a12885f9)). So it keys the under-2 "
-        "working-parent take-up draw on age at 6 October rather than DfE's age at 31 December (its age-0 rate mixes "
-        "9-11-month-olds with children aged 12-14 months). On DfE's and CenTax's rates the headline sets both the claim "
-        "and the usage of the hours for newly eligible children, so that draw does not feed it; it still feeds the "
-        "contract basis, the single take-up draw and the breakdowns measured on it. The release's DfE rows bind the "
-        "January 2025 census, a year before the spring term of 2025-26, which still bears on every basis through the "
-        "eligible population. The next national release will be built on [PolicyEngine/microcosm#1347](https://github.com/PolicyEngine/microcosm/pull/1347), which carries the "
-        "age-date fix (a12885f9) and [#1344](https://github.com/PolicyEngine/microcosm/pull/1344); the Microcosm team's preview build with the fix moved the 30 hours' cost on "
-        "the dataset's own draw by about -£0.02bn, and these figures will be rerun on that release.",
+        "Children's ages in the dataset",
+        "The dataset counts children's ages at early October, not at 31 December as DfE does, so some 1-year-olds "
+        "sit in the 9-11-month group. The headline applies DfE's rates by age and is not affected; the flat-rate "
+        "option and the breakdowns on Who gains are, slightly. We will rerun on the corrected dataset.",
     ),
     (
         "Tax-Free Childcare on the replaced care",
-        "In the reform, each child's childcare spending is reduced by the value of its new funded hours at the funding "
-        "rate before Tax-Free Childcare is computed. Fees are above funding rates, so this removes less spending than "
-        "the hours replace and the Tax-Free Childcare leg may still be a little high. The hours response's income "
-        "effect recomputes the family's cash income on the care it still buys, on its own displacement rule.",
+        "In the reform, each child's childcare spending is cut by the value of its new funded hours, at the funding "
+        "rate, before Tax-Free Childcare is worked out. Fees are above funding rates, so the Tax-Free Childcare cost "
+        "may be a little high.",
     ),
     (
         "Partners who do not work",
         "A partner who does not work because of caring or incapacity qualifies through the benefits the data hold "
-        "([policyengine-uk 2.147.2](https://github.com/PolicyEngine/policyengine-uk/tree/2.147.2) applies "
-        "[SI 2022/1134 reg 14(4)](https://www.legislation.gov.uk/uksi/2022/1134/regulation/14)/[15(4)](https://www.legislation.gov.uk/uksi/2022/1134/regulation/15) and [SI 2015/448 reg 13](https://www.legislation.gov.uk/uksi/2015/448/regulation/13)), but not through limited "
+        "([SI 2022/1134 reg 14(4)](https://www.legislation.gov.uk/uksi/2022/1134/regulation/14), "
+        "[SI 2015/448 reg 13](https://www.legislation.gov.uk/uksi/2015/448/regulation/13)), but not through limited "
         "capability for work, NI credits or carer's leave, which the data do not hold.",
     ),
     (
         "Take-up among newly eligible families",
         "Take-up of the 30 hours among newly eligible families is [DfE's January 2025 take-up](https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025) among all eligible "
-        "children, by age. Nothing measures it for families over £100,000, who are not eligible today: they may use "
-        "formal childcare more than average, which would raise it, or claim less where the hours are worth little to "
-        "them. DfE says its 2025 rates should be treated with caution and will be revised next year; its estimate of "
-        "eligible 9-11-month-olds does not account for maternity or paternity leave; and its 2-year-olds under the "
-        "working-parent entitlement include some who should have been recorded under the disadvantaged 2-year-old "
-        "offer, which may put the 84% too high. The under-3 rates were measured on the 15-hour offer, before it rose "
-        "to 30 hours in September 2025; take-up of 30 hours may differ. For the low end, CenTax's low-cost scenario "
-        f"assumes {CENTAX_LIVE_ACCOUNT_SHARE:.0%} take-up, the share of parents below £100,000 who held a live childcare "
-        "account in 2022 ([Removing the childcare cliff-edge, pp. 100-101](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=101)). CenTax's two rates and the dataset's flat "
-        "rate are on [Budget impact](?tab=budget#take-up-options); the breakdowns by family, income and region, who gains by age, the range's adjustments "
-        "and the labour supply offsets are measured on the dataset's single take-up draw.",
+        "children, by age. Nothing measures it for families over £100,000: they may use formal childcare more than "
+        "average, or claim less where the hours are worth little to them. DfE treats its 2025 rates with caution, "
+        "and the under-3 rates predate the rise to 30 hours in September 2025. CenTax's low-cost scenario assumes "
+        f"{CENTAX_LIVE_ACCOUNT_SHARE:.0%} ([pp. 100-101](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=101)). "
+        "Breakdowns by family, income and region use the dataset's own record of who claims, not DfE's rates.",
     ),
     (
         "Small cells suppressed",
-        "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell "
-        "would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), "
-        "so no suppressed cell can be recovered from the published UK totals.",
+        "Breakdowns resting on fewer than ten survey families are not shown, and a second cell is hidden with a lone "
+        "one so it cannot be worked out from the total.",
     ),
 ]
 
@@ -252,27 +216,26 @@ def data_limitations(rows):
     return [(
         "Funded hours: baseline context",
         f"The baseline's free-hours spending in 2026-27 is {versus} [DfE's illustrative total]({free['url']}) "
-        "(see [Baseline validation](#validation)). DfE's totals are illustrative (based partly on forecasts) and "
-        "are context only: matching the aggregate baseline does not bound the incremental cost for newly eligible "
-        "families above £100,000, whose take-up and hours may differ.",
+        "(see [Baseline validation](#validation)). DfE's totals are partly forecasts, so this is context, not a "
+        "check on the reform's cost.",
     )]
 
 
 def concentration_limitation(concentration, year):
     """How much of the static cost rests on the few largest-gaining weighted records."""
     c = concentration[str(year)]
-    return ("Concentration on a few families", f"In {_fy(year)} the ten largest gaining families (by weight times gain, on the single take-up draw) carry "
-            f"{c['top_ten_share_pct']:.0f}% of the static cost and the largest alone {c['largest_share_pct']:.0f}%. "
-            "The sampling uncertainty this leaves is on the [Budget impact tab](?tab=budget#uncertainty).")
+    return ("Concentration on a few families", f"In {_fy(year)} the ten survey families with the largest weighted gains carry "
+            f"{c['top_ten_share_pct']:.0f}% of the static cost, and the largest alone {c['largest_share_pct']:.0f}%. "
+            "[Budget impact](?tab=budget#uncertainty) shows the sampling uncertainty this leaves.")
 
 
 SALARY_SACRIFICE_URL = (
     "https://www.gov.uk/government/publications/salary-sacrifice-reform-for-pension-contributions-effective-from-"
     "6-april-2029/salary-sacrifice-reform-for-pension-contributions"
 )
-PEUK = "https://github.com/PolicyEngine/policyengine-uk/blob/2.147.2/policyengine_uk/variables/gov"
-MICROCOSM_UK = "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk"
-THIS_REPO = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/src/childcare_100k"
+# Replication code and the full method: the one link a reader needs beyond the official sources.
+METHOD_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/docs/METHOD.md"
+METHOD_NOTES = {"label": "Method notes on GitHub", "url": METHOD_URL}
 
 
 def _src(label, url):
@@ -298,21 +261,6 @@ def _basis_effect(bases, basis):
     return {y: round(bases[basis]["total"][y] - head[y], 3) for y in head}
 
 
-def _contract_gap_text(gap):
-    """Why DfE's rates give a lower cost than the contract's flat rate, as the split of the gap by DfE age."""
-    m = gap["gap_m"]
-    eff = gap["contract_effective_rate"]["0"]
-
-    def signed(v):
-        return f"{'+' if v >= 0 else '-'}£{abs(v)}m"
-
-    return (f"Against DfE's rates, the contract's flat rate ({EXTENDED_TAKE_UP_RATE:.1%} of families) is above them at "
-            f"9-11 months, where the dataset's usage draw makes it about {eff:.0%} in effect, and at age 1, about "
-            f"level at 2 and below them at 3 and 4. So in {_fy(gap['year'])} its 30-hours cost is £{gap['gap_total_m']}m "
-            f"higher: {signed(m['0'])} at age 0, {signed(m['1'])} at 1, {signed(m['2'])} at 2 and {signed(m['3-5'])} "
-            "at 3 to 5 (DfE age).")
-
-
 def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
     """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
     etfc = a["would_claim_tfc_pct"]
@@ -323,15 +271,12 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "ours": "No change in work, pay or pension contributions",
             "source_says": "CenTax allow for parents earning more and partners entering work (see the comparison on Methodology)",
             "source": _src("CenTax, Table 4.2", f"{CENTAX_REPORT_URL}#page=42"),
-            "modelled": "Both runs use the same households with the same earnings, hours of work and childcare "
-                        "spending. Nobody works more or less, or changes their pension contributions, because the "
-                        "limit goes.",
+            "modelled": "Both runs keep every family's earnings, hours of work, pension contributions and childcare spending "
+                        "as they are; [Labour supply](#labour-supply) sets out the response.",
             "sources": [
-                _src("Our runs (engine.py)", f"{THIS_REPO}/engine.py"),
-                _src("Moving into work (labour_supply.py)", f"{THIS_REPO}/labour_supply.py"),
-                _src("Hours (hours_response.py)", f"{THIS_REPO}/hours_response.py"),
                 _src("OBR participation and income elasticities", OBR_PARTICIPATION_URL),
                 _src("Brewer et al., hours", BREWER_HOURS_URL),
+                METHOD_NOTES,
             ],
             "alternative": LSR_ALTERNATIVE,
             # Money back to the Exchequer lowers the cost.
@@ -344,31 +289,12 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "source_says": "DfE's January 2025 take-up of the working-parent hours, by age; CenTax use "
                            f"{_rates_text(TAKE_UP_BASES['centax'])}",
             "source": _src(TAKE_UP_BASES["dfe"]["source"], TAKE_UP_BASES["dfe"]["source_url"]),
-            "modelled": "Nobody over £100,000 is eligible today, so the data cannot say how many newly eligible "
-                        "families would take up the 30 hours. The dataset draws once whether each family would "
-                        f"claim, at the take-up contract's flat rate ({EXTENDED_TAKE_UP_RATE:.1%}), and a few heavily "
-                        "weighted families decide much of the cost on that draw. The headline instead averages over "
-                        "take-up child by child: a pair of runs has every family claiming and every child using its "
-                        "hours, and each newly entitled child's cost there is multiplied by DfE's take-up for its age "
-                        "(registered over eligible children in January 2025; the rates are in the comparison table). "
-                        f"{TAKE_UP_AGE_NOTE} "
-                        "These rates already count whether a family applies and whether the child uses the hours, so "
-                        "they replace the dataset's claim and under-2 usage draws rather than adding to them; the "
-                        "hours a week a child who uses them takes are the dataset's draw. A child who takes up the new "
-                        "hours gets no Tax-Free Childcare on the care they replace; one who does not keeps its top-up "
-                        f"(each weighted by the take-up chance). {_contract_gap_text(gap)} {RELEASE_TAKE_UP_TEXT} "
-                        "[Budget impact](?tab=budget#take-up-options) switches between DfE's rates, CenTax's two rates and the "
-                        "flat rate.",
+            "modelled": "Nobody over £100,000 is eligible today, so no data show their take-up. We apply DfE's January 2025 "
+                        "take-up for each child's age, which counts both applying and using the hours.",
             "sources": [
                 _src(TAKE_UP_BASES["dfe"]["source"], TAKE_UP_BASES["dfe"]["source_url"]),
                 _src(TAKE_UP_BASES["centax"]["source"], TAKE_UP_BASES["centax"]["source_url"]),
-                _src("The 30-hours rate in the release's take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
-                _src("would_claim_extended_childcare",
-                     f"{PEUK}/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"),
-                _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
-                _src("How we apply the rates (aggregate.py)", f"{THIS_REPO}/aggregate.py"),
-                _src("Expected-mode costing (#7)", "https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/7"),
-                _src("The release's take-up by age (review of #12)", RELEASE_TAKE_UP_CHECK_URL),
+                METHOD_NOTES,
             ],
             "alternative": f"CenTax's two rates: {_rates_text(TAKE_UP_BASES['centax'])}",
             "effect_bn": _basis_effect(bases, "centax"),
@@ -377,20 +303,12 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "id": "take_up_contract",
             "title": "One take-up rate for every family",
             "ours": "Take-up by the child's age, child by child",
-            "source_says": "The dataset's take-up contract has one rate for the working-parent hours",
-            "source": _src("Microcosm take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
-            "modelled": "The alternative is the expected mode before the take-up bases: the cost averaged over the "
-                        f"dataset's draw at the contract's flat rate, {EXTENDED_TAKE_UP_RATE:.1%} of families, with "
-                        "the dataset's draws of the hours used. A family that takes up the new hours gets no "
-                        "Tax-Free Childcare on the care they replace; one that does not keeps its top-up (each "
-                        "weighted by the rate). Each percentage point of that rate moves the 30 hours' cost by the "
-                        "amount in [How we cost it](#take-up-method).",
-            "sources": [
-                _src("Microcosm take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
-                _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
-            ],
-            "alternative": f"The take-up contract's flat rate: {EXTENDED_TAKE_UP_RATE:.1%} of families, with the "
-                           "dataset's under-2 usage draw",
+            "source_says": "Microcosm gives every family one rate for the working-parent hours",
+            "source": _src("Microcosm take-up settings", EXTENDED_TAKE_UP_SOURCE_URL),
+            "modelled": "The alternative gives every newly eligible family the same chance of claiming, the dataset's flat "
+                        "rate.",
+            "sources": [_src("Microcosm take-up settings", EXTENDED_TAKE_UP_SOURCE_URL), METHOD_NOTES],
+            "alternative": f"One rate for every family: {EXTENDED_TAKE_UP_RATE:.1%} of families",
             "effect_bn": _basis_effect(bases, "contract"),
         },
         {
@@ -398,22 +316,11 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "title": "Who claims Tax-Free Childcare",
             "ours": "Families get a top-up only if they report paid registered childcare; "
                     f"{int(etfc['families_with_child_under_12'] + 0.5)}% are set to claim",
-            "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
-            "source": _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
-            "modelled": "The Tax-Free Childcare draw is a claim flag fitted to "
-                        f"[HMRC's top-up and account counts]({HMRC_TFC_URL}), not a "
-                        "take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use "
-                        "is limited by reported spending (the table shows both). Nothing identifies take-up among "
-                        "families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly "
-                        "eligible families, about today's use among all eligible families. The alternative's effect "
-                        "and the leg before netting are measured on the dataset's single take-up draw of the 30 hours, "
-                        "not on DfE's rates.",
-            "sources": [
-                _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
-                _src("would_claim_tfc", f"{PEUK}/hmrc/tax_free_childcare/would_claim_tfc.py"),
-                _src("How we compute the rates (aggregate.py)", f"{THIS_REPO}/aggregate.py"),
-                _src("Microcosm's take-up analysis (#8)", TFC_TAKE_UP_SOURCE_URL),
-            ],
+            "source_says": "Claims matched to HMRC's account and top-up counts",
+            "source": _src("HMRC, Tax-Free Childcare statistics", HMRC_TFC_URL),
+            "modelled": "A family gets a top-up only on the paid registered childcare it reports. No data show take-up among "
+                        "newly eligible families, so the alternative lowers it.",
+            "sources": [_src("HMRC, Tax-Free Childcare statistics", HMRC_TFC_URL), METHOD_NOTES],
             "alternative": f"{TFC_TAKE_UP_NEWLY_ELIGIBLE_LOW:.0%} of newly eligible families claim Tax-Free Childcare",
             "effect_bn": {y: round(tfc["take_up_newly_eligible_low"][y] - tfc["central"][y], 3) for y in tfc["central"]},
         },
@@ -423,19 +330,9 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "ours": f"About {a['mean_extended_hours_usage']:.0f} of the 30 extended hours a week",
             "source_says": "DfE January 2025 census implies about 28.5 hours",
             "source": _src("DfE funding technical note", DFE_FUNDING_URL),
-            "modelled": "Each family's weekly extended hours come from the dataset's draw of "
-                        f"{HOURS_USAGE_VARIABLE}, which averages about {a['mean_extended_hours_usage']:.0f} of the "
-                        "30 hours: since PolicyEngine/microcosm#1126 the draw is set to DfE's January 2025 census, "
-                        "about 28.5 (earlier releases drew about 15). policyengine-uk keeps a 3- or 4-year-old's universal 15 "
-                        "hours when the family becomes eligible for the extended hours and counts only the hours "
-                        "above them as extended, so a family that becomes eligible never loses funded hours.",
-            "sources": [
-                _src(HOURS_USAGE_VARIABLE,
-                     f"{PEUK}/dfe/extended_childcare_entitlement/{HOURS_USAGE_VARIABLE}.py"),
-                _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
-                _src("microcosm#1126", "https://github.com/PolicyEngine/microcosm/issues/1126"),
-                _src("DfE funding technical note", DFE_FUNDING_URL),
-            ],
+            "modelled": "Hours used follow DfE's January 2025 census. A 3- or 4-year-old keeps the universal 15 hours, so no "
+                        "family loses funded hours.",
+            "sources": [_src("DfE funding technical note", DFE_FUNDING_URL)],
             "alternative": "Every family uses all 30 extended hours",
             "effect_bn": effects["full_30_hour_usage"],
         },
@@ -445,15 +342,8 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "ours": "From the first term after a child turns 9 months",
             "source_says": "Eligible from the term after the child turns 9 months",
             "source": _src("GOV.UK: childcare if you work", "https://www.gov.uk/free-childcare-if-working"),
-            "modelled": "policyengine-uk starts the working-parent hours on 1 September, 1 January or 1 April after a "
-                        "child turns 9 months, each term a third of the year, and ends the funded hours when a child "
-                        "starts reception. Both dates come from the date of birth, which the release holds as age and "
-                        "months since the last birthday.",
-            "sources": [
-                _src("extended_childcare_entitlement_term_share",
-                     f"{PEUK}/dfe/extended_childcare_entitlement/extended_childcare_entitlement_term_share.py"),
-                _src("policyengine-uk#2570", "https://github.com/PolicyEngine/policyengine-uk/pull/2570"),
-            ],
+            "modelled": "Funded hours end when a child starts reception; each term counts as a third of the year.",
+            "sources": [_src("GOV.UK: childcare if you work", "https://www.gov.uk/free-childcare-if-working")],
         },
         {
             "id": "income_test",
@@ -461,14 +351,9 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "ours": "Income after pension contributions; 59% of childcare spending through Tax-Free Childcare",
             "source_says": "The law deducts pension contributions (ITA 2007 s58)",
             "source": _src("Income Tax Act 2007 s58", "https://www.legislation.gov.uk/ukpga/2007/3/section/58"),
-            "modelled": "Adjusted net income as policyengine-uk computes it: each parent's realised income for the "
-                        "year, after pension contributions and Gift Aid. Tax-Free Childcare is paid on the dataset's "
-                        "share of childcare spending that goes through an account (59%).",
-            "sources": [
-                _src("Income Tax Act 2007 s58", "https://www.legislation.gov.uk/ukpga/2007/3/section/58"),
-                _src("adjusted_net_income", f"{PEUK}/hmrc/income_tax/adjusted_net_income.py"),
-                _src("Tax-Free Childcare share of spending (Microcosm)", f"{MICROCOSM_UK}/take_up_contract.json"),
-            ],
+            "modelled": "Each parent's income after pension contributions and Gift Aid. Tax-Free Childcare is paid on the "
+                        "share of childcare spending that goes through an account.",
+            "sources": [_src("Income Tax Act 2007 s58", "https://www.legislation.gov.uk/ukpga/2007/3/section/58"), METHOD_NOTES],
             "alternative": f"Put {ROUTED_SHARE_LOW:.0%} of childcare spending through Tax-Free Childcare accounts",
             "effect_bn": effects[agg.ROUTED_LOW],
         },
@@ -478,8 +363,8 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
             "ours": "Whole of each year from 2026-27",
             "source_says": "\"A future Conservative government\"; no start date",
             "source": _src("Conservative announcement", CONSERVATIVE_ANNOUNCEMENT_URL),
-            "modelled": "The limit is removed for the whole of each fiscal year from 2026-27 to 2029-30. The pledge "
-                        "gives no start date and 2026-27 is already half over, so 2026-27 is illustrative.",
+            "modelled": "The pledge gives no start date, so the limit goes for each whole year from 2026-27; 2026-27 is already "
+                        "half over and is illustrative.",
             "sources": [_src("Conservative announcement", CONSERVATIVE_ANNOUNCEMENT_URL)],
         },
     ]
@@ -497,7 +382,6 @@ UNCERTAINTY_SOURCE_URL = "https://github.com/PolicyEngine/uk-childcare-100k-thre
 # 3-to-4s (her figure; aggregate.age_profile_sensitivity computes the even spread).
 CENTAX_GRADIENT_SENSITIVITY_BN = 0.13
 # Microcosm's analysis of the Tax-Free Childcare claim flag and the netting of new funded hours (#8, 22 October 2026).
-TFC_TAKE_UP_SOURCE_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/pull/8"
 
 
 def moved_outside_note(population):
@@ -691,10 +575,8 @@ def build(metas):
                 "income_elasticities": "[Table A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9), by sex, whether in a couple and age of youngest child: from "
                                        "-0.185 (a woman in a couple, youngest child 0-2) to -0.037 (a lone "
                                        "mother, youngest 0-4); -0.05 for a man in a couple",
-                "couples": "The OBR groups ([Tables A1 and A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=8)) apply to married and cohabiting couples alike. "
-                           "policyengine-uk assigns them by legal marriage, which would give a cohabiting father no "
-                           "elasticity and a cohabiting mother the lone-parent rates (about a fifth of couples with "
-                           "children are not married); we assign them by whether the adult is in a couple.",
+                "couples": "The OBR's groups ([Tables A1 and A2](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=8)) treat married and cohabiting couples alike, "
+                           "so we group adults by whether they are in a couple, not by legal marriage.",
                 "couples_issue_url": UPSTREAM_COUPLE_ISSUE_URL,
                 "hours_for_new_entrants": HOURS_FOR_NEW_ENTRANTS,
                 "free_hours_displacement": round(FREE_HOURS_DISPLACEMENT, 4),
@@ -703,13 +585,10 @@ def build(metas):
                 "elasticity_scales_status": "illustrative, not a sourced uncertainty interval",
             },
             "responding_population": (
-                "Every adult (the first two in each family; not self-employed, students or aged 60 and over, the "
-                "OBR's exclusions) in a family whose youngest child is under 12 and in which at least one adult's "
-                "income, as the limits test it, is over £100,000: the parent over the limit as well as their "
-                "partner. Those not in work may move into work, except disabled adults (receiving DLA or PIP), "
-                "whom the OBR excludes from participation ([Table A4](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9)) but not from hours ([Table A3](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9)); "
-                "those in work "
-                "may change their hours."
+                "Both parents in families whose youngest child is under 12 and where a parent's income is over "
+                "£100,000, leaving out the self-employed, students and people aged 60 and over, as the "
+                "[OBR](https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf#page=9) does. "
+                "Those not in work may start, except disabled adults; those in work may change their hours."
             ),
             "not_modelled": "Bunching: parents who today keep their income at or just below "
                             "£100,000 and would earn more without the limit.",
