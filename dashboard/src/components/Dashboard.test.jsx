@@ -336,12 +336,12 @@ describe("the labour supply control", () => {
     const i = ls.intensive;
     expect(i.price_offset_bn.central[f]).toBeGreaterThanOrEqual(0);
     expect(i.income_offset_bn.central[f]).toBeLessThanOrEqual(0);
-    expect(text).toContain(plainText(ls.assumptions.income_elasticities));
+    expect(text).toContain("OBR's income elasticities");
     expect(text).toContain(`price effect brings back ${formatMoneyBn(i.price_offset_bn.central[f])}`);
     expect(text).toContain(`${formatMoneyBn(i.over_limit.price_offset_bn.central[f])} from those over it`);
     expect(text).toContain(`income effect costs ${formatMoneyBn(-i.income_offset_bn.central[f])}`);
     expect(text).toContain(`a net ${formatMoneyBn(i.offset_bn.central[f])} back`);
-    // The overview gives the totals; the split by group is in the closed "Hours: method" box.
+    // The findings give the totals; the split by group is in the Method list's "Hours" item.
     expect(screen.queryByTestId("ls-intensive")).toBeNull();
   });
 

@@ -27,14 +27,14 @@ export const CENTAX_SCENARIOS = [
   { id: "low", label: "CenTax, low-cost scenario", staticBn: 0.7, netBn: -0.16 },
 ];
 
-export function BenchmarkNotes({ data }) {
+export function BenchmarkNotes({ data, Heading = "h3" }) {
   const benchmark = getBenchmarks(data)[0];
-  // Two items of the list under the comparison table.
+  // Two short notes under the comparison table, each under its own heading.
   return (
     <>
-      <li data-testid="benchmark">
-        <strong className="font-semibold text-slate-800">The Conservatives&apos; figure:</strong>{" "}
-        about £700m a year, paid for by cutting staff at arm&apos;s-length public bodies. Their{" "}
+      <Heading>The Conservatives&apos; figure</Heading>
+      <p className="text-base leading-relaxed text-slate-700" data-testid="benchmark">
+        About £700m a year, paid for by cutting staff at arm&apos;s-length public bodies. Their{" "}
         <a href={benchmark.announcement_url} target="_blank" rel="noopener noreferrer">
           announcement
         </a>{" "}
@@ -47,12 +47,13 @@ export function BenchmarkNotes({ data }) {
           CenTax&apos;s report
         </a>
         , which costs the free hours only.
-      </li>
-      <li data-testid="benchmark-like-for-like">
-        <strong className="font-semibold text-slate-800">Like-for-like:</strong>{" "}
-        our 30 hours cost and CenTax&apos;s static cost are the like-for-like pair, both before any change in work. The party&apos;s £0.7bn is close to
-        CenTax&apos;s central net figure plus a little for Tax-Free Childcare. CenTax&apos;s 2030 is our 2029-30.
-      </li>
+      </p>
+      <Heading>Like-for-like</Heading>
+      <p className="text-base leading-relaxed text-slate-700" data-testid="benchmark-like-for-like">
+        Our 30 hours cost and CenTax&apos;s static cost are the like-for-like pair, both before any change in work. The
+        party&apos;s £0.7bn is close to CenTax&apos;s central net figure plus a little for Tax-Free Childcare.
+        CenTax&apos;s 2030 is our 2029-30.
+      </p>
     </>
   );
 }

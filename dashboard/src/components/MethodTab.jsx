@@ -15,7 +15,7 @@ import {
 } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatMoneyBn, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, CENTAX, UnifiedComparison } from "./Comparison";
-import { BulletList, Expandable, ListItem, RichText } from "./ui";
+import { BulletList, DISCLOSURE_SUMMARY, Expandable, ListItem, RichText } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
 export function formatUnit(value, unit) {
@@ -168,7 +168,7 @@ function EffectsTable({ rows, years }) {
 function AssumptionNotes({ rows }) {
   return rows.map((r) => (
     <li key={r.id} id={r.id === "take_up" ? "take-up-rates" : undefined} data-testid={`choice-${r.id}`}>
-      <strong className="font-semibold text-slate-800">{r.title}.</strong> <RichText text={r.modelled} />{" "}
+      <strong className="font-semibold text-slate-900">{r.title}.</strong> <RichText text={r.modelled} />{" "}
       {(r.sources ?? []).map((x, i) => (
         <span key={x.url + x.label}>
           {i === 0 ? "Sources: " : "; "}
@@ -221,21 +221,24 @@ function LabourSupplySection({ data }) {
         </>
       }
     >
-      <p className="text-sm font-semibold text-slate-800">What we find, {year}</p>
-      <BulletList className="mt-2" testId="labour-supply-details">
+      <Subhead>What we find, {year}</Subhead>
+      <BulletList testId="labour-supply-details">
         <li data-testid="labour-supply-method">
-          <strong className="font-semibold text-slate-800">Partners moving into work:</strong> about{" "}
+          <strong className="font-semibold text-slate-900">Partners moving into work:</strong> about{" "}
           {formatCount(entrants)}, who {extText}.
           {extOffset < 0
             ? " Both parents must work for the family to qualify, so a partner starting work unlocks the 30 hours and Tax-Free Childcare."
             : ""}
         </li>
         <li>
-          <strong className="font-semibold text-slate-800">Parents changing their hours:</strong> a net{" "}
+          <strong className="font-semibold text-slate-900">Parents changing their hours:</strong> a net{" "}
           {formatMoneyBn(ls.intensive.offset.central[li])} back, at central elasticities. The price effect brings back{" "}
           {formatMoneyBn(ls.intensive.price.central[li])}, as cheaper childcare pulls hours up; the income effect costs{" "}
           {formatMoneyBn(-ls.intensive.income.central[li])}, as being better off pulls them down.
         </li>
+      </BulletList>
+      <Subhead>How it compares</Subhead>
+      <BulletList>
         <ListItem title="Not modelled" summary={ls.notModelled} testId="ls-not-modelled" />
         <ListItem
           title="Compared with CenTax"
@@ -251,72 +254,72 @@ function LabourSupplySection({ data }) {
             </>
           }
         />
-        <ListItem title="Who responds" testId="ls-who">
-          <RichText text={raw.responding_population} />
-        </ListItem>
-        <ListItem title="Moving into work: method" testId="ls-extensive">
-          <p>
-            The <Ext href={OBR_NOTE_URL}>OBR&apos;s participation elasticities</Ext> (
-            <RichText text={a.participation_elasticities} />
-            ), applied to the gain from working net of the childcare a parent would then pay for. Entrants work{" "}
-            {a.hours_for_new_entrants} hours a week.
-          </p>
-          <p>
-            Why so few: a partner&apos;s gain from working is small next to the family&apos;s income, and the tax they
-            pay is set against the childcare support their family then receives. The hours response, of parents
-            already in work whose family the reform makes eligible however many hours they work, changes earnings
-            without unlocking support, so it brings money back.
-          </p>
-        </ListItem>
-        <ListItem title="Hours: method" testId="ls-intensive">
-          <p>
-            It responds to the price of childcare, not to marginal tax rates, because everyone who responds becomes
-            eligible whatever they earn; parents holding income just under £100,000 (bunching) are not modelled.
-          </p>
-          <p>
-            <em>Price effect:</em> an assumed childcare-price elasticity of hours of {a.hours_price_elasticity}, an
-            extrapolated scenario assumption, not an estimated price elasticity (
-            <Ext href={BREWER_URL}>Brewer, Cattan, Crawford and Rabe, IFS WP20/09</Ext>), applied to the price of the
-            family&apos;s next hour of paid childcare after Tax-Free Childcare and Universal Credit support.
-          </p>
-          <p>
-            <em>Income effect:</em> the <Ext href={OBR_NOTE_URL}>OBR&apos;s income elasticities</Ext> (
-            <RichText text={a.income_elasticities} />) times the family&apos;s gain from the reform as a share of its
-            disposable income: a family made better off works slightly less.
-          </p>
-          <p>
-            Of the price effect in {year}, {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} comes
-            from adults at or below £100,000 and {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those
-            over it; of the income effect, {formatMoneyBn(-ls.intensive.at_or_below_limit.income.central[li])} and{" "}
-            {formatMoneyBn(-ls.intensive.over_limit.income.central[li])}.
-          </p>
-        </ListItem>
-        <ListItem title="Sensitivities" testId="ls-sensitivities">
-          <p>
-            Low and high multiply every elasticity by {scale(a.elasticity_scales.low)} and by{" "}
-            {scale(a.elasticity_scales.high)}: an illustrative range, not a sourced uncertainty interval. More tests
-            are in the <Ext href={METHOD_URL}>method notes on GitHub</Ext>.
-          </p>
-        </ListItem>
-        <ListItem title="Couples" testId="ls-checks">
-          <RichText text={a.couples} />
-        </ListItem>
+      </BulletList>
+      <Subhead>Method</Subhead>
+      <BulletList>
+        <ListItem title="Who responds" testId="ls-who" summary={<RichText text={raw.responding_population} />} />
+        <ListItem
+          title="Moving into work"
+          testId="ls-extensive"
+          summary={
+            <>
+              The <Ext href={OBR_NOTE_URL}>OBR&apos;s participation elasticities</Ext>, applied to the gain from
+              working after childcare costs; entrants work {a.hours_for_new_entrants}{" "}
+              hours a week. Few move because a partner&apos;s gain is small next to the family&apos;s income, and their
+              tax is set against the support the family then gets.
+            </>
+          }
+        />
+        <ListItem
+          title="Hours"
+          testId="ls-intensive"
+          summary={
+            <>
+              It follows the price of childcare, not marginal tax rates: parents already in work become eligible
+              however many hours they work. The price elasticity is an assumed {a.hours_price_elasticity} (
+              <Ext href={BREWER_URL}>Brewer et al.</Ext>, extrapolated); the income response uses the{" "}
+              <Ext href={OBR_NOTE_URL}>OBR&apos;s income elasticities</Ext>. Of the price effect,{" "}
+              {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} comes from adults at or below
+              £100,000 and {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it; of the
+              income effect, {formatMoneyBn(-ls.intensive.at_or_below_limit.income.central[li])} and{" "}
+              {formatMoneyBn(-ls.intensive.over_limit.income.central[li])}.
+            </>
+          }
+        />
+        <ListItem
+          title="Sensitivities"
+          testId="ls-sensitivities"
+          summary={
+            <>
+              Low and high multiply every elasticity by {scale(a.elasticity_scales.low)} and by{" "}
+              {scale(a.elasticity_scales.high)}, an illustrative range; more tests are in the{" "}
+              <Ext href={METHOD_URL}>method notes on GitHub</Ext>.
+            </>
+          }
+        />
+        <ListItem title="Couples" testId="ls-checks" summary={<RichText text={a.couples} />} />
       </BulletList>
     </Card>
   );
 }
 
-/** One section of the tab as a card: a title, a one-line intro, and its content as bullets. */
+/** One section of the tab as a card: a title, a one-line muted intro, then its content. */
 function Card({ id, title, lead, children }) {
   return (
-    <section id={id} className="mt-6 scroll-mt-16 first:mt-0" data-testid={`section-${id}`}>
-      <div className="panel">
+    <section id={id} className="mt-8 scroll-mt-16 first:mt-0" data-testid={`section-${id}`}>
+      {/* Narrower padding on a phone so the text keeps a readable width. */}
+      <div className="panel max-sm:px-4 max-sm:py-5">
         <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
-        {lead ? <p className="mt-1 text-sm leading-6 text-slate-500">{lead}</p> : null}
-        <div className="mt-4">{children}</div>
+        {lead ? <p className="mt-1 text-base leading-relaxed text-slate-600">{lead}</p> : null}
+        <div className="mt-5">{children}</div>
       </div>
     </section>
   );
+}
+
+/** A small heading for a group of bullets inside a card. */
+function Subhead({ children }) {
+  return <h3 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-slate-600 first:mt-0">{children}</h3>;
 }
 
 /** One step of the costing, an item of a numbered list: a one-line summary, and its detail behind "More". */
@@ -473,18 +476,23 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         title="How do we compare with other estimates?"
         lead="Our costing set against CenTax's, the Conservatives' figure, and the official sources and law."
       >
+        <Subhead>The table</Subhead>
         <Expandable title="Show the comparison table" testId="comparison-expandable" compact>
           <UnifiedComparison data={data} setting={setting} />
         </Expandable>
-        <BulletList className="mt-4" testId="assumption-notes">
-          <ListItem title="Each choice in full" testId="choices">
-            <BulletList>
-              <AssumptionNotes rows={modelling} />
-            </BulletList>
-            <EffectsTable rows={modelling} years={meta.years} />
-          </ListItem>
-          <BenchmarkNotes data={data} />
-        </BulletList>
+        <details className="group mt-2" data-testid="choices">
+          <summary className={DISCLOSURE_SUMMARY}>
+            Each choice in full
+            <span aria-hidden="true" className="transition-transform group-open:rotate-90">
+              ›
+            </span>
+          </summary>
+          <BulletList className="mt-2">
+            <AssumptionNotes rows={modelling} />
+          </BulletList>
+          <EffectsTable rows={modelling} years={meta.years} />
+        </details>
+        <BenchmarkNotes data={data} Heading={Subhead} />
       </Card>
 
       <Card
@@ -495,7 +503,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         <Expandable title="Show the validation table" testId="validation-expandable" compact>
           <ValidationTable rows={validation} />
         </Expandable>
-        <BulletList className="mt-4" testId="validation-notes">
+        <BulletList className="mt-5" testId="validation-notes">
           <li>Tax-Free Childcare and the number of people over £100,000 match HMRC closely.</li>
           <li>
             Working-parent counts match DfE&apos;s January 2025 census for 3- and 4-year-olds; under-3s are a little

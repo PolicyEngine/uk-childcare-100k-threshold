@@ -167,7 +167,7 @@ export function Section({ id, title, lead, details, detailsTitle = "More detail"
     return (
       <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
         <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
-        {lead ? <p className="mt-2 text-[0.95rem] leading-6 text-slate-600">{lead}</p> : null}
+        {lead ? <p className="mt-2 text-base leading-relaxed text-slate-600">{lead}</p> : null}
         <ExpandableGroup className="mt-5">
           {children}
           {details ? (
@@ -182,7 +182,7 @@ export function Section({ id, title, lead, details, detailsTitle = "More detail"
   return (
     <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
       <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
-      {lead ? <p className="mt-2 text-[0.95rem] leading-6 text-slate-600">{lead}</p> : null}
+      {lead ? <p className="mt-2 text-base leading-relaxed text-slate-600">{lead}</p> : null}
       {children && boxed ? (
         <Panel className="mt-5" footer={details} footerTitle={detailsTitle}>
           {children}
@@ -288,7 +288,7 @@ export function TabLayout({ sections, children }) {
                     />
                     <span
                       className={`whitespace-nowrap font-medium transition-colors ${
-                        state === "current" ? "text-slate-900" : "text-slate-400 group-hover:text-slate-700"
+                        state === "current" ? "text-slate-900" : "text-slate-500 group-hover:text-slate-800"
                       }`}
                     >
                       {s.title}
@@ -446,12 +446,12 @@ export function plainText(text) {
   return String(text).replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1");
 }
 
-/** A plain bulleted (or numbered) list of items, with no box or rules between them. */
+/** A plain bulleted (or numbered) list of items, with no box or rules between them: body type, 16px at 1.6. */
 export function BulletList({ children, testId, ordered = false, className = "" }) {
   const Tag = ordered ? "ol" : "ul";
   return (
     <Tag
-      className={`${ordered ? "list-decimal" : "list-disc"} space-y-3 pl-5 text-sm leading-6 text-slate-600 marker:text-slate-400 ${className}`}
+      className={`${ordered ? "list-decimal" : "list-disc"} space-y-3 pl-5 text-base leading-relaxed text-slate-700 marker:text-slate-500 ${className}`}
       data-testid={testId}
     >
       {children}
@@ -459,17 +459,22 @@ export function BulletList({ children, testId, ordered = false, className = "" }
   );
 }
 
+/** The "More ›" (or a title's) disclosure control: teal, one step below body size, a 32px tap target. */
+export const DISCLOSURE_SUMMARY =
+  "inline-flex min-h-8 cursor-pointer list-none items-center gap-1 rounded text-sm font-semibold text-[color:var(--pe-color-primary-700)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]";
+
 /**
- * One item of a BulletList: a bold title and an optional summary on the bullet; any further detail sits behind a
- * small "More" under it (or, with no summary, behind the title itself). `id` and `testId` go on the disclosure when
- * there is one, so a link to `#id` opens it.
+ * One item of a BulletList: a bold label and an optional summary on the bullet; any further detail sits behind a
+ * "More ›" under it (or, with no summary, behind the label itself, which then has no full stop). `id` and `testId`
+ * go on the disclosure when there is one, so a link to `#id` opens it.
  */
 export function ListItem({ title, summary, children, id, testId }) {
-  const head = (
+  const head = summary ? (
     <>
-      <strong className="font-semibold text-slate-800">{title}.</strong>
-      {summary ? <> {summary}</> : null}
+      <strong className="font-semibold text-slate-900">{title}.</strong> {summary}
     </>
+  ) : (
+    <strong className="font-semibold text-slate-900">{title}</strong>
   );
   if (!children) {
     return (
@@ -482,9 +487,9 @@ export function ListItem({ title, summary, children, id, testId }) {
     <li>
       {summary ? head : null}
       <details className="group" id={id} data-testid={testId}>
-        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]">
-          {summary ? <span className="text-xs font-semibold text-slate-600">More</span> : head}
-          <span aria-hidden="true" className="text-xs text-slate-500 transition-transform group-open:rotate-90">
+        <summary className={DISCLOSURE_SUMMARY}>
+          {summary ? "More" : title}
+          <span aria-hidden="true" className="transition-transform group-open:rotate-90">
             ›
           </span>
         </summary>
