@@ -20,7 +20,7 @@ import {
   parseTakeUp,
   takeUpParams,
 } from "../lib/dataHelpers";
-import { Expandable, ExpandableGroup, ExpandableRow, Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
+import { Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
 import { formatBn } from "../lib/formatters";
 
 export const TAB_OPTIONS = [
@@ -86,6 +86,12 @@ const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on
 const BREWER_URL =
   "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41";
 
+// The three controls at the top of Budget impact (Take-up and the two responses) share one card style and one
+// style of closed "more" link, so they read as a set.
+const CONTROL_CARD = "flex flex-col rounded-xl border px-4 py-2.5";
+const CONTROL_SUMMARY =
+  "inline-flex cursor-pointer list-none items-center gap-1 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]";
+
 /**
  * One response as a card: the title row is the switch; under it the margin and, when on, the setting; the
  * description and source closed underneath.
@@ -93,7 +99,7 @@ const BREWER_URL =
 function ResponseCard({ on, onChange, bound, onBound, title, tag, description, source, testId }) {
   return (
     <div
-      className={`flex flex-col rounded-xl border px-4 py-2.5 transition-colors ${
+      className={`${CONTROL_CARD} transition-colors ${
         on ? "border-[color:var(--pe-color-primary-600)] bg-[color:var(--pe-color-primary-50)]" : "border-slate-200 bg-white"
       }`}
       data-testid={`${testId}-card`}
@@ -138,8 +144,8 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
           </label>
         ) : null}
       </div>
-      <details className="group mt-1 text-sm" data-testid={`${testId}-details`}>
-        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]">
+      <details className="group mt-auto pt-1 text-sm" data-testid={`${testId}-details`}>
+        <summary className={CONTROL_SUMMARY}>
           Details
           <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-90">
             ›
@@ -168,36 +174,35 @@ export function LabourSupplyControl({ data, setting, onChange }) {
     </a>
   );
   return (
-    <div className="mb-8" data-testid="labour-supply-control">
-      <div className="grid gap-3 md:grid-cols-2">
-        <ResponseCard
-          on={setting.extensive}
-          onChange={(v) => onChange({ ...setting, extensive: v })}
-          bound={boundOf(setting, "extensive")}
-          onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, extensive: x } })}
-          tag="Extensive margin"
-          title="Partners move into work"
-          description="A partner who doesn't work may start, now that working brings the family childcare support."
-          source={link(OBR_ELASTICITIES_URL, "OBR participation elasticities")}
-          testId="toggle-extensive"
-        />
-        <ResponseCard
-          on={setting.intensive}
-          onChange={(v) => onChange({ ...setting, intensive: v })}
-          bound={boundOf(setting, "intensive")}
-          onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, intensive: x } })}
-          tag="Intensive margin"
-          title="Parents change their hours"
-          description="Parents in work, at any income, may work more as an extra hour of childcare gets cheaper, and a little less as their family is better off."
-          source={
-            <>
-              {link(BREWER_URL, "Brewer et al., IFS WP20/09")} (price, assumed {a.hours_price_elasticity}),{" "}
-              {link(OBR_ELASTICITIES_URL, "OBR income elasticities")}
-            </>
-          }
-          testId="toggle-intensive"
-        />
-      </div>
+    // `contents`: the two cards sit in the controls grid beside the Take-up box.
+    <div className="contents" data-testid="labour-supply-control">
+    <ResponseCard
+        on={setting.extensive}
+        onChange={(v) => onChange({ ...setting, extensive: v })}
+        bound={boundOf(setting, "extensive")}
+        onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, extensive: x } })}
+        tag="Extensive margin"
+        title="Partners move into work"
+        description="A partner who doesn't work may start, now that working brings the family childcare support."
+        source={link(OBR_ELASTICITIES_URL, "OBR participation elasticities")}
+        testId="toggle-extensive"
+      />
+      <ResponseCard
+        on={setting.intensive}
+        onChange={(v) => onChange({ ...setting, intensive: v })}
+        bound={boundOf(setting, "intensive")}
+        onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, intensive: x } })}
+        tag="Intensive margin"
+        title="Parents change their hours"
+        description="Parents in work, at any income, may work more as an extra hour of childcare gets cheaper, and a little less as their family is better off."
+        source={
+          <>
+            {link(BREWER_URL, "Brewer et al., IFS WP20/09")} (price, assumed {a.hours_price_elasticity}),{" "}
+            {link(OBR_ELASTICITIES_URL, "OBR income elasticities")}
+          </>
+        }
+        testId="toggle-intensive"
+      />
     </div>
   );
 }
@@ -210,8 +215,7 @@ export function takeUpOptionName(t, id) {
 /**
  * Who takes up the 30 hours among newly eligible children: one drop-down, the headline (DfE's rates by age) chosen
  * by default, each option showing the 30 hours' cost it gives in the first full year. What each option is, and its
- * source, is in a closed row under the drop-down, in the same box; it is the one place on Budget impact that states
- * the rates.
+ * source, is closed under the drop-down, in the same card; it is the one place on Budget impact that states the rates.
  */
 export function TakeUpControl({ data, basis, onChange }) {
   const t = getTakeUp(data);
@@ -219,23 +223,25 @@ export function TakeUpControl({ data, basis, onChange }) {
   const cost = (id) => formatBn(t.bases[id].gross_bn.thirty_hours[year], 2);
   const options = t.order.map((id) => ({ id, label: `${takeUpOptionName(t, id)}: ${cost(id)}` }));
   return (
-    <ExpandableGroup className="mb-4" testId="take-up-control">
-      <ExpandableRow compact testId="take-up-row">
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-          <Select
-            label="Take-up"
-            ariaLabel="Take-up of the 30 hours among newly eligible families"
-            options={options}
-            value={basis}
-            onChange={onChange}
-            testId="take-up-select"
-            nowrapLabel
-          />
-          <span className="text-xs text-slate-500">Each option&apos;s 30 hours cost in {fyLabel(LEAD_YEAR)}</span>
-        </div>
-      </ExpandableRow>
-      <Expandable title="About these take-up options" testId="take-up-options" id={TAKE_UP_OPTIONS_ID} compact>
-        <ul className="space-y-3 text-sm leading-5 text-slate-600">
+    <div className={`${CONTROL_CARD} border-slate-200 bg-white`} data-testid="take-up-control">
+      <Select
+        label="Take-up"
+        ariaLabel="Take-up of the 30 hours among newly eligible families"
+        options={options}
+        value={basis}
+        onChange={onChange}
+        testId="take-up-select"
+        stacked
+      />
+      <p className="mt-1 text-xs text-slate-500">Each option&apos;s 30 hours cost in {fyLabel(LEAD_YEAR)}</p>
+      <details className="group mt-auto pt-1 text-sm" data-testid="take-up-options" id={TAKE_UP_OPTIONS_ID}>
+        <summary className={CONTROL_SUMMARY}>
+          About these take-up options
+          <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-90">
+            ›
+          </span>
+        </summary>
+        <ul className="mt-2 space-y-3 text-sm leading-5 text-slate-600">
           {t.order.map((id) => {
             const b = t.bases[id];
             return (
@@ -257,8 +263,8 @@ export function TakeUpControl({ data, basis, onChange }) {
             );
           })}
         </ul>
-      </Expandable>
-    </ExpandableGroup>
+      </details>
+    </div>
   );
 }
 
@@ -370,10 +376,11 @@ export function Dashboard({ data }) {
 
         {/* Only Budget impact's figures change with the take-up and labour supply settings, so the controls show only there. */}
         {activeTab === "budget" ? (
-          <>
+          // Closed, the cards stretch to one height with their "more" links on one line; once one is open, only it grows.
+          <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 has-[details[open]]:items-start" data-testid="budget-controls">
             <TakeUpControl data={data} basis={basis} onChange={handleBasisChange} />
             <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} />
-          </>
+          </div>
         ) : null}
 
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
