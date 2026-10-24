@@ -3,18 +3,23 @@
 import {
   fyLabel,
   getAssumptions,
+  getBenchmarks,
   getLabourSupply,
   getLimitations,
   getMeta,
   getModellingAssumptions,
   getReform,
+  getTakeUp,
+  getUncertainty,
   getValidation,
+  LEAD_YEAR,
   isNum,
+  isText,
   STATIC_SETTING,
 } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatMoneyBn, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, CENTAX, UnifiedComparison } from "./Comparison";
-import { Expandable, Section } from "./ui";
+import { Expandable, ExpandableGroup, ExpandableRow, RichText, Section } from "./ui";
 
 /** A value in its stated unit: "£bn" -> £0.95bn, "£" -> £1,234, anything else a count followed by the unit. */
 export function formatUnit(value, unit) {
@@ -33,7 +38,7 @@ function VersionsTable({ meta }) {
     [
       "Model package",
       <>
-        <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noreferrer">
+        <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noopener noreferrer">
           policyengine.py {meta.policyengine}
         </a>
         , pinned exactly in the repository&apos;s pyproject.toml and uv.lock
@@ -53,7 +58,7 @@ function VersionsTable({ meta }) {
     ["Results generated", meta.generated_at],
     [
       "Code revision",
-      <a key="rev" href={`${REPO_URL}/commit/${meta.git_revision}`} target="_blank" rel="noreferrer">
+      <a key="rev" href={`${REPO_URL}/commit/${meta.git_revision}`} target="_blank" rel="noopener noreferrer">
         {meta.git_revision}
       </a>,
     ],
@@ -97,19 +102,19 @@ function ValidationTable({ rows }) {
             <tr key={`${r.label}-${r.year}-${r.dataset}`}>
               <td>
                 {r.label}
-                {"note" in r ? <span className="mt-1 block text-xs leading-5 text-slate-500">{r.note}</span> : null}
+                {"note" in r ? <span className="mt-1 block text-xs leading-5 text-slate-500"><RichText text={r.note} /></span> : null}
               </td>
               {showDataset ? <td>{r.dataset}</td> : null}
               <td className="whitespace-nowrap">{fyLabel(r.year)}</td>
               <td className="tabular-nums">{formatUnit(r.model, r.unit)}</td>
               <td className="tabular-nums">
-                <a href={r.url} target="_blank" rel="noreferrer">
+                <a href={r.url} target="_blank" rel="noopener noreferrer">
                   {formatUnit(r.official, r.unit)}
                 </a>
               </td>
               <td className="tabular-nums">{r.official === 0 ? "n/a" : (r.model / r.official).toFixed(2)}</td>
               <td className="min-w-[220px]">
-                <a href={r.url} target="_blank" rel="noreferrer">
+                <a href={r.url} target="_blank" rel="noopener noreferrer">
                   {r.source}
                 </a>
               </td>
@@ -212,14 +217,14 @@ function AssumptionNotes({ rows, takeUp }) {
   return (
     <div className="space-y-3">
       {rows.map((r) => (
-        <div key={r.id}>
+        <div key={r.id} id={r.id === "take_up" ? "take-up-rates" : undefined}>
           <p>
             <span className="font-semibold text-slate-700">{r.title}. </span>
-            {r.modelled}{" "}
+            <RichText text={r.modelled} />{" "}
             {(r.sources ?? []).map((x, i) => (
               <span key={x.url + x.label}>
                 {i === 0 ? "Sources: " : "; "}
-                <a href={x.url} target="_blank" rel="noreferrer">
+                <a href={x.url} target="_blank" rel="noopener noreferrer">
                   {x.label}
                 </a>
                 {i === r.sources.length - 1 ? "." : ""}
@@ -235,6 +240,33 @@ function AssumptionNotes({ rows, takeUp }) {
 
 // £m to one decimal, signed: the entry sensitivities are a few £m.
 const formatM = (x) => `${x < 0 ? "-" : "+"}£${Math.abs(x).toFixed(1)}m`;
+
+const OBR_NOTE_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf";
+const BREWER_URL =
+  "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41";
+const BN189_URL = "https://ifs.org.uk/sites/default/files/output_url_files/BN189.pdf#page=12";
+const CENTAX_TABLE_URL =
+  "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42";
+
+const Ext = ({ href, children }) => (
+  <a href={href} target="_blank" rel="noopener noreferrer">
+    {children}
+  </a>
+);
+
+/** A short list of points in prose width. */
+function Points({ children, testId, className = "" }) {
+  return (
+    <ul className={`max-w-[75ch] list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600 ${className}`} data-testid={testId}>
+      {children}
+    </ul>
+  );
+}
+
+/** A box's content as prose. */
+function Prose({ children }) {
+  return <div className="max-w-[75ch] space-y-2 text-sm leading-6 text-slate-600">{children}</div>;
+}
 
 function LabourSupplySection({ data }) {
   const ls = getLabourSupply(data);
@@ -261,233 +293,420 @@ function LabourSupplySection({ data }) {
   const covered = groupSum("workers_fully_covered");
   const paying = groupSum("workers_paying_for_childcare");
   const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
+  const extText = extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost` : `bring back ${formatMoneyBn(extOffset)}`;
+  const sensitivities = [
+    disp
+      ? `with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)}, the net is ${formatBn(disp.offset_bn.low[yKey], 3)} or ${formatBn(disp.offset_bn.high[yKey], 3)}`
+      : null,
+    priceBasis?.original_spend ? `reading the reform's price at today's spend, ${formatBn(priceBasis.original_spend.offset_bn[yKey], 3)}` : null,
+    priceBasis?.tfc_only ? `counting only Tax-Free Childcare in the price, ${formatBn(priceBasis.tfc_only.offset_bn[yKey], 3)}` : null,
+    incomeBasis?.paid_care_fixed_spend
+      ? `keeping the cash support on the care the funded hours replace (spending held fixed), ${formatBn(incomeBasis.paid_care_fixed_spend.offset_bn[yKey], 3)}`
+      : null,
+    incomeBasis?.government_cost
+      ? `counting the funded hours at their cost to government in the income effect, ${formatBn(incomeBasis.government_cost.offset_bn[yKey], 3)}`
+      : null,
+  ].filter(Boolean);
   return (
     <Section
       id="labour-supply"
       title="Labour supply"
-      lead="The headline costs are static: nobody changes how much they work. A labour supply response can be switched on with the Labour supply control on Budget impact, which then shows a dynamic cost: the static cost less the change in tax, National Insurance and childcare support that follows the change in work."
+      boxed={false}
+      lead={
+        <>
+          The headline costs are static: nobody changes how much they work. The Labour supply control on{" "}
+          <a href="?tab=budget">Budget impact</a> adds a response and shows a dynamic cost: the static cost less the
+          change in tax, National Insurance and childcare support that follows the change in work.
+        </>
+      }
     >
-      <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
+      <Points testId="labour-supply-method">
         <li>
-          <strong>Who responds.</strong> {raw.responding_population}
+          <strong>Moving into work.</strong> About {formatCount(entrants)} partners enter work in {year}, and they{" "}
+          {extText}
+          {extOffset < 0
+            ? ": both parents must work for the family to qualify, so a partner's entry is what unlocks the 30 hours and Tax-Free Childcare."
+            : "."}
         </li>
         <li>
-          <strong>Moving into work (extensive margin).</strong>{" "}
-          The{" "}
-          <a href="https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf" target="_blank" rel="noreferrer">
-            OBR&apos;s participation elasticities
-          </a>{" "}
-          (
-          {a.participation_elasticities}). An elasticity is the percentage change in the probability of working for a
-          percentage change in the gain to work; it is converted from in-work income by the gain to work over in-work
-          income, and the gain to work is net of the childcare a parent would then pay for, less the Tax-Free
-          Childcare the scenario would pay on it. Because the probability change applies to the employed share, new
-          employment is the sum over working adults of their own response (Adam and Phillips, Appendix E). It is
-          shared among non-working adults like them, who are the ones entering: those in the same OBR group (sex,
-          couple, age of the youngest child and earnings quintile), in proportion to their own response, or, where
-          that group has no responding non-worker, the nearest broader group
-          {isNum(fellBack) ? ` (about ${formatCount(fellBack)} of the entrants in ${year})` : ""}.
-          {entrySens
-            ? ` Those take the earnings and support of non-workers in other earnings quintiles; dropping them, the ${year} offset would be ${formatM(entrySens.same_cell_only.offset_m[yKey])}, and giving them the hourly wage of the workers who imply them, ${formatM(entrySens.worker_profile.offset_m[yKey])}, against ${formatM(entrySens.central_offset_m[yKey])}.`
-            : ""}
-          {isNum(oldRule) ? ` Applying the elasticity to each non-worker instead would give about ${formatCount(oldRule)} entrants in ${year}.` : ""}{" "}
-          Entrants work {a.hours_for_new_entrants} hours a week. Results are expected values, not random draws.
+          <strong>Hours.</strong> At central elasticities in {year}, as childcare gets cheaper the price effect brings
+          back {formatMoneyBn(ls.intensive.price.central[li])}, and as families are better off the income effect costs{" "}
+          {formatMoneyBn(-ls.intensive.income.central[li])}: a net {formatMoneyBn(ls.intensive.offset.central[li])} back.
         </li>
         <li>
-          <strong>Hours (intensive margin).</strong>{" "}
-          Every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax and benefits once, on everyone&apos;s combined change in earnings;
-          the parts are an attribution that adds up to it (the price change alone, then the income effect as the
-          remainder).{" "}
-          <em>Price effect:</em> an assumed childcare-price elasticity of hours of {a.hours_price_elasticity}, an
-          extrapolated scenario assumption, not an estimated price elasticity (
-          <a
-            href="https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17"
-            target="_blank"
-            rel="noreferrer"
-          >
-            Brewer, Cattan, Crawford and Rabe, IFS WP20/09
-          </a>{" "}
-          estimate +0.6 weekly hours for mothers whose youngest child becomes eligible for full-time rather than
-          part-time free care, which we treat as a 100% price fall; it is not measured on parents over £100,000).
-          It applies to the change in the price of the family&apos;s next hour of paid childcare, for adults whose
-          family pays for childcare. That price is net of all the cash support tied to the next pound of care (Tax-Free
-          Childcare, the Universal Credit childcare element), measured on one more pound of spending so that near a
-          cap it is the support on that pound, read today and, under the reform, on the paid care the
-          family still buys once the funded hours replace some of it: Tax-Free Childcare lowers it where the reform
-          newly pays it below the cap, and the Universal Credit childcare element (85p per pound) where the replaced care
-          takes a family below its cap. The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings
-          test, so for a family that still buys paid care on top of them an extra hour costs what it did; they make it
-          free only where they are worth more than all the paid care the family buys, judged on value with funded hours assumed to
-          replace {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care (an assumption; IFS BN189
-          supports {formatPct(a.free_hours_displacement_range.low * 100, 1)} to{" "}
-          {formatPct(a.free_hours_displacement * 100, 1)}).{" "}
-          <em>Income effect:</em> the{" "}
-          <a href="https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf" target="_blank" rel="noreferrer">
-            OBR&apos;s income elasticities
-          </a>{" "}
-          ({a.income_elasticities}) times the family&apos;s gain from the reform, before any response, as a percentage
-          of its disposable income: a family made better off works slightly less. The gain is measured like that
-          income: the paid childcare the newly funded hours replace (at the same displacement rate, capped at what
-          the family pays) plus the change in cash income, recomputed on the care the family still buys, so the
-          Tax-Free Childcare and Universal Credit childcare element it no longer gets on the care it stops buying
-          come off; not what the funded hours cost the government. In {year}, at central elasticities, the price effect
-          brings back {formatMoneyBn(ls.intensive.price.central[li])} (
-          {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} from adults at or below £100,000,{" "}
-          {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it) and the income effect costs{" "}
-          {formatMoneyBn(-ls.intensive.income.central[li])} ({formatMoneyBn(-ls.intensive.at_or_below_limit.income.central[li])}{" "}
-          and {formatMoneyBn(-ls.intensive.over_limit.income.central[li])}), a net{" "}
-          {formatMoneyBn(ls.intensive.offset.central[li])} back. The funded hours fully cover the paid care of the
-          families of about {formatCount(covered)} of the {formatCount(paying)} adults in work who pay for childcare
-          {disp
-            ? `; with displacement at ${formatPct(disp.displacement.low * 100, 1)} or ${formatPct(disp.displacement.high * 100, 0)} the net is ${formatBn(disp.offset_bn.low[yKey], 3)} or ${formatBn(disp.offset_bn.high[yKey], 3)} rather than ${formatBn(ls.intensive.offset.central[li], 3)}`
-            : ""}
-          {priceBasis?.original_spend
-            ? `; reading the reform's price at today's spend, ${formatBn(priceBasis.original_spend.offset_bn[yKey], 3)}`
-            : ""}
-          {priceBasis?.tfc_only
-            ? `; counting only Tax-Free Childcare in the price, ${formatBn(priceBasis.tfc_only.offset_bn[yKey], 3)}`
-            : ""}
-          {incomeBasis?.paid_care_fixed_spend
-            ? `; keeping the cash support on the care the funded hours replace (spending held fixed), ${formatBn(incomeBasis.paid_care_fixed_spend.offset_bn[yKey], 3)}`
-            : ""}
-          {incomeBasis?.government_cost
-            ? `; counting the funded hours at their cost to government in the income effect, ${formatBn(incomeBasis.government_cost.offset_bn[yKey], 3)}`
-            : ""}
-          .
-        </li>
-        <li>
-          <strong>Couples.</strong> {a.couples}{" "}
-          <a href={a.couples_issue_url} target="_blank" rel="noreferrer">
-            Reported to policyengine-uk
-          </a>
-          .
-        </li>
-        <li>
-          <strong>Low and high elasticities.</strong> Every elasticity (participation, price and income) is multiplied by {scale(a.elasticity_scales.low)} for the
-          low end and by {scale(a.elasticity_scales.high)} for the high end. The range is illustrative, not a sourced
-          uncertainty interval: the factors are ratios of childcare-price elasticities of maternal employment,{" "}
-          {a.price_elasticity_low} and {a.price_elasticity_high} against {a.price_elasticity_central}, a different outcome
-          from the elasticities they scale.
-        </li>
-        <li>
-          <strong>Why so few move into work.</strong>{" "}
-          In a family where one parent is over £100,000, a partner&apos;s gain to
-          work is small next to the household&apos;s in-work income, so the OBR elasticity converted to the gain to
-          work is small; and the tax entrants pay is set against the childcare support their family then receives.
-          The model finds about {formatCount(entrants)} entrants in {year}, and they{" "}
-          {extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost rather than bringing money back.` : `bring back ${formatMoneyBn(extOffset)}.`}
+          <strong>Low and high.</strong> Every elasticity is multiplied by {scale(a.elasticity_scales.low)} and by{" "}
+          {scale(a.elasticity_scales.high)}: an illustrative range, not a sourced uncertainty interval.
         </li>
         <li>
           <strong>Not modelled.</strong> {ls.notModelled}
         </li>
         <li>
           <strong>Against CenTax.</strong> CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
-          {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
-          {formatBn(CENTAX.partnersBn, 2)} from partners entering work. The first is not modelled here; for the second we
-          find {formatMoneyBn(extOffset)}, for the reasons above. Our hours response, of parents at any income working
-          more or less as childcare prices and family income change, has no CenTax counterpart.
+          <Ext href={CENTAX_TABLE_URL}>
+            {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
+            {formatBn(CENTAX.partnersBn, 2)} from partners entering work
+          </Ext>
+          . The first is not modelled here; for the second we find that partners entering work {extText}. Our hours
+          response has no CenTax counterpart.
         </li>
-      </ul>
+      </Points>
+      <ExpandableGroup className="mt-5" testId="labour-supply-details">
+        <Expandable title="Who responds" testId="ls-who" compact>
+          <Prose>
+            <p>
+              <RichText text={raw.responding_population} />
+            </p>
+          </Prose>
+        </Expandable>
+        <Expandable title="Moving into work: method" testId="ls-extensive" compact>
+          <Prose>
+            <p>
+              The <Ext href={OBR_NOTE_URL}>OBR&apos;s participation elasticities</Ext> (
+              <RichText text={a.participation_elasticities} />
+              ). An elasticity is the percentage change in the probability of working for a percentage change in the
+              gain to work; it is converted from in-work income by the gain to work over in-work income, and the gain
+              to work is net of the childcare a parent would then pay for, less the Tax-Free Childcare the scenario
+              would pay on it.
+            </p>
+            <p>
+              Because the probability change applies to the employed share, new employment is the sum over working
+              adults of their own response. It is shared among non-working adults like
+              them, who are the ones entering: those in the same OBR group (sex, couple, age of the youngest child and
+              earnings quintile), in proportion to their own response, or, where that group has no responding
+              non-worker, the nearest broader group
+              {isNum(fellBack) ? ` (about ${formatCount(fellBack)} of the entrants in ${year})` : ""}. Entrants work{" "}
+              {a.hours_for_new_entrants} hours a week. Results are expected values, not random draws.
+            </p>
+            <p>
+              Why so few: in a family where one parent is over £100,000, a partner&apos;s gain to work is small next to
+              the household&apos;s in-work income, so the OBR elasticity converted to the gain to work is small; and the
+              tax entrants pay is set against the childcare support their family then receives. The hours response, of
+              parents already in work and already eligible, changes earnings without unlocking support, so it brings
+              money back.
+            </p>
+          </Prose>
+        </Expandable>
+        <Expandable title="Hours: method" testId="ls-intensive" compact>
+          <Prose>
+            <p>
+              Every responding adult in work, at or below £100,000 and over it, in two parts. The model recomputes tax
+              and benefits once, on everyone&apos;s combined change in earnings; the parts are an attribution that adds
+              up to it (the price change alone, then the income effect as the remainder).
+            </p>
+            <p>
+              <em>Price effect:</em> an assumed childcare-price elasticity of hours of {a.hours_price_elasticity}, an
+              extrapolated scenario assumption, not an estimated price elasticity (
+              <Ext href={BREWER_URL}>Brewer, Cattan, Crawford and Rabe, IFS WP20/09</Ext>{" "}
+              estimate +0.6 weekly hours
+              for mothers whose youngest child becomes eligible for full-time rather than part-time free care, which we
+              treat as a 100% price fall; it is not measured on parents over £100,000). It applies to the change in the
+              price of the family&apos;s next hour of paid childcare, for adults whose family pays for childcare. That
+              price is net of all the cash support tied to the next pound of care (Tax-Free Childcare, the Universal
+              Credit childcare element), measured on one more pound of spending so that near a cap it is the support on
+              that pound, read today and, under the reform, on the paid care the family still buys once the funded
+              hours replace some of it: Tax-Free Childcare lowers it where the reform newly pays it below the cap, and
+              the Universal Credit childcare element (85p per pound) where the replaced care takes a family below its
+              cap.
+            </p>
+            <p>
+              The 30 funded hours are a fixed amount, given once both parents meet the minimum earnings test, so for a
+              family that still buys paid care on top of them an extra hour costs what it did; they make it free only
+              where they are worth more than all the paid care the family buys, judged on value with funded hours
+              assumed to replace {formatPct(a.free_hours_displacement * 100, 1)} of their value in paid care (an
+              assumption; <Ext href={BN189_URL}>IFS BN189</Ext> supports{" "}
+              {formatPct(a.free_hours_displacement_range.low * 100, 1)} to {formatPct(a.free_hours_displacement * 100, 1)}).
+              The funded hours fully cover the paid care of the families of about {formatCount(covered)} of the{" "}
+              {formatCount(paying)} adults in work who pay for childcare.
+            </p>
+            <p>
+              <em>Income effect:</em> the <Ext href={OBR_NOTE_URL}>OBR&apos;s income elasticities</Ext> (
+              <RichText text={a.income_elasticities} />) times the family&apos;s gain from the reform, before any
+              response, as a percentage of its disposable income: a family made better off works slightly less. The
+              gain is measured like that income: the paid childcare the newly funded hours replace (at the same
+              displacement rate, capped at what the family pays) plus the change in cash income, recomputed on the care
+              the family still buys, so the Tax-Free Childcare and Universal Credit childcare element it no longer gets
+              on the care it stops buying come off; not what the funded hours cost the government.
+            </p>
+            <p>
+              Of the price effect in {year}, {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} comes
+              from adults at or below £100,000 and {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those
+              over it; of the income effect, {formatMoneyBn(-ls.intensive.at_or_below_limit.income.central[li])} and{" "}
+              {formatMoneyBn(-ls.intensive.over_limit.income.central[li])}.
+            </p>
+          </Prose>
+        </Expandable>
+        <Expandable title="Sensitivities" testId="ls-sensitivities" compact>
+          <Prose>
+            <p>
+              <strong>Low and high.</strong> The factors are ratios of childcare-price elasticities of maternal
+              employment, {a.price_elasticity_low} and {a.price_elasticity_high} against {a.price_elasticity_central}, a
+              different outcome from the elasticities they scale (participation, price and income).
+            </p>
+            {entrySens || isNum(oldRule) ? (
+              <p>
+                <strong>Moving into work.</strong>
+                {entrySens
+                  ? ` Some entrants take the earnings and support of non-workers in other earnings quintiles; dropping them, the ${year} offset would be ${formatM(entrySens.same_cell_only.offset_m[yKey])}, and giving them the hourly wage of the workers who imply them, ${formatM(entrySens.worker_profile.offset_m[yKey])}, against ${formatM(entrySens.central_offset_m[yKey])}.`
+                  : ""}
+                {isNum(oldRule) ? ` Applying the elasticity to each non-worker instead would give about ${formatCount(oldRule)} entrants in ${year}.` : ""}
+              </p>
+            ) : null}
+            {sensitivities.length ? (
+              <p>
+                <strong>Hours.</strong> Against the central net of {formatBn(ls.intensive.offset.central[li], 3)} in{" "}
+                {year}: {sensitivities.join("; ")}.
+              </p>
+            ) : null}
+          </Prose>
+        </Expandable>
+        <Expandable title="Checks and known issues" testId="ls-checks" compact>
+          <Prose>
+            <p>
+              <strong>Couples.</strong> <RichText text={a.couples} />{" "}
+              <Ext href={a.couples_issue_url}>Reported to policyengine-uk</Ext>.
+            </p>
+            {isText(raw.notes?.at(-1)) ? (
+              <p data-testid="moved-outside-note">
+                <strong>A check on who responds.</strong> <RichText text={raw.notes.at(-1)} />
+                {Object.values(raw.population ?? {}).some((p) => p.adults_moved_outside_population > 0) ? (
+                  <>
+                    {" "}
+                    The build allows up to 0.2% of the responding adults here; bringing them into the population is{" "}
+                    <Ext href="https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/11">issue #11</Ext>.
+                  </>
+                ) : null}
+              </p>
+            ) : null}
+          </Prose>
+        </Expandable>
+      </ExpandableGroup>
     </Section>
   );
+}
+
+/** One step of the costing: a one-line summary, and its detail in a closed box when it has one. */
+function Step({ n, title, children, detail, id, testId }) {
+  const line = (
+    <span className="flex gap-3 font-normal text-slate-700">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[color:var(--pe-color-primary-50)] text-xs font-semibold text-[color:var(--pe-color-primary-700)]">
+        {n}
+      </span>
+      <span>
+        <strong className="font-semibold text-slate-800">{title}.</strong> {children}
+      </span>
+    </span>
+  );
+  return detail ? (
+    <Expandable title={line} id={id} testId={testId} compact>
+      <Prose>{detail}</Prose>
+    </Expandable>
+  ) : (
+    <ExpandableRow compact testId={testId}>
+      <div id={id}>{line}</div>
+    </ExpandableRow>
+  );
+}
+
+/** Why the central cost averages over take-up, and how each option applies its rates. */
+function TakeUpDetail({ data }) {
+  const t = getTakeUp(data);
+  const flat = t.order.map((id) => t.bases[id]).find((b) => b.unit === "family");
+  return (
+    <>
+      <p>
+        Nobody over £100,000 is eligible today, so the data cannot say how many newly eligible families would take up
+        the 30 hours, and the dataset&apos;s single random draw of who claims leaves a few heavily weighted families
+        deciding much of the cost.
+      </p>
+      <ul className="list-disc space-y-1.5 pl-5">
+        <li>
+          So another pair of runs has every family claiming and every child using its hours. On DfE&apos;s and
+          CenTax&apos;s rates, the cost is each newly entitled child&apos;s cost there times the take-up for its age:
+          the rates count both claiming and using the hours, so they replace the dataset&apos;s own draw of who claims.
+        </li>
+        {flat ? (
+          <li>
+            On the dataset&apos;s flat rate ({formatPct(flat.rate * 100, 1)}{" "}
+            of families), it is each newly eligible
+            family&apos;s cost if it claims, times the rate: each
+            percentage point of the rate moves the 30 hours&apos; cost by about £{flat.per_point_m[String(LEAD_YEAR)]}m in{" "}
+            {fyLabel(LEAD_YEAR)}.
+          </li>
+        ) : null}
+        <li>
+          The single draw is higher: the dataset&apos;s heavily weighted newly eligible families drew a claim more often
+          than its rate. Who gains, by family and income, comes from the single draw.
+        </li>
+        <li>
+          The rates, why DfE&apos;s rates by age are the headline, and how they compare with the flat rate by age
+          are under <a href="#take-up-rates">Who takes up the 30 hours</a> in the comparison below;{" "}
+          <a href="?tab=budget#take-up-options">Budget impact</a> switches between the options.
+        </li>
+      </ul>
+    </>
+  );
+}
+
+/** The age-profile sensitivity as a limitation: one-sided, so it can only push the cost up. */
+function ageProfileLimitation(data) {
+  const u = getUncertainty(data);
+  const share = u.age.share_over_limit_by_age_pct;
+  const others = [0, 2, 3, 4].map((k) => share[String(k)]);
+  const pct = (v) => `${Math.round(v)}%`;
+  const [lo, hi] = [Math.min(u.age.even_spread_bn, u.age.centax_gradient_bn), Math.max(u.age.even_spread_bn, u.age.centax_gradient_bn)];
+  return {
+    id: "age-profile",
+    title: "Age profile: can only push the cost up",
+    summary: `The release has few 1-year-olds in families with a parent over £100,000: ${pct(share["1"])}, against ${pct(Math.min(...others))} to ${pct(Math.max(...others))} at the other ages under 5.`,
+    detail: `No source independent of the survey crosses income with a child's age. Spreading the newly entitled 1-to-4-year-olds evenly across those ages, or on CenTax's gradient between under-3s and 3-to-4s, adds about ${formatBn(lo, 2)} to ${formatBn(hi, 2)} to the 30 hours' cost in ${fyLabel(u.age.year)} (on the single take-up draw).`,
+  };
 }
 
 export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const meta = getMeta(data);
   const reform = getReform(data);
   const validation = getValidation(data);
-  const limitations = getLimitations(data);
+  const limitations = [...getLimitations(data), ageProfileLimitation(data)];
   const assumptions = getAssumptions(data);
   const modelling = getModellingAssumptions(data);
+  const benchmark = getBenchmarks(data)[0];
+  const years = `${fyLabel(meta.years[0])} to ${fyLabel(meta.years.at(-1))}`;
+  const dataset = (meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "");
 
   return (
     <div className="animate-[fadeIn_0.4s_ease-out]" data-testid="method-tab">
-      <Section
-        id="model"
-        title="How we cost it"
-        lead="Every figure comes from PolicyEngine UK, a microsimulation model of UK taxes and benefits, run on Microcosm, PolicyEngine's survey-based dataset of UK households reweighted to official totals."
-        detailsTitle="Exact versions"
-        details={<VersionsTable meta={meta} />}
-      >
-        <ol className="list-decimal space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="method-steps">
+      <Section id="in-short" title="In short" boxed={false}>
+        <Points testId="method-summary">
           <li>
-            For each year from {fyLabel(meta.years[0])} to {fyLabel(meta.years.at(-1))}, we run the model twice on the
-            same households: once with today&apos;s rules, and once with the £100,000 limit removed from both the 30
-            hours and Tax-Free Childcare.
+            We cost removing the £100,000 limit on the 30 funded hours (England) and Tax-Free Childcare (UK-wide), {years},
+            with{" "}
+            <Ext href="https://policyengine.org/uk">PolicyEngine UK</Ext>, a microsimulation model of UK taxes and
+            benefits, on {dataset}.
           </li>
           <li>
-            The cost is the extra government spending on funded hours and Tax-Free Childcare top-ups between the two
-            runs. In the second run each child&apos;s childcare spending is reduced by the value of its new funded
-            hours before Tax-Free Childcare is worked out, so the top-up is not paid on care the hours replace.
-            Families gaining, and how much, come from the same comparison, household by household.
+            The headline is static: nobody changes how much they work. A{" "}
+            <a href="#labour-supply">labour supply response</a> can be switched on on{" "}
+            <a href="?tab=budget">Budget impact</a>.
           </li>
           <li>
-            The data decide once, by a random draw, whether each family would claim the 30 hours. Another pair of runs
-            has every family claiming, and the central cost is each newly eligible family&apos;s cost there times the
-            take-up rate, so it does not depend on the luck of that draw (How certain is the cost?, on Budget impact).
-            Who gains, by family and income, comes from the single draw.
+            Take-up of the 30 hours among newly eligible children follows DfE&apos;s rates by age (the headline),
+            CenTax&apos;s two rates or the dataset&apos;s one flat rate: see <a href="#take-up-method">Take-up</a>.
           </li>
           <li>
-            The headline costing is static: parents work, earn and pay for childcare exactly as they do today in both
-            runs. A labour supply response can be added on Budget impact; the Labour supply section below explains it.
+            Our static 30 hours cost in {fyLabel(benchmark.year)} is {formatBn(benchmark.ours, 2)}, against
+            CenTax&apos;s {formatBn(benchmark.underlying_static_bn, 2)}, the like-for-like figure behind the
+            Conservatives&apos; £0.7bn; our total also covers Tax-Free Childcare.
           </li>
-          <li>
-            Further runs change one uncertain assumption at a time (how many hours families use, how much childcare
-            spending goes through Tax-Free Childcare, and Tax-Free Childcare take-up among newly eligible families), and &quot;How do we compare with other estimates?&quot; below shows what each
-            changes.
-          </li>
-          <li>
-            Every version is pinned, so the results can be rebuilt exactly: the model package and the dataset release
-            are fixed, and the dataset file&apos;s checksum is verified before each run. The exact versions are below.
-          </li>
-        </ol>
+        </Points>
+      </Section>
+
+      <Section id="model" title="How we cost it" lead="Seven steps, from the data to the published figures. Open a step for its detail." boxed={false}>
+        <ExpandableGroup testId="method-steps">
+          <Step n={1} title="Data" testId="method-step-data">
+            {dataset}: PolicyEngine&apos;s survey-based dataset of UK households, reweighted to official totals.
+          </Step>
+          <Step n={2} title="Two runs" testId="method-step-runs">
+            For each year, {years}, the model runs on the same households with today&apos;s rules and with the
+            £100,000 limit removed from both schemes.
+          </Step>
+          <Step
+            n={3}
+            title="The cost"
+            testId="method-step-cost"
+            detail={
+              <p>
+                In the second run each child&apos;s childcare spending is reduced by the value of its new funded hours
+                before Tax-Free Childcare is worked out, so the top-up is not paid on care the hours replace. Families
+                gaining, and how much, come from the same comparison, household by household.
+              </p>
+            }
+          >
+            The extra spending on funded hours and Tax-Free Childcare top-ups between the two runs.
+          </Step>
+          <Step n={4} title="Take-up" id="take-up-method" testId="method-take-up" detail={<TakeUpDetail data={data} />}>
+            Each newly eligible child takes up the 30 hours with DfE&apos;s take-up for its age, the headline.
+          </Step>
+          <Step n={5} title="Static headline" testId="method-step-static">
+            Parents work, earn and pay for childcare as they do today in both runs;{" "}
+            <a href="#labour-supply">a labour supply response</a> can be added on Budget impact.
+          </Step>
+          <Step
+            n={6}
+            title="Sensitivities"
+            testId="method-step-sensitivities"
+            detail={
+              <p>
+                How many hours families use, how much childcare spending goes through Tax-Free Childcare, and
+                Tax-Free Childcare take-up among newly eligible families. The sampling uncertainty, a bootstrap over the
+                survey&apos;s households, is on <a href="?tab=budget#uncertainty">Budget impact</a>.
+              </p>
+            }
+          >
+            Further runs change one uncertain assumption at a time; <a href="#assumptions">the comparison below</a>{" "}
+            shows what each changes.
+          </Step>
+          <Step n={7} title="Pinned versions" testId="method-step-versions" detail={<VersionsTable meta={meta} />}>
+            The model package and the dataset release are fixed, and the dataset file&apos;s checksum is verified
+            before each run, so the results can be rebuilt exactly.
+          </Step>
+        </ExpandableGroup>
       </Section>
 
       <Section
         id="limits"
         title="How the limits work"
-        lead="Both schemes are withdrawn when either parent's adjusted net income is above £100,000."
+        lead="Who the £100,000 test applies to, and what the reform changes."
         details={
-          <>
-            <div className="overflow-x-auto">
-                <table className="data-table" data-testid="parameters-table">
-                  <thead>
-                    <tr>
-                      <th>Parameter</th>
-                      <th>Today</th>
-                      <th>Reform</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {reform.parameters.map((p) => (
-                      <tr key={p.name}>
-                        <td className="break-all font-mono text-xs">{p.name}</td>
-                        <td className="tabular-nums">{formatCurrency(p.baseline)}</td>
-                        <td>Removed</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-          </>
+          <div className="overflow-x-auto">
+            <table className="data-table" data-testid="parameters-table">
+              <thead>
+                <tr>
+                  <th>Parameter</th>
+                  <th>Today</th>
+                  <th>Reform</th>
+                </tr>
+              </thead>
+              <tbody>
+                {reform.parameters.map((p) => (
+                  <tr key={p.name}>
+                    <td className="break-all font-mono text-xs">{p.name}</td>
+                    <td className="tabular-nums">{formatCurrency(p.baseline)}</td>
+                    <td>Removed</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         }
         detailsTitle="The parameters changed"
       >
-        <p className="text-sm leading-6 text-slate-600" data-testid="limits-explainer">
-          What each scheme gives, who qualifies today and what the reform changes are set out side by side at the top
-          of Budget impact. Adjusted net income is taxable income less pension contributions and Gift Aid, so a parent
-          just over the limit can get back under it by paying more into a pension; the test is on each parent, so a
-          couple both earning £95,000 qualify today while a couple earning £101,000 and £20,000 do not. The pledge names
-          no nation: we read it as England&apos;s 30 hours plus Tax-Free Childcare, which is UK-wide, and the devolved
-          governments&apos; own childcare offers, such as the Childcare Offer for Wales with its own £100,000 test, are
-          unchanged. The model parameters the reform changes are below.
-        </p>
+        <Points testId="limits-explainer">
+          <li>
+            Both schemes are withdrawn when either parent&apos;s adjusted net income is over £100,000. The test is on
+            each parent, so a couple both earning £95,000 qualify today while a couple earning £101,000 and £20,000 do
+            not.
+          </li>
+          <li>
+            Adjusted net income is taxable income less pension contributions and Gift Aid, so a parent just over the
+            limit can get back under it by paying more into a pension.
+          </li>
+          <li>
+            The pledge names no nation: we read it as England&apos;s 30 hours plus Tax-Free Childcare, which is
+            UK-wide. The devolved governments&apos; own offers, such as the Childcare Offer for Wales with its own
+            £100,000 test, are unchanged.
+          </li>
+          <li>
+            What each scheme gives and who qualifies are side by side on{" "}
+            <a href="?tab=budget#schemes">Budget impact</a>.
+          </li>
+        </Points>
       </Section>
 
       <LabourSupplySection data={data} />
 
       <Section
         id="assumptions"
+        grouped
         title="How do we compare with other estimates?"
         lead={`Our costing set against CenTax's, the Conservatives' figure, and the official sources and law, first on the cost and then on each modelling choice. The "If we change it" column shows how much the cost moves in ${fyLabel(meta.years.at(-1))} when we rerun with the alternative described under More detail; each change is separate and they do not add up.`}
         details={
@@ -506,6 +725,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
 
       <Section
         id="validation"
+        grouped
         title="Baseline validation"
         lead="How the model's picture of today, before any reform, compares with official statistics."
         details={
@@ -514,7 +734,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             measured as the dataset&apos;s calibration counts them, children funded in the January term by their age on
             31 December, and compared with DfE&apos;s January 2025 census, which the dataset is calibrated to: the 3-
             and 4-year-olds match, and under-3s are a little above. Funded-hours spending is close to DfE&apos;s
-            illustrative total for 2026-27.
+            illustrative total for 2026-27. Each official figure links to its source in the table.
           </p>
         }
       >
@@ -523,12 +743,30 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         </Expandable>
       </Section>
 
-      <Section id="limitations" title="Limitations" lead="What the costing does not capture.">
-        <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="limitations">
-          {limitations.map((l) => (
-            <li key={l}>{l}</li>
-          ))}
-        </ul>
+      <Section id="limitations" title="Limitations" lead="What the costing does not capture. Open one for its detail." boxed={false}>
+        <ExpandableGroup testId="limitations">
+          {limitations.map((l) => {
+            const line = (
+              <span className="font-normal text-slate-700">
+                <strong className="font-semibold text-slate-800">{l.title}.</strong> <RichText text={l.summary} />
+              </span>
+            );
+            const testId = `limitation-${l.id ?? l.title}`;
+            return l.detail ? (
+              <Expandable key={l.title} title={line} id={l.id} testId={testId} compact>
+                <Prose>
+                  <p>
+                    <RichText text={l.detail} />
+                  </p>
+                </Prose>
+              </Expandable>
+            ) : (
+              <ExpandableRow key={l.title} compact testId={testId}>
+                {line}
+              </ExpandableRow>
+            );
+          })}
+        </ExpandableGroup>
       </Section>
     </div>
   );

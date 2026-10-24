@@ -90,18 +90,44 @@ export function Explainer({ children }) {
   );
 }
 
-/** A box closed by default; the title stays visible and opens the content. */
-export function Expandable({ title, children, testId }) {
+/** A box closed by default; the title stays visible and opens the content. `compact` for a smaller box in a list. */
+export function Expandable({ title, children, testId, id, compact = false, className = "" }) {
   return (
-    <details className="expandable group" data-testid={testId}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-slate-800">
+    <details className={`expandable group ${className}`} data-testid={testId} id={id}>
+      <summary
+        className={`flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-slate-800 ${
+          compact ? "px-4 py-2.5 text-sm" : "px-4 py-3"
+        }`}
+      >
         <span>{title}</span>
         <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-90">
           ›
         </span>
       </summary>
-      <div className="border-t border-slate-200 px-4 py-4">{children}</div>
+      <div className={`border-t border-slate-200 ${compact ? "px-3 py-3 sm:px-4" : "px-4 py-4"}`}>{children}</div>
     </details>
+  );
+}
+
+/**
+ * Adjacent closed boxes as one box, stacked flush with a rule between them; `joined` attaches it to the bottom of the
+ * panel just above it (give that panel `joined-below`). The children are Expandables, or ExpandableRows for an item
+ * with nothing to open.
+ */
+export function ExpandableGroup({ children, joined = false, className = "", testId }) {
+  return (
+    <div className={`expandable-group ${joined ? "joined-above" : ""} ${className}`} data-testid={testId}>
+      {children}
+    </div>
+  );
+}
+
+/** An item in an ExpandableGroup with no detail to open: the same padding as a closed box's title, no chevron. */
+export function ExpandableRow({ children, testId, compact = false }) {
+  return (
+    <div className={`expandable-row ${compact ? "px-4 py-2.5 text-sm" : "px-4 py-3"}`} data-testid={testId}>
+      {children}
+    </div>
   );
 }
 
@@ -132,7 +158,24 @@ export function Panel({ children, className = "", footer, footerTitle = "More de
  * One section of a tab: a title, a one-line takeaway, the content in a box, and the longer explanation closed
  * underneath. Sections are divided by a rule so a tab reads as a short list of separate parts.
  */
-export function Section({ id, title, lead, details, detailsTitle = "More detail", children, boxed = true }) {
+export function Section({ id, title, lead, details, detailsTitle = "More detail", children, boxed = true, grouped = false }) {
+  // A section whose content is itself a closed box: it and the longer explanation stack as one group of boxes.
+  if (grouped) {
+    return (
+      <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
+        {lead ? <p className="mt-2 text-[0.95rem] leading-6 text-slate-600">{lead}</p> : null}
+        <ExpandableGroup className="mt-5">
+          {children}
+          {details ? (
+            <Expandable title={detailsTitle}>
+              <div className="space-y-2 text-sm leading-6 text-slate-600">{details}</div>
+            </Expandable>
+          ) : null}
+        </ExpandableGroup>
+      </section>
+    );
+  }
   return (
     <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
       <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
@@ -160,6 +203,20 @@ export function Section({ id, title, lead, details, detailsTitle = "More detail"
  */
 export function TabLayout({ sections, children }) {
   const [active, setActive] = useState(sections[0]?.id);
+  // A link to an anchor on this tab (from another tab, or a fresh load) opens the closed box it is in, or is, and
+  // scrolls to it once the tab has rendered.
+  useEffect(() => {
+    function openHash() {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      const el = id ? document.getElementById(id) : null;
+      if (!el) return;
+      for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
+      el.scrollIntoView({ block: "start" });
+    }
+    openHash();
+    window.addEventListener("hashchange", openHash);
+    return () => window.removeEventListener("hashchange", openHash);
+  }, []);
   useEffect(() => {
     function onScroll() {
       // The last section whose top has passed a line near the top of the window is the one being read.
@@ -244,8 +301,17 @@ export function TabLayout({ sections, children }) {
   );
 }
 
-/** A labelled drop-down for choosing one option, styled to match the page. */
-export function Select({ label, options, value, onChange }) {
+/** The id of the box on Budget impact that explains the take-up options; other mentions of the rates link to it. */
+export const TAKE_UP_OPTIONS_ID = "take-up-options";
+
+/** Opens a closed <details> box (an Expandable) before a link to it scrolls there. */
+export function openDetails(id) {
+  const el = typeof document === "undefined" ? null : document.getElementById(id);
+  if (el && el.tagName === "DETAILS") el.open = true;
+}
+
+/** A labelled drop-down for choosing one option, styled to match the page; `ariaLabel` names it more fully. */
+export function Select({ label, options, value, onChange, ariaLabel, testId }) {
   return (
     <label className="flex items-center gap-2 text-sm text-slate-600">
       <span className="font-medium">{label}</span>
@@ -258,7 +324,8 @@ export function Select({ label, options, value, onChange }) {
             if (!option) throw new Error(`Select ${label}: no option ${e.target.value}`);
             onChange(option.id);
           }}
-          aria-label={label}
+          aria-label={ariaLabel ?? label}
+          data-testid={testId}
         >
           {options.map((o) => (
             <option key={o.id} value={o.id}>
@@ -336,4 +403,39 @@ export function SubTabs({ options, value, onChange }) {
       ))}
     </div>
   );
+}
+
+/**
+ * Text from results.json with its [label](url) links rendered: an internal link (starting "?" or "#") opens in the
+ * same tab, an external one in a new tab.
+ */
+export function RichText({ text }) {
+  if (typeof text !== "string") return text ?? null;
+  const parts = [];
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last = 0;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const [, label, href] = m;
+    const internal = href.startsWith("?") || href.startsWith("#");
+    parts.push(
+      internal ? (
+        <a key={m.index} href={href}>
+          {label}
+        </a>
+      ) : (
+        <a key={m.index} href={href} target="_blank" rel="noopener noreferrer">
+          {label}
+        </a>
+      ),
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
+/** The text of a [label](url)-marked string with the markup removed, for plain-text uses (aria labels, tests). */
+export function plainText(text) {
+  return String(text).replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1");
 }

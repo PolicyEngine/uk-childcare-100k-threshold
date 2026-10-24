@@ -7,16 +7,21 @@ import WhoGainsTab from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import {
   fyLabel,
+  LEAD_YEAR,
   getLabourSupply,
   getMeta,
+  getTakeUp,
   getYears,
   boundOf,
   labourSupplyParams,
   LS_BOUND_LABELS,
   LS_BOUNDS,
   parseLabourSupply,
+  parseTakeUp,
+  takeUpParams,
 } from "../lib/dataHelpers";
-import { TabLayout } from "./ui";
+import { Expandable, Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
+import { formatBn } from "../lib/formatters";
 
 export const TAB_OPTIONS = [
   { id: "budget", label: "Budget impact" },
@@ -40,6 +45,7 @@ const SECTIONS = {
     { id: "gender", title: "Mothers and fathers" },
   ],
   method: [
+    { id: "in-short", title: "In short" },
     { id: "model", title: "How we cost it" },
     { id: "limits", title: "How the limits work" },
     { id: "labour-supply", title: "Labour supply" },
@@ -65,11 +71,11 @@ export function ReplicationLine({ meta }) {
   return (
     <p data-testid="replication">
       Built with{" "}
-      <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noreferrer">
+      <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noopener noreferrer">
         policyengine.py {meta.policyengine}
       </a>{" "}
       on {(meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "")}. Replication code:{" "}
-      <a href={REPO_URL} target="_blank" rel="noreferrer">
+      <a href={REPO_URL} target="_blank" rel="noopener noreferrer">
         PolicyEngine/uk-childcare-100k-threshold
       </a>
       .
@@ -80,15 +86,19 @@ export function ReplicationLine({ meta }) {
 /** An on/off switch with its label. */
 const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf";
 const BREWER_URL =
-  "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=17";
+  "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41";
 
-/** One response as a card: the whole header is the switch; the source link sits outside it. */
+/**
+ * One response as a card: the title row is the switch; under it the margin and, when on, the setting; the
+ * description and source closed underneath.
+ */
 function ResponseCard({ on, onChange, bound, onBound, title, tag, description, source, testId }) {
   return (
     <div
       className={`flex flex-col rounded-xl border px-4 py-2.5 transition-colors ${
         on ? "border-[color:var(--pe-color-primary-600)] bg-[color:var(--pe-color-primary-50)]" : "border-slate-200 bg-white"
       }`}
+      data-testid={`${testId}-card`}
     >
       <button
         type="button"
@@ -99,10 +109,7 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
         onClick={() => onChange(!on)}
         className="flex w-full items-center justify-between gap-3 text-left"
       >
-        <span>
-          <span className="font-semibold text-slate-900">{title}</span>
-          <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">{tag}</span>
-        </span>
+        <span className="font-semibold text-slate-900">{title}</span>
         <span
           aria-hidden
           className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
@@ -112,9 +119,8 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
           <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
         </span>
       </button>
-      <p className="mt-0.5 text-sm leading-5 text-slate-600">{description}</p>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-1.5 text-xs text-slate-500">
-        <span>Source: {source}</span>
+      <div className="mt-1 flex min-h-6 flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
+        <span className="text-[11px] font-semibold uppercase tracking-wide">{tag}</span>
         {on ? (
           <label className="flex items-center gap-1.5">
             Setting
@@ -134,6 +140,18 @@ function ResponseCard({ on, onChange, bound, onBound, title, tag, description, s
           </label>
         ) : null}
       </div>
+      <details className="group mt-1 text-sm" data-testid={`${testId}-details`}>
+        <summary className="inline-flex cursor-pointer list-none items-center gap-1 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]">
+          Details
+          <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-90">
+            ›
+          </span>
+        </summary>
+        <p className="mt-1 leading-5 text-slate-600">{description}</p>
+        <p className="mt-1 text-xs text-slate-500">
+          Source: {source}. How it is modelled: <a href="?tab=method#labour-supply">Methodology</a>.
+        </p>
+      </details>
     </div>
   );
 }
@@ -147,7 +165,7 @@ export function LabourSupplyControl({ data, setting, onChange }) {
   const ls = getLabourSupply(data);
   const a = ls.assumptions;
   const link = (href, text) => (
-    <a href={href} target="_blank" rel="noreferrer" className="underline">
+    <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
       {text}
     </a>
   );
@@ -162,7 +180,7 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           tag="Extensive margin"
           title="Partners move into work"
           description="A partner who doesn't work may start, now that working brings the family childcare support."
-          source={link(OBR_ELASTICITIES_URL, "OBR elasticities")}
+          source={link(OBR_ELASTICITIES_URL, "OBR participation elasticities")}
           testId="toggle-extensive"
         />
         <ResponseCard
@@ -175,13 +193,69 @@ export function LabourSupplyControl({ data, setting, onChange }) {
           description="Parents in work, at any income, may work more as an extra hour of childcare gets cheaper, and a little less as their family is better off."
           source={
             <>
-              {link(BREWER_URL, "Brewer et al.")} (price, assumed {a.hours_price_elasticity}),{" "}
-              {link(OBR_ELASTICITIES_URL, "OBR")} (income)
+              {link(BREWER_URL, "Brewer et al., IFS WP20/09")} (price, assumed {a.hours_price_elasticity}),{" "}
+              {link(OBR_ELASTICITIES_URL, "OBR income elasticities")}
             </>
           }
           testId="toggle-intensive"
         />
       </div>
+    </div>
+  );
+}
+
+/** A take-up option's name in the selector: its short label, marked when it is the headline. */
+export function takeUpOptionName(t, id) {
+  return `${t.bases[id].short_label}${id === t.headline ? " (headline)" : ""}`;
+}
+
+/**
+ * Who takes up the 30 hours among newly eligible children: one drop-down, the headline (DfE's rates by age) chosen
+ * by default, each option showing the 30 hours' cost it gives in the first full year. What each option is, and its
+ * source, is in a closed box underneath; it is the one place on Budget impact that states the rates.
+ */
+export function TakeUpControl({ data, basis, onChange }) {
+  const t = getTakeUp(data);
+  const year = String(LEAD_YEAR);
+  const cost = (id) => formatBn(t.bases[id].gross_bn.thirty_hours[year], 2);
+  const options = t.order.map((id) => ({ id, label: `${takeUpOptionName(t, id)}: ${cost(id)}` }));
+  return (
+    <div className="mb-4" data-testid="take-up-control">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Select
+          label="Take-up"
+          ariaLabel="Take-up of the 30 hours among newly eligible families"
+          options={options}
+          value={basis}
+          onChange={onChange}
+          testId="take-up-select"
+        />
+        <span className="text-xs text-slate-500">Each option&apos;s 30 hours cost in {fyLabel(LEAD_YEAR)}</span>
+      </div>
+      <Expandable title="About these take-up options" testId="take-up-options" id={TAKE_UP_OPTIONS_ID} compact className="mt-3">
+        <ul className="space-y-3 text-sm leading-5 text-slate-600">
+          {t.order.map((id) => {
+            const b = t.bases[id];
+            return (
+              <li key={id} data-testid={`take-up-option-${id}`} aria-current={id === basis ? "true" : undefined}>
+                <span className={`font-semibold ${id === basis ? "text-[color:var(--pe-color-primary-700)]" : "text-slate-800"}`}>
+                  {b.short_label}
+                </span>
+                {id === t.headline ? (
+                  <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Headline</span>
+                ) : null}
+                <span className="block">{b.description}.</span>
+                <span className="block text-xs text-slate-500">
+                  Source:{" "}
+                  <a href={b.source_url} target="_blank" rel="noopener noreferrer" className="underline">
+                    {b.source}
+                  </a>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Expandable>
     </div>
   );
 }
@@ -212,24 +286,42 @@ export function Dashboard({ data }) {
     setSetting(parseLabourSupply(lsParam, boundParam));
   }
 
-  function replaceUrl(tab, ls) {
-    const params = new URLSearchParams([...(tab === DEFAULT_TAB ? [] : [["tab", tab]]), ...labourSupplyParams(ls)]);
+  // The 30 hours take-up basis, kept in the URL as ?takeup=centax; the headline (DfE by age) by default.
+  const takeUpParam = searchParams.get("takeup");
+  const [basis, setBasis] = useState(() => parseTakeUp(takeUpParam, data));
+  const [seenTakeUp, setSeenTakeUp] = useState(takeUpParam);
+  if (takeUpParam !== seenTakeUp) {
+    setSeenTakeUp(takeUpParam);
+    setBasis(parseTakeUp(takeUpParam, data));
+  }
+
+  function replaceUrl(tab, ls, takeUp) {
+    const params = new URLSearchParams([
+      ...(tab === DEFAULT_TAB ? [] : [["tab", tab]]),
+      ...labourSupplyParams(ls),
+      ...takeUpParams(takeUp, data),
+    ]);
     const query = params.toString();
     router.replace(query ? `/?${query}` : "/", { scroll: false });
   }
 
   function handleTabChange(tab) {
     setActiveTab(tab);
-    replaceUrl(tab, setting);
+    replaceUrl(tab, setting, basis);
   }
 
   function handleSettingChange(next) {
     setSetting(next);
-    replaceUrl(activeTab, next);
+    replaceUrl(activeTab, next, basis);
+  }
+
+  function handleBasisChange(next) {
+    setBasis(next);
+    replaceUrl(activeTab, setting, next);
   }
 
   return (
-    <div className="app-shell min-h-screen">
+    <div className="app-shell min-h-screen overflow-x-clip">
       <header className="title-row">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4 md:px-10 lg:pl-24">
           <h1>Scrapping the childcare cliff edge</h1>
@@ -242,12 +334,12 @@ export function Dashboard({ data }) {
             Working parents lose the 30 funded hours of childcare in England, and Tax-Free Childcare across the UK, once
             either parent&apos;s adjusted net income passes £100,000. On 4 October 2026 Conservative leader Kemi
             Badenoch{" "}
-            <a href={ANNOUNCEMENT_URL} target="_blank" rel="noreferrer" className="underline">
+            <a href={ANNOUNCEMENT_URL} target="_blank" rel="noopener noreferrer" className="underline">
               pledged
             </a>{" "}
             to remove the limit, paid for by cutting staff at arm&apos;s-length public bodies, with no start date. We cost the
             change with{" "}
-            <a href="https://policyengine.org/uk" target="_blank" rel="noreferrer" className="underline">
+            <a href="https://policyengine.org/uk" target="_blank" rel="noopener noreferrer" className="underline">
               PolicyEngine UK
             </a>
             {` from ${period}`}: <strong>Budget impact</strong> shows the cost each year,{" "}
@@ -274,16 +366,21 @@ export function Dashboard({ data }) {
           ))}
         </div>
 
-        {/* Only Budget impact changes with the labour supply setting, so the control shows only there. */}
-        {activeTab === "budget" ? <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} /> : null}
+        {/* Only Budget impact's figures change with the take-up and labour supply settings, so the controls show only there. */}
+        {activeTab === "budget" ? (
+          <>
+            <TakeUpControl data={data} basis={basis} onChange={handleBasisChange} />
+            <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} />
+          </>
+        ) : null}
 
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
-          {activeTab === "budget" && <LandingTab data={data} setting={setting} />}
+          {activeTab === "budget" && <LandingTab data={data} setting={setting} basis={basis} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
           {activeTab === "method" && <MethodTab data={data} setting={setting} />}
         </TabLayout>
 
-        <footer className="mt-12 border-t border-slate-200 pt-8 text-center text-sm text-slate-500">
+        <footer className="mt-10 border-t border-slate-200 pt-5 text-center text-sm text-slate-500">
           <ReplicationLine meta={getMeta(data)} />
         </footer>
       </main>

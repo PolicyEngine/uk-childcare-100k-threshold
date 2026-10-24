@@ -25,11 +25,13 @@ const years = data.meta.years.map(String);
 
 describe("the yearly cost chart", () => {
   it("draws the labour supply response as its own series when a margin is on", () => {
+    // The yearly chart only: the range chart under "How certain" draws a bar of its own.
+    const bars = (c) => c.querySelector('[data-testid="cost-chart"]').querySelectorAll(".recharts-bar");
     const { container: off } = render(<LandingTab data={data} setting={STATIC} />);
-    expect(off.querySelectorAll(".recharts-bar")).toHaveLength(2);
+    expect(bars(off)).toHaveLength(2);
     const { container: on } = render(<LandingTab data={data} setting={BOTH} />);
-    expect(on.querySelectorAll(".recharts-bar")).toHaveLength(3);
-    expect(on.querySelectorAll(".recharts-bar")[2].querySelectorAll(".recharts-bar-rectangle")).toHaveLength(years.length);
+    expect(bars(on)).toHaveLength(3);
+    expect(bars(on)[2].querySelectorAll(".recharts-bar-rectangle")).toHaveLength(years.length);
   });
 
   it.each([

@@ -19,7 +19,6 @@ from .config import (
     BOOTSTRAP_DRAWS,
     BOOTSTRAP_SEED,
     EXPECTED_SCENARIOS,
-    EXTENDED_TAKE_UP_RATE,
     FAMILY_TYPES,
     FREE_HOURS_DISPLACEMENT_RANGE,
     FREE_HOURS_VARIABLES,
@@ -29,6 +28,7 @@ from .config import (
     MIN_CELL_RECORDS,
     PRICE_BASIS_SENSITIVITIES,
     REGIONS,
+    TAKE_UP_BASES,
     TFC_TAKE_UP_NEWLY_ELIGIBLE_LOW,
     VALIDATION_YEAR,
     YEARS,
@@ -607,7 +607,7 @@ def gender(runs, years=YEARS):
     return out
 
 
-# ── Expected mode, bootstrap and age profile (#7; María Juaristi, #8, 23 October 2026) ─────────────
+# ── Take-up bases, bootstrap and age profile (#7; María Juaristi, #8, 23 and 24 October 2026) ──────────
 
 
 class ExpectedRun(Run):
@@ -624,42 +624,222 @@ def load_expected():
     return {s: ExpectedRun(s) for s in EXPECTED_SCENARIOS}
 
 
-def household_changes(runs, expected, year, rate=EXTENDED_TAKE_UP_RATE):
-    """Each household's weighted change in spending (£) on the 30 hours and Tax-Free Childcare, drawn and expected.
+# A person's funded hours or Tax-Free Childcare "changes" in a pair if it moves by more than this (£ a year): float
+# noise in the stored values is far below it.
+CHANGE_TOLERANCE = 0.005
 
-    Drawn: the central pair, on the dataset's single take-up draw. Expected: the cost averaged over the 30-hours
-    take-up draw at the contract rate. Every family claims in the claim-all pair, so a newly eligible family's
-    30-hours cost is ``rate`` times its cost there. Its Tax-Free Childcare is the netted top-up if it claims the
-    new hours and the top-up before netting if it does not, weighted ``rate`` and ``1 - rate``. The Tax-Free
-    Childcare and hours-usage draws are held as drawn.
+
+def dfe_age_rates(rates, dfe_age):
+    """Each person's take-up rate from their DfE age (on 31 December of the year), ``rates`` keyed by DfE age.
+
+    NaN at any DfE age ``rates`` does not give (under 0, or 6 and over: no funded hours in the year).
     """
-    b, r = runs["baseline"], runs["reform"]
-    bc, rc = expected["baseline_claim_all"], expected["reform_claim_all"]
-    w = _weights(b, r, year, "hh")
-    if not np.array_equal(w, _weights(bc, rc, year, "hh")):
-        raise ValueError(f"{year}: household weights differ between the drawn and claim-all pairs")
-    drawn_free = (r(year, "hh_free") - b(year, "hh_free")) * w
-    drawn_tfc = (r(year, "hh_tfc") - b(year, "hh_tfc")) * w
-    all_free = (rc(year, "hh_free") - bc(year, "hh_free")) * w
-    exp_tfc = (rate * rc(year, "hh_tfc") + (1 - rate) * rc(year, "hh_tfc_before_netting") - bc(year, "hh_tfc")) * w
+    age = np.asarray(dfe_age)
+    out = np.full(age.shape, np.nan)
+    for a, rate in rates.items():
+        out[age == a] = rate
+    return out
+
+
+def person_changes(expected, year, basis):
+    """Each person's change in the basis's pair, if they take up the new hours and if not, and their take-up rate.
+
+    ``hours``: the change in funded hours (all three entitlements), and ``components`` by entitlement, if taken up.
+    ``tfc_if_taken``: the change in Tax-Free Childcare with the new hours netted off the person's childcare spending;
+    ``tfc_if_not``: with spending before that netting. ``rate``: the chance the person (for a child-level basis) or
+    their family (the contract basis) takes up the new hours. A child-level rate is the one for the child's DfE age;
+    a person whose hours and Tax-Free Childcare do not depend on it gets 1 (it has no effect), and a person whose
+    values change at a DfE age with no rate stops the build.
+    """
+    spec = TAKE_UP_BASES[basis]
+    bc, rc = (expected[s] for s in spec["pair"])
+    for k in ("p_id", "p_weight"):
+        if not np.array_equal(bc(year, k), rc(year, k)):
+            raise ValueError(f"{year}: {k} differs between the runs of {spec['pair']}")
+    hours = rc(year, "p_free_value") - bc(year, "p_free_value")
+    taken, not_taken = rc(year, "p_tfc_value"), rc(year, "p_tfc_before_netting")
+    changed = (np.abs(hours) > CHANGE_TOLERANCE) | (np.abs(taken - not_taken) > CHANGE_TOLERANCE)
+    if spec["unit"] == "family":
+        rate = np.full(len(hours), spec["rate"])
+    else:
+        rate = dfe_age_rates(spec["rates_by_dfe_age"], rc(year, "p_dfe_age"))
+        if np.isnan(rate[changed]).any():
+            raise ValueError(f"{year}: a person whose funded hours change has a DfE age with no {basis} rate")
+        rate = np.where(changed, rate, 1.0)
     return {
-        "drawn": {"thirty_hours": drawn_free, "tax_free_childcare": drawn_tfc},
-        "expected": {"thirty_hours": rate * all_free, "tax_free_childcare": exp_tfc},
-        "claim_all_thirty_hours": all_free,
+        "rate": rate,
+        "hours": hours,
+        "components": {k: rc(year, f"p_free_{k}") - bc(year, f"p_free_{k}") for k in ("extended", "universal", "targeted")},
+        "tfc_if_taken": taken - bc(year, "p_tfc_value"),
+        "tfc_if_not": not_taken - bc(year, "p_tfc_value"),
     }
 
 
-def expected_costs(runs, expected, years=YEARS, rate=EXTENDED_TAKE_UP_RATE):
-    """Static gross costs (£bn) on the expected basis, and the 30 hours' change per 0.01 of the take-up rate (£m)."""
-    out = {"thirty_hours": {}, "tax_free_childcare": {}, "total": {}, "thirty_hours_per_point_m": {},
-           "take_up_rate": rate}
+def _to_households(run, year, person_values):
+    return np.bincount(run(year, "p_household"), weights=person_values, minlength=len(run(year, "hh_weight")))
+
+
+def household_changes(runs, expected, year):
+    """Each household's weighted change in spending (£) on the 30 hours and Tax-Free Childcare, on each basis.
+
+    ``drawn``: the central pair, on the dataset's single take-up draw. ``contract``: the expected mode of #7, the cost
+    averaged over the 30-hours take-up draw at the contract rate: every family claims in the claim-all pair, so a newly
+    eligible family's 30-hours cost is the rate times its cost there; its Tax-Free Childcare is the netted top-up if
+    it claims the new hours and the top-up before netting if it does not, weighted by the rate and one less it. The
+    child-level bases (``dfe``, ``centax``): each child's change in the claim-and-use pair times its rate by DfE age,
+    and its Tax-Free Childcare netted with the same chance (person_changes). The Tax-Free Childcare draws are held
+    as drawn, and so are the hours-usage draws except as each pair sets them.
+    """
+    b, r = runs["baseline"], runs["reform"]
+    w = _weights(b, r, year, "hh")
+    out = {"drawn": {"thirty_hours": (r(year, "hh_free") - b(year, "hh_free")) * w,
+                     "tax_free_childcare": (r(year, "hh_tfc") - b(year, "hh_tfc")) * w}}
+    for basis, spec in TAKE_UP_BASES.items():
+        bc, rc = (expected[s] for s in spec["pair"])
+        if not np.array_equal(w, _weights(bc, rc, year, "hh")):
+            raise ValueError(f"{year}: household weights differ between the drawn pair and {spec['pair']}")
+        if spec["unit"] == "family":
+            # Household totals, exactly as the expected mode of #7 computed them.
+            rate = spec["rate"]
+            claim_all = (rc(year, "hh_free") - bc(year, "hh_free")) * w
+            tfc = rate * rc(year, "hh_tfc") + (1 - rate) * rc(year, "hh_tfc_before_netting") - bc(year, "hh_tfc")
+            out[basis] = {"thirty_hours": rate * claim_all, "tax_free_childcare": tfc * w}
+            out[f"{basis}_claim_all_thirty_hours"] = claim_all
+            continue
+        c = person_changes(expected, year, basis)
+        tfc = c["rate"] * c["tfc_if_taken"] + (1 - c["rate"]) * c["tfc_if_not"]
+        out[basis] = {"thirty_hours": _to_households(rc, year, c["rate"] * c["hours"]) * w,
+                      "tax_free_childcare": _to_households(rc, year, tfc) * w}
+    return out
+
+
+def basis_costs(runs, expected, years=YEARS):
+    """Static gross costs (£bn) by year on each take-up basis; for a family-rate basis, also the 30 hours' change per
+    0.01 of the rate (£m)."""
+    out = {}
+    for basis, spec in TAKE_UP_BASES.items():
+        out[basis] = {"thirty_hours": {}, "tax_free_childcare": {}, "total": {}}
+        if spec["unit"] == "family":
+            out[basis]["thirty_hours_per_point_m"] = {}
     for y in years:
-        h = household_changes(runs, expected, y, rate)
+        h = household_changes(runs, expected, y)
         k = str(y)
-        out["thirty_hours"][k] = _bn(h["expected"]["thirty_hours"].sum())
-        out["tax_free_childcare"][k] = _bn(h["expected"]["tax_free_childcare"].sum())
-        out["total"][k] = round(out["thirty_hours"][k] + out["tax_free_childcare"][k], 3)
-        out["thirty_hours_per_point_m"][k] = int(round(float(h["claim_all_thirty_hours"].sum()) / 100 / 1e6))
+        for basis, spec in TAKE_UP_BASES.items():
+            o = out[basis]
+            o["thirty_hours"][k] = _bn(h[basis]["thirty_hours"].sum())
+            o["tax_free_childcare"][k] = _bn(h[basis]["tax_free_childcare"].sum())
+            o["total"][k] = round(o["thirty_hours"][k] + o["tax_free_childcare"][k], 3)
+            if spec["unit"] == "family":
+                o["thirty_hours_per_point_m"][k] = int(round(float(h[f"{basis}_claim_all_thirty_hours"].sum()) / 100 / 1e6))
+    return out
+
+
+def basis_components(runs, expected, basis, years=YEARS):
+    """The 30-hours leg on a take-up basis split by entitlement (£bn): extended, universal and targeted."""
+    spec = TAKE_UP_BASES[basis]
+    if spec["unit"] == "family":
+        return thirty_hours_components({**runs, **expected}, years, pair=spec["pair"], scale=spec["rate"])
+    rc = expected[spec["pair"][1]]
+    out = {k: {} for k in ("extended", "universal", "targeted")}
+    for y in years:
+        w = _weights(runs["baseline"], rc, y, "hh")
+        c = person_changes(expected, y, basis)
+        for k, change in c["components"].items():
+            out[k][str(y)] = _bn((_to_households(rc, y, c["rate"] * change) * w).sum())
+    return out
+
+
+CONTRACT_GAP_AGE_GROUPS = {"0": (0,), "1": (1,), "2": (2,), "3-5": (3, 4, 5)}
+
+
+def contract_gap_by_dfe_age(expected, year=LEAD_YEAR):
+    """Why the headline moved from the contract basis to DfE's: the 30 hours' cost on each by DfE age (£m).
+
+    ``every_child_m``: the claim-and-use pair (every family claiming, every child using its hours). ``contract_m``:
+    the contract rate on the claim-all pair, where the hours used are the dataset's draws, so at age 0 it also
+    carries the under-2 usage draw; ``contract_effective_rate`` is its cost over every child's, the rate it applies
+    in effect. ``gap_m``: contract less DfE, by age group, adding up to the gap in the 30 hours' cost.
+    """
+    contract, dfe = TAKE_UP_BASES["contract"], TAKE_UP_BASES["dfe"]
+    bc, rc = (expected[s] for s in contract["pair"])
+    use_rc = expected[dfe["pair"][1]]
+    if not np.array_equal(rc(year, "p_id"), use_rc(year, "p_id")):
+        raise ValueError(f"{year}: people differ between the claim-all and claim-and-use pairs")
+    w = rc(year, "p_weight")
+    age = rc(year, "p_dfe_age")
+    claim_all = (rc(year, "p_free_value") - bc(year, "p_free_value")) * w * contract["rate"]
+    c = person_changes(expected, year, "dfe")
+    every = c["hours"] * w
+    on_dfe = c["rate"] * c["hours"] * w
+    out = {"year": year, "every_child_m": {}, "contract_m": {}, "dfe_m": {}, "gap_m": {}, "contract_effective_rate": {}}
+    for key, ages in CONTRACT_GAP_AGE_GROUPS.items():
+        m = np.isin(age, ages)
+        e, k, d = (float(x[m].sum()) / 1e6 for x in (every, claim_all, on_dfe))
+        out["every_child_m"][key], out["contract_m"][key], out["dfe_m"][key] = round(e), round(k), round(d)
+        out["gap_m"][key] = round(k - d)
+        out["contract_effective_rate"][key] = round(k / e, 3) if e > 0 else None
+    out["gap_total_m"] = round(float(claim_all.sum() - on_dfe.sum()) / 1e6)
+    return out
+
+
+def _any_member(benunit, chance, n):
+    """The chance that at least one member of each benefit unit has an event, members independent."""
+    miss = np.clip(1 - chance, 0.0, 1.0)
+    certain = np.bincount(benunit, weights=(miss == 0).astype(float), minlength=n) > 0
+    log_miss = np.bincount(benunit, weights=np.log(np.where(miss > 0, miss, 1.0)), minlength=n)
+    return np.where(certain, 1.0, 1 - np.exp(log_miss))
+
+
+def basis_recipients(expected, basis, years=YEARS):
+    """Expected families and children gaining on a take-up basis, by year (to the nearest 1,000), and the mean gain.
+
+    A child gains if its own funded hours or Tax-Free Childcare rise by more than ``GAIN_THRESHOLD``; a family gains
+    if any member does. On a child-level basis each child takes up the new hours with its own chance, independently
+    of its siblings; on a family-rate basis the family takes them up or not as a whole. The mean gain is the expected
+    gain over the expected number of gaining families. Totals only: no breakdown is published on these bases.
+    """
+    spec = TAKE_UP_BASES[basis]
+    bc, rc = (expected[s] for s in spec["pair"])
+    out = {}
+    for y in years:
+        c = person_changes(expected, y, basis)
+        rate = c["rate"]
+        pb, bw, pw = rc(y, "p_benunit"), _weights(bc, rc, y, "bu"), _weights(bc, rc, y, "p")
+        child = bc(y, "p_is_child")
+        n = len(bw)
+        t = GAIN_THRESHOLD
+        hours_if_taken = child & (c["hours"] > t)
+        tfc_if_taken, tfc_if_not = child & (c["tfc_if_taken"] > t), child & (c["tfc_if_not"] > t)
+        gains_if_taken, gains_if_not = hours_if_taken | tfc_if_taken, tfc_if_not
+        expected_gain = np.bincount(pb, weights=rate * (c["hours"] + c["tfc_if_taken"]) + (1 - rate) * c["tfc_if_not"],
+                                    minlength=n)
+
+        def child_chance(if_taken, if_not):
+            return rate * if_taken + (1 - rate) * if_not
+
+        def family_chance(if_taken, if_not):
+            if spec["unit"] == "family":
+                any_taken = np.bincount(pb, weights=if_taken.astype(float), minlength=n) > 0
+                any_not = np.bincount(pb, weights=if_not.astype(float), minlength=n) > 0
+                return spec["rate"] * any_taken + (1 - spec["rate"]) * any_not
+            return _any_member(pb, child_chance(if_taken, if_not), n)
+
+        none = np.zeros_like(child)
+        families = family_chance(gains_if_taken, gains_if_not)
+        n_families = float((bw * families).sum())
+        out[str(y)] = {
+            "families_gaining": _k(n_families),
+            "children_gaining": _k((pw * child_chance(gains_if_taken, gains_if_not)).sum()),
+            "by_scheme": {
+                "thirty_hours": _k((bw * family_chance(hours_if_taken, none)).sum()),
+                "tax_free_childcare": _k((bw * family_chance(tfc_if_taken, tfc_if_not)).sum()),
+            },
+            "children_by_scheme": {
+                "thirty_hours": _k((pw * child_chance(hours_if_taken, none)).sum()),
+                "tax_free_childcare": _k((pw * child_chance(tfc_if_taken, tfc_if_not)).sum()),
+            },
+            "mean_gain_gbp": round(float((bw * expected_gain).sum()) / n_families) if n_families > 0 else None,
+        }
     return out
 
 
@@ -694,22 +874,30 @@ def household_source_codes(runs, year):
     return hh_code, len(uniques)
 
 
-def bootstrap(runs, expected, years=(2027, 2029), draws=BOOTSTRAP_DRAWS, seed=BOOTSTRAP_SEED):
-    """Sampling uncertainty of the static costs: a bootstrap over FRS source households.
+# The years the bootstrap first covered draw first, so their resamples, and the figures published on them, stay
+# as they were when the other years were added.
+BOOTSTRAP_FIRST_YEARS = (2027, 2029)
+
+
+def bootstrap(runs, expected, years=YEARS, draws=BOOTSTRAP_DRAWS, seed=BOOTSTRAP_SEED):
+    """Sampling uncertainty of the static costs: a bootstrap over FRS source households, on every take-up basis.
 
     Each draw resamples the source households with replacement, each with all its Microcosm copies, the release
     weights fixed (calibration is not redone), and ignores the FRS's clustering, so it is a floor on the
-    uncertainty. Also counts the source households the 30-hours cost rests on and their effective number (Kish,
-    over their shares of the cost). Aggregates only.
+    uncertainty. Every basis (``household_changes``: the single draw and each take-up basis) is resampled with the
+    same draws. Also counts the source households the 30-hours cost rests on, on the single draw, and their effective
+    number (Kish, over their shares of the cost). Aggregates only. ``by_year`` is in year order; the draws are
+    taken for ``BOOTSTRAP_FIRST_YEARS`` first.
     """
     rng = np.random.default_rng(seed)
     out = {"draws": draws, "seed": seed, "by_year": {}}
-    for y in years:
+    by_year = {}
+    for y in sorted(years, key=lambda y: (y not in BOOTSTRAP_FIRST_YEARS, y)):
         code, n = household_source_codes(runs, y)
         counts = rng.multinomial(n, np.full(n, 1.0 / n), size=draws)
         h = household_changes(runs, expected, y)
         year_out = {}
-        for basis in ("drawn", "expected"):
+        for basis in ("drawn", *TAKE_UP_BASES):
             legs = {leg: np.bincount(code, weights=h[basis][leg], minlength=n) for leg in h[basis]}
             legs["total"] = legs["thirty_hours"] + legs["tax_free_childcare"]
             year_out[basis] = {}
@@ -722,7 +910,8 @@ def bootstrap(runs, expected, years=(2027, 2029), draws=BOOTSTRAP_DRAWS, seed=BO
         gaining = cost[cost > GAIN_THRESHOLD]
         year_out["source_households_30_hours"] = int(round(len(gaining), -1))
         year_out["effective_source_households_30_hours"] = int(round(float(gaining.sum() ** 2 / (gaining ** 2).sum()), -1))
-        out["by_year"][str(y)] = year_out
+        by_year[y] = year_out
+    out["by_year"] = {str(y): by_year[y] for y in sorted(by_year)}
     return out
 
 

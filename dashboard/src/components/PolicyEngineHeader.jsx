@@ -37,7 +37,7 @@ export default function PolicyEngineHeader() {
           />
         </a>
 
-        <div className="flex items-center gap-6 md:gap-8">
+        <div className="hidden items-center gap-6 sm:flex md:gap-8">
           {NAV_LINKS.map((link) => (
             <a
               key={link.label}
