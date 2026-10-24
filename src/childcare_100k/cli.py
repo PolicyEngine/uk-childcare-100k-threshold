@@ -43,7 +43,9 @@ from .config import (
     TFC_TAKE_UP_NEWLY_ELIGIBLE_LOW,
     EXTENDED_TAKE_UP_RATE,
     EXTENDED_TAKE_UP_SOURCE_URL,
+    HEADLINE_TAKE_UP_BASIS,
     SCENARIOS,
+    TAKE_UP_BASES,
     YEARS,
 )
 from .datasets import MICROCOSM, POLICYENGINE_UK_VERSION
@@ -167,6 +169,12 @@ LIMITATIONS = [
     "A partner who does not work because of caring or incapacity qualifies through the benefits the data hold "
     "(policyengine-uk 2.147.2 applies SI 2022/1134 reg 14(4)/15(4) and SI 2015/448 reg 13), but not through limited "
     "capability for work, NI credits or carer's leave, which the data do not hold.",
+    "Take-up of the 30 hours among newly eligible families is DfE's January 2025 take-up among all eligible "
+    "children, by age. Nothing measures it for families over £100,000, who are not eligible today: they may use "
+    "formal childcare more than average, which would raise it, or claim less where the hours are worth little to "
+    "them. CenTax's two rates and the dataset's flat rate are on Budget impact; the breakdowns by family, income "
+    "and region, who gains by age, the range's adjustments and the labour supply offsets are measured on the "
+    "dataset's single take-up draw.",
     "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell "
     "would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), "
     "so no suppressed cell can be recovered from the published UK totals.",
@@ -220,7 +228,21 @@ LSR_ALTERNATIVE = ("Parents respond: partners move into work (OBR participation 
                    "income rises (a childcare-price and an OBR income elasticity)")
 
 
-def modelling_assumptions(a, effects, labour_supply_offset, tfc):
+def _rates_text(spec):
+    """A child-level basis's rates in words: "42% at 9-11 months, 70% at 1, 84% at 2 and 91% at 3 and 4"."""
+    r = spec["rates_by_dfe_age"]
+    if r[0] == r[1] == r[2]:
+        return f"{r[0]:.0%} under 3 and {r[3]:.0%} at 3 and 4"
+    return f"{r[0]:.0%} at 9-11 months, {r[1]:.0%} at 1, {r[2]:.0%} at 2 and {r[3]:.0%} at 3 and 4"
+
+
+def _basis_effect(bases, basis):
+    """The change in the static total (£bn by year) from the headline take-up basis to ``basis``."""
+    head = bases[HEADLINE_TAKE_UP_BASIS]["total"]
+    return {y: round(bases[basis]["total"][y] - head[y], 3) for y in head}
+
+
+def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
     """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
     etfc = a["would_claim_tfc_pct"]
     return [
@@ -246,32 +268,73 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc):
         },
         {
             "id": "take_up",
-            "title": "Who claims",
-            "ours": f"The 30 hours' cost averaged over the take-up draw ({EXTENDED_TAKE_UP_RATE:.0%} of families claim); "
-                    f"{int(etfc['families_with_child_under_12'] + 0.5)}% of families carry a Tax-Free Childcare claim "
+            "title": "Who takes up the 30 hours",
+            "ours": f"DfE's take-up by age: {_rates_text(TAKE_UP_BASES['dfe'])}",
+            "source_says": "DfE's January 2025 take-up of the working-parent hours, by age; CenTax use "
+                           f"{_rates_text(TAKE_UP_BASES['centax'])}",
+            "source": _src(TAKE_UP_BASES["dfe"]["source"], TAKE_UP_BASES["dfe"]["source_url"]),
+            "modelled": "Nobody over £100,000 is eligible today, so the data cannot say how many newly eligible "
+                        "families would take up the 30 hours. The dataset draws once whether each family would "
+                        f"claim, at the take-up contract's flat rate ({EXTENDED_TAKE_UP_RATE:.1%}), and a few heavily "
+                        "weighted families decide much of the cost on that draw. The headline instead averages over "
+                        "take-up child by child: a pair of runs has every family claiming and every child using its "
+                        "hours, and each newly entitled child's cost there is multiplied by DfE's take-up for its age "
+                        "(registered over eligible children in January 2025: "
+                        f"{_rates_text(TAKE_UP_BASES['dfe'])}), by its age on 31 December, as DfE's census counts it. "
+                        "These rates already count whether a family applies and whether the child uses the hours, so "
+                        "they replace the dataset's claim and under-2 usage draws rather than adding to them; the "
+                        "hours a week a child who uses them takes are the dataset's draw. Tax-Free Childcare is paid "
+                        "on the care the new hours replace with the same chance. Most of the cost is for under-3s; the "
+                        "flat rate is well above DfE's at 9-11 months and age 1 (42% and 70%), about level at 2 (84%) "
+                        "and below it at 3 and 4 (91%). Budget impact switches between DfE's rates, CenTax's two "
+                        "rates and the flat rate.",
+            "sources": [
+                _src(TAKE_UP_BASES["dfe"]["source"], TAKE_UP_BASES["dfe"]["source_url"]),
+                _src(TAKE_UP_BASES["centax"]["source"], TAKE_UP_BASES["centax"]["source_url"]),
+                _src("The 30-hours rate in the release's take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
+                _src("would_claim_extended_childcare",
+                     f"{PEUK}/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"),
+                _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
+                _src("How we apply the rates (aggregate.py)", f"{THIS_REPO}/aggregate.py"),
+                _src("Expected-mode costing (#7)", "https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/7"),
+            ],
+            "alternative": f"CenTax's two rates: {_rates_text(TAKE_UP_BASES['centax'])}",
+            "effect_bn": _basis_effect(bases, "centax"),
+        },
+        {
+            "id": "take_up_contract",
+            "title": "One take-up rate for every family",
+            "ours": "Take-up by the child's age, child by child",
+            "source_says": "The dataset's take-up contract has one rate for the working-parent hours",
+            "source": _src("Microcosm take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
+            "modelled": "The alternative is the expected mode before the take-up bases: the cost averaged over the "
+                        f"dataset's draw at the contract's flat rate, {EXTENDED_TAKE_UP_RATE:.1%} of families, with "
+                        "the dataset's draws of the hours used, and Tax-Free Childcare on the care the new hours "
+                        "replace weighted by the same rate. Each percentage point of that rate moves the 30 hours' "
+                        "cost by the amount on Budget impact.",
+            "sources": [
+                _src("Microcosm take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
+                _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
+            ],
+            "alternative": f"The take-up contract's flat rate: {EXTENDED_TAKE_UP_RATE:.1%} of newly eligible families",
+            "effect_bn": _basis_effect(bases, "contract"),
+        },
+        {
+            "id": "tfc_take_up",
+            "title": "Who claims Tax-Free Childcare",
+            "ours": f"{int(etfc['families_with_child_under_12'] + 0.5)}% of families carry a Tax-Free Childcare claim "
                     "flag, but only those reporting paid registered childcare get a top-up",
             "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
             "source": _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
-            "modelled": "The dataset draws once whether each family would claim the 30 hours, at the take-up "
-                        f"contract's working-parent rate ({EXTENDED_TAKE_UP_RATE:.1%}). Because a few heavily weighted "
-                        "families decide much of the cost, the central figure averages over that draw: each newly "
-                        "eligible family's cost if it claims, times the rate (expectation.py). The figure on the single "
-                        "draw, and what each percentage point of the rate does to the cost, are on the Budget impact "
-                        "tab. The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and "
-                        "account counts, not a take-up rate: a family gets a top-up only on the paid registered "
-                        "childcare it reports, so use is limited by reported spending (the table shows both). "
-                        "Nothing identifies take-up among families over £100,000, who are not eligible today, so the "
-                        "alternative sets it to 70% of newly eligible families, about today's use among all eligible "
-                        "families.",
+            "modelled": "The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and account counts, not a "
+                        "take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use "
+                        "is limited by reported spending (the table shows both). Nothing identifies take-up among "
+                        "families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly "
+                        "eligible families, about today's use among all eligible families.",
             "sources": [
                 _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
-                _src("would_claim_extended_childcare",
-                     f"{PEUK}/dfe/extended_childcare_entitlement/would_claim_extended_childcare.py"),
                 _src("would_claim_tfc", f"{PEUK}/hmrc/tax_free_childcare/would_claim_tfc.py"),
                 _src("How we compute the rates (aggregate.py)", f"{THIS_REPO}/aggregate.py"),
-                _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
-                _src("The 30-hours rate in the release's take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
-                _src("Expected-mode costing (#7)", "https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/7"),
                 _src("Microcosm's take-up analysis (#8)", TFC_TAKE_UP_SOURCE_URL),
             ],
             "alternative": f"{TFC_TAKE_UP_NEWLY_ELIGIBLE_LOW:.0%} of newly eligible families claim Tax-Free Childcare",
@@ -378,24 +441,70 @@ def _fy(year):
     return f"{year}-{(year + 1) % 100:02d}"
 
 
+def take_up_block(bases, recipients, expected, net_total, range_bn):
+    """``budget.take_up``: each take-up basis's definition and source, gross and net costs, range and recipients.
+
+    Totals by year only: no breakdown by age, region or family is published on these bases.
+    """
+    out = {"headline": HEADLINE_TAKE_UP_BASIS, "order": list(TAKE_UP_BASES), "age": TAKE_UP_AGE_NOTE, "bases": {}}
+    for basis, spec in TAKE_UP_BASES.items():
+        costs = bases[basis]
+        block = {
+            "label": spec["label"],
+            "description": spec["description"],
+            "unit": spec["unit"],
+            "source": spec["source"],
+            "source_url": spec["source_url"],
+            "gross_bn": {k: costs[k] for k in ("thirty_hours", "tax_free_childcare", "total")},
+            "net_bn": {"total": net_total(costs["total"])},
+            "range_bn": range_bn(costs["total"]),
+            "recipients": recipients(expected, basis),
+        }
+        if spec["unit"] == "family":
+            block["rate"] = spec["rate"]
+            block["per_point_m"] = costs["thirty_hours_per_point_m"]
+        else:
+            block["rates_by_dfe_age"] = {str(a): r for a, r in spec["rates_by_dfe_age"].items()}
+            block["rates_text"] = _rates_text(spec)
+        out["bases"][basis] = block
+    return out
+
+
+TAKE_UP_AGE_NOTE = (
+    "A child-level rate applies by the child's DfE age: its age on 31 December of the year (the year less its birth "
+    "year), the age DfE's January census counts it by. DfE age 0 is the 9-11-month-olds funded from the spring term; "
+    "a 4-year-old funded only for the summer term before reception has DfE age 5 and takes the 3-and-4 rate. Each "
+    "child takes up the hours independently of its siblings."
+)
+
+
 def build(metas):
     runs = agg.load(SCENARIOS)
     expected = agg.load_expected()
-    # The single take-up draw (the central pair as the dataset draws it) and the expected cost, averaged over the
-    # 30-hours take-up draw at the contract rate (#7), which is the headline.
+    # The single take-up draw (the central pair as the dataset draws it) and the expected cost on each take-up basis
+    # (#7; config.TAKE_UP_BASES): DfE's rates by age, the headline; CenTax's two rates; the contract's flat rate.
     drawn = agg.budget_block(runs)
-    exp = agg.expected_costs(runs, expected)
-    budget = {k: exp[k] for k in ("thirty_hours", "tax_free_childcare", "total")}
-    # Nothing but the 30 hours and Tax-Free Childcare depends on the limits, so the net change differs from the gross
-    # by the same amount on either basis.
-    budget["net_total"] = {k: round(exp["total"][k] + drawn["net_total"][k] - drawn["total"][k], 3)
-                           for k in exp["total"]}
+    bases = agg.basis_costs(runs, expected)
+    head = bases[HEADLINE_TAKE_UP_BASIS]
+    budget = {k: head[k] for k in ("thirty_hours", "tax_free_childcare", "total")}
     sens = agg.sensitivities(runs)
-    # The range is the headline plus each sensitivity's effect (measured on the drawn pairs), to the last digit.
-    for k, central in budget["total"].items():
-        sens["range_bn"]["central"][k] = central
-        sens["range_bn"]["low"][k] = round(central + sens["effects_bn"][agg.ROUTED_LOW][k], 3)
-        sens["range_bn"]["high"][k] = round(central + sens["effects_bn"]["full_30_hour_usage"][k], 3)
+
+    # Nothing but the 30 hours and Tax-Free Childcare depends on the limits, so the net change differs from the gross
+    # by the same amount on every basis.
+    def net_total(total):
+        return {k: round(total[k] + drawn["net_total"][k] - drawn["total"][k], 3) for k in total}
+
+    # The range is a basis's total plus each sensitivity's effect (measured on the drawn pairs), to the last digit.
+    def range_bn(total):
+        return {
+            "low": {k: round(v + sens["effects_bn"][agg.ROUTED_LOW][k], 3) for k, v in total.items()},
+            "central": dict(total),
+            "high": {k: round(v + sens["effects_bn"]["full_30_hour_usage"][k], 3) for k, v in total.items()},
+        }
+
+    budget["net_total"] = net_total(budget["total"])
+    sens["range_bn"] = range_bn(budget["total"])
+    take_up = take_up_block(bases, agg.basis_recipients, expected, net_total, range_bn)
     uncertainty = agg.bootstrap(runs, expected)
     age_profile = agg.age_profile_sensitivity(runs)
     validation = baseline_validation(runs)
@@ -440,11 +549,9 @@ def build(metas):
             # The same costs on the dataset's single take-up draw; the breakdowns by family, income and region,
             # the sensitivities and the labour supply response are measured on it.
             "single_draw_bn": {k: drawn[k] for k in ("thirty_hours", "tax_free_childcare", "total")},
-            "thirty_hours_take_up": {
-                "rate": exp["take_up_rate"],
-                "rate_source_url": EXTENDED_TAKE_UP_SOURCE_URL,
-                "per_point_m": exp["thirty_hours_per_point_m"],
-            },
+            # Who takes up the 30 hours among newly eligible children: each basis's costs, range and recipients
+            # (totals by year only). gross_bn above is the headline basis's.
+            "take_up": take_up,
             "uncertainty": {
                 **uncertainty,
                 "method": "Bootstrap over FRS source households: each draw resamples them with replacement, each "
@@ -457,8 +564,7 @@ def build(metas):
                 "centax_gradient_bn": CENTAX_GRADIENT_SENSITIVITY_BN,
                 "source_url": UNCERTAINTY_SOURCE_URL,
             },
-            "thirty_hours_components_bn": agg.thirty_hours_components(
-                {**runs, **expected}, pair=("baseline_claim_all", "reform_claim_all"), scale=EXTENDED_TAKE_UP_RATE),
+            "thirty_hours_components_bn": agg.basis_components(runs, expected, HEADLINE_TAKE_UP_BASIS),
             # The Tax-Free Childcare leg: central (new funded hours netted off childcare spending), before that
             # netting, and with take-up among newly eligible families at 70% (expectation basis).
             "tax_free_childcare_bn": tfc,
@@ -489,7 +595,7 @@ def build(metas):
         "cliff_example": cliff_example(grid),
         "household_grid": grid,
         "modelling_assumptions": modelling_assumptions(assumptions, sens["effects_bn"],
-                                                       lsr["total_offset_bn"]["central"], tfc),
+                                                       lsr["total_offset_bn"]["central"], tfc, bases),
         "labour_supply": {
             **lsr,
             "assumptions": {
@@ -530,8 +636,9 @@ def build(metas):
                 "extrapolated, the OBR elasticities are not measured on parents over £100,000, and its range is "
                 "not a confidence interval. Offsets are £bn a year; positive is money back to the Exchequer. The "
                 "dynamic cost is the static total less the two offsets (moving into work and hours), at the same "
-                "bound; the static total is the expected cost, the offsets are measured on the dataset's single "
-                "take-up draw; the hours offset is its price effect (money back) plus its income effect (money out). "
+                "bound; the static total is the headline, on DfE's take-up by age, and the offsets are measured on "
+                "the dataset's single take-up draw; the hours offset is its price effect (money back) plus its income "
+                "effect (money out). On another take-up basis the dashboard subtracts the same offsets. "
                 "They apply to the total: they are not split by scheme.",
                 "Moving into work (extensive margin): the OBR elasticities are the percentage change in the "
                 "probability of working for a percentage change in the gain to work (net of the childcare a parent "
