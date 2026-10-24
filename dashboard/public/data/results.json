@@ -28,9 +28,9 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-24T13:03:16+00:00",
-  "git_revision": "6b60855c1e766be519d8fb6346de3e3224e26361",
-  "aggregation_sha256": "f948d99cd99486f43b9b36863f73a7662ab8d7c6bb90c11cbc0cb8b69c6cdcfd",
+  "generated_at": "2026-10-24T13:23:52+00:00",
+  "git_revision": "97897c1b33b655131069b736d5bc317d5c4eb19e",
+  "aggregation_sha256": "314ade8d107f6d3d28e7f80177f0eddd00da46aa0f78b01604e309ba9264714f",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 83.9,
@@ -135,7 +135,7 @@
     "centax",
     "contract"
    ],
-   "age": "A child-level rate applies by the child's DfE age: its age on 31 December of the year (the year less its birth year), the age DfE's January census counts it by. DfE age 0 is the 9-11-month-olds funded from the spring term; a 4-year-old funded only for the summer term before reception has DfE age 5 and takes the 3-and-4 rate. Each child takes up the hours independently of its siblings.",
+   "age": "A child-level rate applies by the child's DfE age: its age on 31 December of the year (the year less its birth year), the age DfE's January census counts it by. DfE age 0 is the 9-11-month-olds funded from the spring term; a child born September to December who is funded for the summer term before it starts reception (aged 4 then) has DfE age 5 and takes the 3-and-4 rate. Each child takes up the hours independently of its siblings.",
    "bases": {
     "dfe": {
      "label": "DfE, by age",
@@ -256,7 +256,7 @@
      "rates_text": "42% at 9-11 months, 70% at 1, 84% at 2 and 91% at 3 and 4"
     },
     "centax": {
-     "label": "CenTax, under and over 3",
+     "label": "CenTax, under 3 and 3-4",
      "description": "CenTax's assumption: 73% of children under 3 and 91% of 3- and 4-year-olds (DfE's 2025 take-up for the two groups), child by child",
      "unit": "child",
      "source": "CenTax, Removing the childcare cliff-edge, pp. 33-34 and 75",
@@ -25459,7 +25459,7 @@
     "label": "DfE, Funded early education and childcare, January 2025",
     "url": "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025"
    },
-   "modelled": "Nobody over £100,000 is eligible today, so the data cannot say how many newly eligible families would take up the 30 hours. The dataset draws once whether each family would claim, at the take-up contract's flat rate (83.6%), and a few heavily weighted families decide much of the cost on that draw. The headline instead averages over take-up child by child: a pair of runs has every family claiming and every child using its hours, and each newly entitled child's cost there is multiplied by DfE's take-up for its age (registered over eligible children in January 2025: 42% at 9-11 months, 70% at 1, 84% at 2 and 91% at 3 and 4), by its age on 31 December, as DfE's census counts it. These rates already count whether a family applies and whether the child uses the hours, so they replace the dataset's claim and under-2 usage draws rather than adding to them; the hours a week a child who uses them takes are the dataset's draw. Tax-Free Childcare is paid on the care the new hours replace with the same chance. Most of the cost is for under-3s; the flat rate is well above DfE's at 9-11 months and age 1 (42% and 70%), about level at 2 (84%) and below it at 3 and 4 (91%). Budget impact switches between DfE's rates, CenTax's two rates and the flat rate.",
+   "modelled": "Nobody over £100,000 is eligible today, so the data cannot say how many newly eligible families would take up the 30 hours. The dataset draws once whether each family would claim, at the take-up contract's flat rate (83.6%), and a few heavily weighted families decide much of the cost on that draw. The headline instead averages over take-up child by child: a pair of runs has every family claiming and every child using its hours, and each newly entitled child's cost there is multiplied by DfE's take-up for its age (registered over eligible children in January 2025: 42% at 9-11 months, 70% at 1, 84% at 2 and 91% at 3 and 4), by its age on 31 December, as DfE's census counts it. These rates already count whether a family applies and whether the child uses the hours, so they replace the dataset's claim and under-2 usage draws rather than adding to them; the hours a week a child who uses them takes are the dataset's draw. A child who takes up the new hours gets no Tax-Free Childcare on the care they replace; one who does not keeps its top-up (each weighted by the take-up chance). Most of the cost is for under-3s; the flat rate is well above DfE's at 9-11 months and age 1 (42% and 70%), about level at 2 (84%) and below it at 3 and 4 (91%). Budget impact switches between DfE's rates, CenTax's two rates and the flat rate.",
    "sources": [
     {
      "label": "DfE, Funded early education and childcare, January 2025",
@@ -25507,7 +25507,7 @@
     "label": "Microcosm take-up contract",
     "url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
    },
-   "modelled": "The alternative is the expected mode before the take-up bases: the cost averaged over the dataset's draw at the contract's flat rate, 83.6% of families, with the dataset's draws of the hours used, and Tax-Free Childcare on the care the new hours replace weighted by the same rate. Each percentage point of that rate moves the 30 hours' cost by the amount on Budget impact.",
+   "modelled": "The alternative is the expected mode before the take-up bases: the cost averaged over the dataset's draw at the contract's flat rate, 83.6% of families, with the dataset's draws of the hours used. A family that takes up the new hours gets no Tax-Free Childcare on the care they replace; one that does not keeps its top-up (each weighted by the rate). Each percentage point of that rate moves the 30 hours' cost by the amount on Budget impact.",
    "sources": [
     {
      "label": "Microcosm take-up contract",
@@ -26853,7 +26853,7 @@
   "The release is cut from Microcosm #1338 at 829c1bc26, before its last commit (a12885f9). So it does not key the under-2 working-parent take-up draw on DfE's age at 31 December (it uses age at 6 October, so its age-0 rate mixes 9-11-month-olds with children aged 12-14 months), and its DfE rows bind the January 2025 census, a year before the spring term of 2025-26. Both bear on the under-3 cost of the 30 hours. The next national release will be built on PolicyEngine/microcosm#1347, which carries the age-date fix (a12885f9) and #1344; on the Microcosm team's preview build with the fix, the 30 hours' cost moves by about -£0.02bn, and these figures will be rerun on that release.",
   "In the reform, each child's childcare spending is reduced by the value of its new funded hours at the funding rate before Tax-Free Childcare is computed. Fees are above funding rates, so this removes less spending than the hours replace and the Tax-Free Childcare leg may still be a little high. The hours response's income effect recomputes the family's cash income on the care it still buys, on its own displacement rule.",
   "A partner who does not work because of caring or incapacity qualifies through the benefits the data hold (policyengine-uk 2.147.2 applies SI 2022/1134 reg 14(4)/15(4) and SI 2015/448 reg 13), but not through limited capability for work, NI credits or carer's leave, which the data do not hold.",
-  "Take-up of the 30 hours among newly eligible families is DfE's January 2025 take-up among all eligible children, by age. Nothing measures it for families over £100,000, who are not eligible today: they may use formal childcare more than average, which would raise it, or claim less where the hours are worth little to them. CenTax's two rates and the dataset's flat rate are on Budget impact; the breakdowns by family, income and region, who gains by age, the range's adjustments and the labour supply offsets are measured on the dataset's single take-up draw.",
+  "Take-up of the 30 hours among newly eligible families is DfE's January 2025 take-up among all eligible children, by age. Nothing measures it for families over £100,000, who are not eligible today: they may use formal childcare more than average, which would raise it, or claim less where the hours are worth little to them. DfE says its 2025 rates should be treated with caution and will be revised next year; its estimate of eligible 9-11-month-olds does not account for maternity or paternity leave; and its 2-year-olds under the working-parent entitlement include some who should have been recorded under the disadvantaged 2-year-old offer, which may put the 84% too high. The under-3 rates were measured on the 15-hour offer, before it rose to 30 hours in September 2025; take-up of 30 hours may differ. CenTax's two rates and the dataset's flat rate are on Budget impact; the breakdowns by family, income and region, who gains by age, the range's adjustments and the labour supply offsets are measured on the dataset's single take-up draw.",
   "Funded hours, baseline context: the baseline's free-hours spending in 2026-27 is about 4% above DfE's illustrative total (see baseline_validation). DfE's totals are illustrative (based partly on forecasts) and are context only: matching the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ.",
   "In 2027-28 the ten largest gaining families (by weight times gain, on the single take-up draw) carry 31% of the static cost and the largest alone 6%. The sampling uncertainty this leaves is on the Budget impact tab.",
   "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), so no suppressed cell can be recovered from the published UK totals."
