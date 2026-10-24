@@ -526,7 +526,9 @@ function TakeUpDetail({ data }) {
         </li>
         {flat ? (
           <li>
-            On {flat.short_label}, it is each newly eligible family&apos;s cost if it claims, times the rate: each
+            On the dataset&apos;s flat rate ({formatPct(flat.rate * 100, 1)}{" "}
+            of families), it is each newly eligible
+            family&apos;s cost if it claims, times the rate: each
             percentage point of the rate moves the 30 hours&apos; cost by about £{flat.per_point_m[String(LEAD_YEAR)]}m in{" "}
             {fyLabel(LEAD_YEAR)}.
           </li>
@@ -536,8 +538,8 @@ function TakeUpDetail({ data }) {
           than its rate. Who gains, by family and income, comes from the single draw.
         </li>
         <li>
-          The rates, why {t.bases[t.headline].short_label} is the headline, and how it compares with the flat rate by
-          age are under <a href="#assumptions">Who takes up the 30 hours</a> in the comparison below;{" "}
+          The rates, why DfE&apos;s rates by age are the headline, and how they compare with the flat rate by age
+          are under <a href="#assumptions">Who takes up the 30 hours</a> in the comparison below;{" "}
           <a href="?tab=budget#take-up-options">Budget impact</a> switches between the options.
         </li>
       </ul>
@@ -567,7 +569,6 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const limitations = [...getLimitations(data), ageProfileLimitation(data)];
   const assumptions = getAssumptions(data);
   const modelling = getModellingAssumptions(data);
-  const takeUp = getTakeUp(data);
   const benchmark = getBenchmarks(data)[0];
   const years = `${fyLabel(meta.years[0])} to ${fyLabel(meta.years.at(-1))}`;
   const dataset = (meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "");
@@ -582,14 +583,14 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             <Ext href="https://policyengine.org/uk">PolicyEngine UK</Ext>, a microsimulation model of UK taxes and
             benefits, on {dataset}.
           </li>
-          <li>The headline is static: nobody changes how much they work. A labour supply response is an option.</li>
           <li>
-            Take-up of the 30 hours among newly eligible children follows {takeUp.bases[takeUp.headline].short_label};{" "}
-            {takeUp.order
-              .filter((id) => id !== takeUp.headline)
-              .map((id) => takeUp.bases[id].short_label)
-              .join(" and ")}{" "}
-            are the other options.
+            The headline is static: nobody changes how much they work. A{" "}
+            <a href="#labour-supply">labour supply response</a> can be switched on on{" "}
+            <a href="?tab=budget">Budget impact</a>.
+          </li>
+          <li>
+            Take-up of the 30 hours among newly eligible children follows DfE&apos;s rates by age (the headline),
+            CenTax&apos;s two rates or the dataset&apos;s one flat rate: see <a href="#take-up-method">Take-up</a>.
           </li>
           <li>
             Our static 30 hours cost in {fyLabel(benchmark.year)} is {formatBn(benchmark.ours, 2)}, against
@@ -623,7 +624,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             The extra spending on funded hours and Tax-Free Childcare top-ups between the two runs.
           </Step>
           <Step n={4} title="Take-up" id="take-up-method" testId="method-take-up" detail={<TakeUpDetail data={data} />}>
-            Newly eligible children take up the 30 hours at {takeUp.bases[takeUp.headline].short_label}, the headline.
+            Each newly eligible child takes up the 30 hours with DfE&apos;s take-up for its age, the headline.
           </Step>
           <Step n={5} title="Static headline" testId="method-step-static">
             Parents work, earn and pay for childcare as they do today in both runs;{" "}

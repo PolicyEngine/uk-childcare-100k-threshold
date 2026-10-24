@@ -532,8 +532,8 @@ describe("links in the results file's text", () => {
   });
 
   it("leaves no raw markup on any tab", () => {
-    for (const el of [<LandingTab data={data} />, <WhoGainsTab data={data} />, <MethodTab data={data} />]) {
-      expect(textOf(el)).not.toMatch(/\]\((https?:|\?|#)/);
+    for (const Tab of [LandingTab, WhoGainsTab, MethodTab]) {
+      expect(textOf(<Tab data={data} />)).not.toMatch(/\]\((https?:|\?|#)/);
     }
   });
 });

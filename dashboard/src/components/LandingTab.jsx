@@ -684,7 +684,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
       <Section
         id="uncertainty"
         title="How certain is the cost?"
-        lead={`The static cost rests on a small number of survey households, so it carries sampling uncertainty. The chart shows the range for each year, ${fyLabel(budget.years[0])} to ${fyLabel(budget.years.at(-1))}, on take-up ${chosen.short_label}. Hover over a row for its figures.`}
+        lead={`The static cost rests on a small number of survey households, so it carries sampling uncertainty. The chart shows the range for each year, ${nb(budget.years[0])} to ${nb(budget.years.at(-1))}, on take-up ${chosen.short_label}. Hover over a row for its figures.`}
         boxed={false}
       >
         <div className="panel joined-below">
