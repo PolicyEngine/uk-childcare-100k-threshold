@@ -259,9 +259,9 @@ const Ext = ({ href, children }) => (
   </a>
 );
 
-/** A box's content as prose. */
+/** A box's content as prose, across the full width of the box. */
 function Prose({ children }) {
-  return <div className="max-w-[75ch] space-y-2 text-sm leading-6 text-slate-600">{children}</div>;
+  return <div className="space-y-2 text-sm leading-6 text-slate-600">{children}</div>;
 }
 
 function LabourSupplySection({ data }) {
@@ -318,7 +318,7 @@ function LabourSupplySection({ data }) {
     >
       <ExpandableGroup className="mt-5" testId="labour-supply-details">
         <Expandable title={`What we find, ${year}`} testId="ls-findings" compact defaultOpen>
-          <ul className="max-w-[75ch] list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
+          <ul className="list-disc space-y-2 pl-5 text-sm leading-6 text-slate-600" data-testid="labour-supply-method">
             <li>
               <strong>Partners moving into work:</strong> about {formatCount(entrants)}, who {extText}.
               {extOffset < 0
