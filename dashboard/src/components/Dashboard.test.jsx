@@ -489,7 +489,7 @@ describe("the take-up control", () => {
 });
 
 describe("the range chart", () => {
-  it("draws, for each year, the 30 hours and both schemes from the file, with CenTax and the single draw on the 30 hours", () => {
+  it("draws, for each year, the 30 hours and both schemes from the file, with CenTax on the 30 hours and no single draw", () => {
     const u = data.budget.uncertainty.by_year;
     const centax = data.benchmarks[0].underlying_static_by_year_bn;
     const rows = rangeChartRows(getUncertainty(data), centax);
@@ -501,7 +501,7 @@ describe("the range chart", () => {
       expect(thirty.central).toBe(takeUp.bases[takeUp.headline].gross_bn.thirty_hours[y]);
       expect(both.central).toBe(takeUp.bases[takeUp.headline].gross_bn.total[y]);
       expect(thirty.centax).toBe(centax[y] ?? null);
-      expect(thirty.single).toBe(data.budget.single_draw_bn.thirty_hours[y]);
+      expect("single" in thirty).toBe(false);
       expect(both.centax).toBeNull();
     }
     render(<LandingTab data={data} />);
@@ -519,7 +519,7 @@ describe("the range chart", () => {
     const tableLabels = () => [...screen.getByTestId("uncertainty-table").querySelectorAll("tbody td:first-child")].map((td) => td.textContent);
     expect(select.value).toBe("thirty_hours");
     expect(rowCount()).toBe(n);
-    expect(legend()).toEqual(["band", "central", "centax", "single"]);
+    expect(legend()).toEqual(["band", "central", "centax"]);
     expect(tableLabels().every((l) => l.startsWith("30 hours"))).toBe(true);
     fireEvent.change(select, { target: { value: "total" } });
     expect(rowCount()).toBe(n);

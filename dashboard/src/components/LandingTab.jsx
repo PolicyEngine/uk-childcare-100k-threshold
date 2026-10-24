@@ -270,7 +270,7 @@ const bnRangeCell = (lo, hi) => (
 
 /**
  * The bootstrap's standard deviation and 5th-95th percentile on the take-up basis chosen, for the leg the range chart
- * shows (the 30 hours or both schemes), and, for the 30 hours, the single draw.
+ * shows (the 30 hours or both schemes).
  */
 export function UncertaintyTable({ data, basis, leg = "thirty_hours" }) {
   const u = getUncertainty(data, basis);
@@ -279,7 +279,6 @@ export function UncertaintyTable({ data, basis, leg = "thirty_hours" }) {
     ["thirty_hours", "30 hours: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
     ["total", "Both schemes: standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
     ["total", "Both schemes: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
-    ["thirty_hours", "30 hours on the dataset's single take-up draw", (r) => formatBn(r.singleThirty, 2)],
   ]
     .filter(([l]) => l === leg)
     .map(([, label, cell]) => [label, cell]);
@@ -318,7 +317,6 @@ const RANGE_MARKS = {
   thirty_hours: { band: colors.primary[200], dot: schemeColors.thirty_hours },
   total: { band: colors.gray[300], dot: colors.gray[700] },
   centax: colors.gray[900],
-  single: colors.primary[600],
 };
 
 /** The two legs the range chart can show, one at a time. */
@@ -338,7 +336,6 @@ export function rangeChartRows(u, centax) {
       range: [r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn],
       central: r.thirty,
       centax: isNum(centax[String(r.year)]) ? centax[String(r.year)] : null,
-      single: r.singleThirty,
     },
     {
       key: `${r.year}-total`,
@@ -348,7 +345,6 @@ export function rangeChartRows(u, centax) {
       range: [r.chosen.total.p5_bn, r.chosen.total.p95_bn],
       central: r.total,
       centax: null,
-      single: null,
     },
   ]);
 }
@@ -388,11 +384,6 @@ function CentaxMark({ cx, cy }) {
   return <path d={`M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`} fill={RANGE_MARKS.centax} stroke="#fff" strokeWidth={1} />;
 }
 
-function SingleMark({ cx, cy }) {
-  if (!isNum(cx) || !isNum(cy)) return null;
-  return <circle cx={cx} cy={cy} r={5} fill="#fff" stroke={RANGE_MARKS.single} strokeWidth={2} />;
-}
-
 function RangeTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
@@ -400,7 +391,6 @@ function RangeTooltip({ active, payload }) {
     ["Central", formatBn(row.central, 2)],
     ["5th to 95th percentile", bnRange(row.range[0], row.range[1])],
     ...(isNum(row.centax) ? [["CenTax, static", formatBn(row.centax, 2)]] : []),
-    ...(isNum(row.single) ? [["Single take-up draw", formatBn(row.single, 2)]] : []),
   ];
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
@@ -419,8 +409,8 @@ function RangeTooltip({ active, payload }) {
 
 /**
  * The bootstrap's 5th-95th percentile range for each year, for one leg (the 30 hours or both schemes), with the
- * central cost on the take-up option chosen and, for the 30 hours, CenTax's static cost of the free hours and the
- * 30 hours on the single take-up draw. The axis fits the leg shown.
+ * central cost on the take-up option chosen and, for the 30 hours, CenTax's static cost of the free hours. The axis
+ * fits the leg shown.
  */
 export function RangeChart({ data, basis, leg = "thirty_hours" }) {
   const u = getUncertainty(data, basis);
@@ -428,7 +418,7 @@ export function RangeChart({ data, basis, leg = "thirty_hours" }) {
   const rows = rangeChartRows(u, centax).filter((r) => r.scheme === leg);
   const legName = RANGE_LEGS.find((l) => l.id === leg)?.label;
   if (!rows.length || !legName) throw new Error(`RangeChart: no leg ${leg}`);
-  const values = rows.flatMap((r) => [...r.range, r.central, r.centax, r.single].filter(isNum));
+  const values = rows.flatMap((r) => [...r.range, r.central, r.centax].filter(isNum));
   const lo = Math.floor(Math.min(...values) * 10) / 10;
   const hi = Math.ceil(Math.max(...values) * 10) / 10;
   const ticks = [];
@@ -438,19 +428,15 @@ export function RangeChart({ data, basis, leg = "thirty_hours" }) {
     .map(
       (r) =>
         `${r.year}: central ${formatBn(r.central, 2)}, 5th to 95th percentile ${bnRange(r.range[0], r.range[1])}` +
-        (isNum(r.centax) ? `, CenTax static ${formatBn(r.centax, 2)}` : "") +
-        (isNum(r.single) ? `, single take-up draw ${formatBn(r.single, 2)}` : ""),
+        (isNum(r.centax) ? `, CenTax static ${formatBn(r.centax, 2)}` : ""),
     )
     .join("; ");
-  // CenTax and the single draw exist for the 30 hours only, so their markers are listed only when they are drawn.
+  // CenTax exists for the 30 hours only, so its marker is listed only when it is drawn.
   const legend = [
     { id: "band", label: "5th to 95th percentile", swatch: <span className="inline-block h-2.5 w-5 rounded-sm" style={{ backgroundColor: RANGE_MARKS[leg].band }} /> },
     { id: "central", label: `Central (${u.basis.short_label})`, swatch: <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RANGE_MARKS[leg].dot }} /> },
     ...(rows.some((r) => isNum(r.centax))
       ? [{ id: "centax", label: "CenTax, static", swatch: <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ backgroundColor: RANGE_MARKS.centax }} /> }]
-      : []),
-    ...(rows.some((r) => isNum(r.single))
-      ? [{ id: "single", label: "Single take-up draw", swatch: <span className="inline-block h-3 w-3 rounded-full border-2 bg-white" style={{ borderColor: RANGE_MARKS.single }} /> }]
       : []),
   ];
   return (
@@ -481,7 +467,6 @@ export function RangeChart({ data, basis, leg = "thirty_hours" }) {
             </Bar>
             <Line dataKey="central" stroke="none" isAnimationActive={false} dot={<CentralDot />} activeDot={false} legendType="none" />
             <Line dataKey="centax" stroke="none" isAnimationActive={false} dot={<CentaxMark />} activeDot={false} legendType="none" />
-            <Line dataKey="single" stroke="none" isAnimationActive={false} dot={<SingleMark />} activeDot={false} legendType="none" />
           </ComposedChart>
         </ResponsiveContainer>
       </div>
@@ -501,7 +486,6 @@ export function RangeChart({ data, basis, leg = "thirty_hours" }) {
 /** The note under the range chart on how wide the range is, a closed box in the group under the chart. */
 export function RangeNote({ data, basis }) {
   const u = getUncertainty(data, basis);
-  const lead = u.rows.find((r) => r.year === LEAD_YEAR) ?? u.rows[0];
   const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
   const centaxYears = u.rows.filter((r) => isNum(centax[String(r.year)]));
   const centaxInside =
@@ -519,17 +503,9 @@ export function RangeNote({ data, basis }) {
           behind the release, each with all its Microcosm copies.
         </li>
         <li>The weights and calibration are held fixed, and the survey&apos;s clustering is ignored.</li>
-        <li>
-          The 30 hours&apos; cost in {nb(lead.year)} rests on about {lead.sourceHouseholds} FRS households, an
-          effective number of about {lead.effectiveSourceHouseholds} (on the single take-up draw).
-        </li>
         <li data-testid="note-range-centax">
           CenTax publishes static costs for {centaxYearsText} only, so its marker is in those years
-          {centaxInside ? "; both lie inside the range" : ""}. On the single draw the bootstrap reproduces{" "}
-          <a href={u.sourceUrl} target="_blank" rel="noopener noreferrer">
-            the Microcosm team&apos;s
-          </a>
-          .
+          {centaxInside ? "; both lie inside the range" : ""}.
         </li>
       </ul>
     </Expandable>
