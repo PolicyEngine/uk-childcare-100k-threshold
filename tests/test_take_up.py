@@ -49,7 +49,7 @@ def test_headline_is_dfe_and_the_rates_are_the_sources():
         (2, 0.84, 0.73),  # the last age under 3
         (3, 0.91, 0.91),  # the first 3-and-4 age
         (4, 0.91, 0.91),
-        (5, 0.91, 0.91),  # a 4-year-old funded for the summer term before reception
+        (5, 0.91, 0.91),  # born September to December, funded for the summer term before reception (aged 4 then)
         (6, None, None),
     ],
 )
@@ -60,6 +60,14 @@ def test_rate_by_dfe_age_at_the_boundaries(dfe_age, dfe, centax):
             assert np.isnan(got)
         else:
             assert got == expected
+
+
+def test_dfe_age_5_keeps_the_3_and_4_rate_on_every_child_level_basis():
+    # DfE age 5 (the summer term before reception) is in DfE's 3-and-4 group, not a band of its own.
+    for spec in TAKE_UP_BASES.values():
+        if spec["unit"] == "child":
+            rates = spec["rates_by_dfe_age"]
+            assert rates[5] == rates[4] == rates[3]
 
 
 def test_the_two_child_level_bases_differ_only_under_3():

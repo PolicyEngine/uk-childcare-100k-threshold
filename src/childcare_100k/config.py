@@ -110,12 +110,14 @@ EXPECTED_SCENARIOS = {
 # age are the headline: they are official and by age, and most of the cost is for under-3s, where the flat contract
 # rate (83.6%) is well above DfE's at 9-11 months and age 1 (42%, 70%) and about level at 2 (84%). DfE's and
 # CenTax's rates are child-level take-up (registered children over DfE's estimate of eligible children), so they
-# include whether the family claims and whether the child uses the hours. Each applies to each child's change in funded hours in the claim-and-use pair above (every family
-# claiming, every child using its hours), by the child's DfE age: its age on 31 December of the model year (the
-# year less policyengine-uk's ``birth_year``), the age DfE's January census counts it by. DfE age 0 is the
-# 9-11-month-olds of the spring term; a 4-year-old funded only for the summer term before reception has DfE age 5
-# and takes the 3-and-4 rate. The contract basis is the expected mode of #7: the take-up contract's flat family
-# rate on the claim-all pair, with every family's hours as drawn.
+# include whether the family claims and whether the child uses the hours. Each applies to each child's change in
+# funded hours in the claim-and-use pair above (every family claiming, every child using its hours), by the child's
+# DfE age: its age on 31 December of the model year (the year less policyengine-uk's ``birth_year``), the age DfE's
+# January census counts it by. DfE age 0 is the 9-11-month-olds of the spring term; a child born September to
+# December who is funded for the summer term before it starts reception (aged 4 then) has DfE age 5 and takes the
+# 3-and-4 rate. DfE's caveats on the rates (provisional; parental leave; 2-year-olds) are in docs/METHOD.md. The
+# contract basis is the expected mode of #7: the take-up contract's flat family rate on the claim-all pair, with
+# every family's hours as drawn.
 DFE_TAKE_UP_URL = (
     "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025"
 )
@@ -131,13 +133,15 @@ TAKE_UP_BASES = {
         "unit": "child",
         # Estimated % of eligible children registered, January 2025 ("Funded early education and childcare",
         # reporting year 2025, published 31 July 2025; formerly "Education provision: children under 5 years of age").
+        # DfE age 5 (the summer term before reception) is in DfE's 3-and-4 group, so on every basis it keeps the
+        # rate of ages 3 and 4 (tests/test_take_up.py checks it).
         "rates_by_dfe_age": {0: 0.42, 1: 0.70, 2: 0.84, 3: 0.91, 4: 0.91, 5: 0.91},
         "source": "DfE, Funded early education and childcare, January 2025",
         "source_url": DFE_TAKE_UP_URL,
         "pair": ("baseline_claim_use_all", "reform_claim_use_all"),
     },
     "centax": {
-        "label": "CenTax, under and over 3",
+        "label": "CenTax, under 3 and 3-4",
         "description": "CenTax's assumption: 73% of children under 3 and 91% of 3- and 4-year-olds (DfE's 2025 "
                        "take-up for the two groups), child by child",
         "unit": "child",

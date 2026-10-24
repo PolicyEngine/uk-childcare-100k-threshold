@@ -172,9 +172,13 @@ LIMITATIONS = [
     "Take-up of the 30 hours among newly eligible families is DfE's January 2025 take-up among all eligible "
     "children, by age. Nothing measures it for families over £100,000, who are not eligible today: they may use "
     "formal childcare more than average, which would raise it, or claim less where the hours are worth little to "
-    "them. CenTax's two rates and the dataset's flat rate are on Budget impact; the breakdowns by family, income "
-    "and region, who gains by age, the range's adjustments and the labour supply offsets are measured on the "
-    "dataset's single take-up draw.",
+    "them. DfE says its 2025 rates should be treated with caution and will be revised next year; its estimate of "
+    "eligible 9-11-month-olds does not account for maternity or paternity leave; and its 2-year-olds under the "
+    "working-parent entitlement include some who should have been recorded under the disadvantaged 2-year-old "
+    "offer, which may put the 84% too high. The under-3 rates were measured on the 15-hour offer, before it rose "
+    "to 30 hours in September 2025; take-up of 30 hours may differ. CenTax's two rates and the dataset's flat rate "
+    "are on Budget impact; the breakdowns by family, income and region, who gains by age, the range's adjustments "
+    "and the labour supply offsets are measured on the dataset's single take-up draw.",
     "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell "
     "would be suppressed a second is suppressed with it (or the whole breakdown, if no second cell can protect it), "
     "so no suppressed cell can be recovered from the published UK totals.",
@@ -283,8 +287,9 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
                         f"{_rates_text(TAKE_UP_BASES['dfe'])}), by its age on 31 December, as DfE's census counts it. "
                         "These rates already count whether a family applies and whether the child uses the hours, so "
                         "they replace the dataset's claim and under-2 usage draws rather than adding to them; the "
-                        "hours a week a child who uses them takes are the dataset's draw. Tax-Free Childcare is paid "
-                        "on the care the new hours replace with the same chance. Most of the cost is for under-3s; the "
+                        "hours a week a child who uses them takes are the dataset's draw. A child who takes up the new "
+                        "hours gets no Tax-Free Childcare on the care they replace; one who does not keeps its top-up "
+                        "(each weighted by the take-up chance). Most of the cost is for under-3s; the "
                         "flat rate is well above DfE's at 9-11 months and age 1 (42% and 70%), about level at 2 (84%) "
                         "and below it at 3 and 4 (91%). Budget impact switches between DfE's rates, CenTax's two "
                         "rates and the flat rate.",
@@ -309,9 +314,10 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
             "source": _src("Microcosm take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
             "modelled": "The alternative is the expected mode before the take-up bases: the cost averaged over the "
                         f"dataset's draw at the contract's flat rate, {EXTENDED_TAKE_UP_RATE:.1%} of families, with "
-                        "the dataset's draws of the hours used, and Tax-Free Childcare on the care the new hours "
-                        "replace weighted by the same rate. Each percentage point of that rate moves the 30 hours' "
-                        "cost by the amount on Budget impact.",
+                        "the dataset's draws of the hours used. A family that takes up the new hours gets no "
+                        "Tax-Free Childcare on the care they replace; one that does not keeps its top-up (each "
+                        "weighted by the rate). Each percentage point of that rate moves the 30 hours' cost by the "
+                        "amount on Budget impact.",
             "sources": [
                 _src("Microcosm take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
                 _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
@@ -473,8 +479,8 @@ def take_up_block(bases, recipients, expected, net_total, range_bn):
 TAKE_UP_AGE_NOTE = (
     "A child-level rate applies by the child's DfE age: its age on 31 December of the year (the year less its birth "
     "year), the age DfE's January census counts it by. DfE age 0 is the 9-11-month-olds funded from the spring term; "
-    "a 4-year-old funded only for the summer term before reception has DfE age 5 and takes the 3-and-4 rate. Each "
-    "child takes up the hours independently of its siblings."
+    "a child born September to December who is funded for the summer term before it starts reception (aged 4 then) "
+    "has DfE age 5 and takes the 3-and-4 rate. Each child takes up the hours independently of its siblings."
 )
 
 
