@@ -424,7 +424,8 @@ describe("the take-up control", () => {
     expect(step.id).toBe("take-up-method");
     expect(step.textContent).toContain(`£${basis("contract").per_point_m[lead]}m`);
     expect(within(step).getByRole("link", { name: "Budget impact" }).getAttribute("href")).toBe("?tab=budget#take-up-options");
-    expect(within(step).getByRole("link", { name: "Who takes up the 30 hours" }).getAttribute("href")).toBe("#assumptions");
+    expect(within(step).getByRole("link", { name: "Who takes up the 30 hours" }).getAttribute("href")).toBe("#take-up-rates");
+    expect(document.getElementById("take-up-rates").closest("details")).not.toBeNull();
   });
 
   it("groups the boxes under the range chart and links to the take-up and age notes on Methodology", () => {

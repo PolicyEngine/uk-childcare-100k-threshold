@@ -217,7 +217,7 @@ function AssumptionNotes({ rows, takeUp }) {
   return (
     <div className="space-y-3">
       {rows.map((r) => (
-        <div key={r.id}>
+        <div key={r.id} id={r.id === "take_up" ? "take-up-rates" : undefined}>
           <p>
             <span className="font-semibold text-slate-700">{r.title}. </span>
             <RichText text={r.modelled} />{" "}
@@ -539,7 +539,7 @@ function TakeUpDetail({ data }) {
         </li>
         <li>
           The rates, why DfE&apos;s rates by age are the headline, and how they compare with the flat rate by age
-          are under <a href="#assumptions">Who takes up the 30 hours</a> in the comparison below;{" "}
+          are under <a href="#take-up-rates">Who takes up the 30 hours</a> in the comparison below;{" "}
           <a href="?tab=budget#take-up-options">Budget impact</a> switches between the options.
         </li>
       </ul>
@@ -706,6 +706,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
 
       <Section
         id="assumptions"
+        grouped
         title="How do we compare with other estimates?"
         lead={`Our costing set against CenTax's, the Conservatives' figure, and the official sources and law, first on the cost and then on each modelling choice. The "If we change it" column shows how much the cost moves in ${fyLabel(meta.years.at(-1))} when we rerun with the alternative described under More detail; each change is separate and they do not add up.`}
         details={
@@ -724,6 +725,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
 
       <Section
         id="validation"
+        grouped
         title="Baseline validation"
         lead="How the model's picture of today, before any reform, compares with official statistics."
         details={

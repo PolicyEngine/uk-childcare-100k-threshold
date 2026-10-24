@@ -487,6 +487,7 @@ function GenderSection({ data, year }) {
   return (
     <Section
       id="gender"
+        grouped
       title="Is it mothers or fathers who are over the limit?"
       lead={`Families gaining in ${fy}, by which parent earns over £100,000.${
         fatherShare !== null ? ` In ${fatherShare}% of them it is the father alone.` : ""

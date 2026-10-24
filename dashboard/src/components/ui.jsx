@@ -158,7 +158,24 @@ export function Panel({ children, className = "", footer, footerTitle = "More de
  * One section of a tab: a title, a one-line takeaway, the content in a box, and the longer explanation closed
  * underneath. Sections are divided by a rule so a tab reads as a short list of separate parts.
  */
-export function Section({ id, title, lead, details, detailsTitle = "More detail", children, boxed = true }) {
+export function Section({ id, title, lead, details, detailsTitle = "More detail", children, boxed = true, grouped = false }) {
+  // A section whose content is itself a closed box: it and the longer explanation stack as one group of boxes.
+  if (grouped) {
+    return (
+      <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
+        {lead ? <p className="mt-2 text-[0.95rem] leading-6 text-slate-600">{lead}</p> : null}
+        <ExpandableGroup className="mt-5">
+          {children}
+          {details ? (
+            <Expandable title={detailsTitle}>
+              <div className="space-y-2 text-sm leading-6 text-slate-600">{details}</div>
+            </Expandable>
+          ) : null}
+        </ExpandableGroup>
+      </section>
+    );
+  }
   return (
     <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
       <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>

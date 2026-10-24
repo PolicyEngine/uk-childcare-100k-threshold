@@ -636,6 +636,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
 
       <Section
         id="schemes"
+        grouped
         title="What changes for each scheme?"
         lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
       >
