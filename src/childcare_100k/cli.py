@@ -396,8 +396,8 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
         {
             "id": "tfc_take_up",
             "title": "Who claims Tax-Free Childcare",
-            "ours": f"{int(etfc['families_with_child_under_12'] + 0.5)}% of families carry a Tax-Free Childcare claim "
-                    "flag, but only those reporting paid registered childcare get a top-up",
+            "ours": "Families get a top-up only if they report paid registered childcare; "
+                    f"{int(etfc['families_with_child_under_12'] + 0.5)}% are set to claim",
             "source_says": "Dataset draws, calibrated in Microcosm's take-up contract",
             "source": _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
             "modelled": "The Tax-Free Childcare draw is a claim flag fitted to "
