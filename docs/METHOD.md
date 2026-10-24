@@ -80,16 +80,16 @@ The low and high ends add the sensitivities above to the central estimate: the h
 
 ## Sampling uncertainty
 
-`budget.uncertainty` is a bootstrap over FRS source households (`aggregate.bootstrap`): `household_source_id`, read from the pinned release and joined to the simulated households through their person ids, identifies each FRS household, and each of the 2,000 draws resamples the source households with replacement, each with all its Microcosm copies (SPI, high-value-home and CGT copies), the release weights fixed. It holds the calibration fixed and ignores the FRS's clustering, so it is a floor on the sampling uncertainty, not the full sampling error.
+`budget.uncertainty` is a bootstrap over FRS source households (`aggregate.bootstrap`): `household_source_id`, read from the pinned release and joined to the simulated households through their person ids, identifies each FRS household, and each of the 2,000 draws resamples the source households with replacement, each with all its Microcosm copies (SPI, high-value-home and CGT copies), the release weights fixed, for every costed year. It holds the calibration fixed and ignores the FRS's clustering, so it is a floor on the sampling uncertainty, not the full sampling error.
 
-| £bn | 2027-28 | 2029-30 |
-|---|---|---|
-| 30 hours, DfE's take-up by age: SD (5th-95th percentile) | 0.137 (0.686-1.138) | 0.144 (0.811-1.284) |
-| Tax-Free Childcare, DfE's take-up by age: SD | 0.026 | 0.026 |
-| Total, DfE's take-up by age: SD (5th-95th percentile) | 0.155 (0.800-1.308) | 0.161 (0.945-1.482) |
-| 30 hours, CenTax's rates: SD (5th-95th percentile) | 0.135 (0.665-1.113) | 0.142 (0.786-1.257) |
-| 30 hours, the contract's flat rate: SD (5th-95th percentile) | 0.145 (0.699-1.179) | 0.153 (0.826-1.332) |
-| 30 hours, single draw: SD (5th-95th percentile) | 0.165 (0.725-1.276) | 0.173 (0.855-1.419) |
+| £bn | 2026-27 | 2027-28 | 2028-29 | 2029-30 |
+|---|---|---|---|---|
+| 30 hours, DfE's take-up by age: SD (5th-95th percentile) | 0.130 (0.640-1.068) | 0.137 (0.686-1.138) | 0.139 (0.728-1.182) | 0.144 (0.811-1.284) |
+| Tax-Free Childcare, DfE's take-up by age: SD | 0.026 | 0.026 | 0.026 | 0.026 |
+| Total, DfE's take-up by age: SD (5th-95th percentile) | 0.148 (0.750-1.231) | 0.155 (0.800-1.308) | 0.156 (0.853-1.363) | 0.161 (0.945-1.482) |
+| 30 hours, CenTax's rates: SD (5th-95th percentile) | 0.128 (0.619-1.041) | 0.135 (0.665-1.113) | 0.137 (0.707-1.150) | 0.142 (0.786-1.257) |
+| 30 hours, the contract's flat rate: SD (5th-95th percentile) | 0.138 (0.651-1.103) | 0.145 (0.699-1.179) | 0.147 (0.743-1.221) | 0.153 (0.826-1.332) |
+| 30 hours, single draw: SD (5th-95th percentile) | 0.157 (0.676-1.189) | 0.165 (0.725-1.276) | 0.167 (0.767-1.313) | 0.173 (0.855-1.419) |
 
 On the single draw it reproduces the Microcosm team's bootstrap on a133f37a ([#8](https://github.com/PolicyEngine/uk-childcare-100k-threshold/pull/8#issuecomment-6370235552): SD about £0.16bn and £0.17bn, 5th-95th £0.73-1.27bn and £0.85-1.42bn). Averaging over take-up removes part of the spread: on DfE's rates the 30 hours' SD is about £0.03bn smaller than on the single draw, and every basis is resampled with the same draws. On the single draw the 30-hours cost in 2027-28 rests on about 170 FRS households, an effective number of about 40 (Kish, over their shares of the cost); the ten largest gaining families carry 31% of it (`reconciliation.concentration`). CenTax's static £0.80bn and £0.98bn lie inside both years' ranges.
 

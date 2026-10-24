@@ -114,7 +114,9 @@ def test_validation_benchmarks_cliff():
     assert c["year"] == 2027
     b = RESULTS["benchmarks"][0]
     assert b["source"] == "Conservative Party" and _number(b["ours"]) and b["url"].startswith("https://")
-    assert all(isinstance(s, str) for s in RESULTS["limitations"])
+    for lim in RESULTS["limitations"]:
+        assert set(lim) == {"title", "summary", "detail"} and all(isinstance(v, str) for v in lim.values())
+        assert lim["title"] and lim["summary"].endswith(".")
 
 
 # ── Totals add up ──────────────────────────────────────────────────────────
@@ -223,7 +225,7 @@ def test_contract_gap_by_dfe_age_adds_up():
 def test_bootstrap_brackets_the_headline():
     u = RESULTS["budget"]["uncertainty"]
     assert u["draws"] == 2000
-    assert set(u["by_year"]) == {"2027", "2029"}
+    assert list(u["by_year"]) == [str(y) for y in RESULTS["meta"]["years"]]
     bases = RESULTS["budget"]["take_up"]["bases"]
     for y, v in u["by_year"].items():
         assert "expected" not in v  # one block per take-up basis instead
@@ -388,7 +390,7 @@ def test_benchmark_and_take_up_wording():
     assert "like-for-like comparison is our static cost of the 30 funded hours" in b["like_for_like"]
     assert b["ours"] == RESULTS["budget"]["gross_bn"]["thirty_hours"][str(b["year"])]
     assert "CenTax" in b["like_for_like"] and b["underlying_source_url"].startswith("https://centax.org.uk/")
-    text = " ".join(RESULTS["limitations"])
+    text = " ".join(f"{x['summary']} {x['detail']}" for x in RESULTS["limitations"])
     assert "same for families above and below" not in text
     assert "expects" in text  # the realised-for-expected income proxy is disclosed
 
@@ -499,3 +501,11 @@ def test_gender_breakdown_adds_up_and_is_suppressed_safely(year):
     for p in g["partner_not_working"]:
         if not p["suppressed"]:
             assert 0 <= p["partner_not_working_pct"] <= 100
+
+
+def test_limitation_splits_at_the_first_sentence():
+    from childcare_100k.cli import limitation
+
+    t = "Rule (SI 2015/448 reg 15(1)). Then pp. 5-6 here. Last."
+    assert limitation("T", t) == {"title": "T", "summary": "Rule (SI 2015/448 reg 15(1)).", "detail": "Then pp. 5-6 here. Last."}
+    assert limitation("T", "One sentence.")["detail"] == ""

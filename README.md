@@ -23,8 +23,8 @@ Static gross cost, £bn a year (positive = extra government spending), led by 20
 | 30 funded hours | 0.84 | 0.90 | 0.95 | 1.04 |
 | Tax-Free Childcare | 0.14 | 0.14 | 0.15 | 0.16 |
 | Range (low to high) | 0.98-1.03 | 1.04-1.10 | 1.10-1.17 | 1.19-1.26 |
-| 30 hours: bootstrap SD (5th-95th percentile) | | 0.14 (0.69-1.14) | | 0.14 (0.81-1.28) |
-| Total: bootstrap SD (5th-95th percentile) | | 0.15 (0.80-1.31) | | 0.16 (0.94-1.48) |
+| 30 hours: bootstrap SD (5th-95th percentile) | 0.13 (0.64-1.07) | 0.14 (0.69-1.14) | 0.14 (0.73-1.18) | 0.14 (0.81-1.28) |
+| Total: bootstrap SD (5th-95th percentile) | 0.15 (0.75-1.23) | 0.15 (0.80-1.31) | 0.16 (0.85-1.36) | 0.16 (0.94-1.48) |
 | 30 hours on the dataset's single take-up draw | 0.92 | 0.98 | 1.04 | 1.12 |
 | Tax-Free Childcare if 70% of newly eligible families claim | 0.09 | 0.10 | 0.11 | 0.11 |
 
