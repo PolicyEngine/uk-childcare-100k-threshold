@@ -90,17 +90,21 @@ export function Explainer({ children }) {
   );
 }
 
-/** A box closed by default; the title stays visible and opens the content. */
-export function Expandable({ title, children, testId }) {
+/** A box closed by default; the title stays visible and opens the content. `compact` for a smaller box in a list. */
+export function Expandable({ title, children, testId, id, compact = false, className = "" }) {
   return (
-    <details className="expandable group" data-testid={testId}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-slate-800">
+    <details className={`expandable group ${className}`} data-testid={testId} id={id}>
+      <summary
+        className={`flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-slate-800 ${
+          compact ? "px-4 py-2.5 text-sm" : "px-4 py-3"
+        }`}
+      >
         <span>{title}</span>
         <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-90">
           ›
         </span>
       </summary>
-      <div className="border-t border-slate-200 px-4 py-4">{children}</div>
+      <div className={`border-t border-slate-200 ${compact ? "px-3 py-3 sm:px-4" : "px-4 py-4"}`}>{children}</div>
     </details>
   );
 }
@@ -244,8 +248,17 @@ export function TabLayout({ sections, children }) {
   );
 }
 
-/** A labelled drop-down for choosing one option, styled to match the page. */
-export function Select({ label, options, value, onChange }) {
+/** The id of the box on Budget impact that explains the take-up options; other mentions of the rates link to it. */
+export const TAKE_UP_OPTIONS_ID = "take-up-options";
+
+/** Opens a closed <details> box (an Expandable) before a link to it scrolls there. */
+export function openDetails(id) {
+  const el = typeof document === "undefined" ? null : document.getElementById(id);
+  if (el && el.tagName === "DETAILS") el.open = true;
+}
+
+/** A labelled drop-down for choosing one option, styled to match the page; `ariaLabel` names it more fully. */
+export function Select({ label, options, value, onChange, ariaLabel, testId }) {
   return (
     <label className="flex items-center gap-2 text-sm text-slate-600">
       <span className="font-medium">{label}</span>
@@ -258,7 +271,8 @@ export function Select({ label, options, value, onChange }) {
             if (!option) throw new Error(`Select ${label}: no option ${e.target.value}`);
             onChange(option.id);
           }}
-          aria-label={label}
+          aria-label={ariaLabel ?? label}
+          data-testid={testId}
         >
           {options.map((o) => (
             <option key={o.id} value={o.id}>

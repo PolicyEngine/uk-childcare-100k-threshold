@@ -7,6 +7,7 @@ import WhoGainsTab from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import {
   fyLabel,
+  LEAD_YEAR,
   getLabourSupply,
   getMeta,
   getTakeUp,
@@ -19,7 +20,8 @@ import {
   parseTakeUp,
   takeUpParams,
 } from "../lib/dataHelpers";
-import { TabLayout } from "./ui";
+import { Expandable, Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
+import { formatBn } from "../lib/formatters";
 
 export const TAB_OPTIONS = [
   { id: "budget", label: "Budget impact" },
@@ -189,63 +191,59 @@ export function LabourSupplyControl({ data, setting, onChange }) {
   );
 }
 
+/** A take-up option's name in the selector: its short label, marked when it is the headline. */
+export function takeUpOptionName(t, id) {
+  return `${t.bases[id].short_label}${id === t.headline ? " (headline)" : ""}`;
+}
+
 /**
- * Who takes up the 30 hours among newly eligible children: one choice of three, the headline (DfE's rates by age)
- * selected by default. It changes the cost figures on Budget impact and the comparison on Methodology, so it sits
- * beside the labour supply control.
+ * Who takes up the 30 hours among newly eligible children: one drop-down, the headline (DfE's rates by age) chosen
+ * by default, each option showing the 30 hours' cost it gives in the first full year. What each option is, and its
+ * source, is in a closed box underneath; it is the one place on Budget impact that states the rates.
  */
 export function TakeUpControl({ data, basis, onChange }) {
   const t = getTakeUp(data);
+  const year = String(LEAD_YEAR);
+  const cost = (id) => formatBn(t.bases[id].gross_bn.thirty_hours[year], 2);
+  const options = t.order.map((id) => ({ id, label: `${takeUpOptionName(t, id)}: ${cost(id)}` }));
   return (
-    <fieldset className="mb-4" data-testid="take-up-control">
-      <legend className="mb-2 text-sm font-semibold text-slate-800">Who takes up the 30 hours among newly eligible families</legend>
-      <div className="grid gap-3 md:grid-cols-3" role="radiogroup" aria-label="30 hours take-up">
-        {t.order.map((id) => {
-          const b = t.bases[id];
-          const on = id === basis;
-          return (
-            <div
-              key={id}
-              className={`flex flex-col rounded-xl border px-4 py-2.5 transition-colors ${
-                on ? "border-[color:var(--pe-color-primary-600)] bg-[color:var(--pe-color-primary-50)]" : "border-slate-200 bg-white"
-              }`}
-            >
-              <button
-                type="button"
-                role="radio"
-                aria-checked={on}
-                aria-label={b.label}
-                data-testid={`take-up-${id}`}
-                onClick={() => onChange(id)}
-                className="flex w-full items-center justify-between gap-3 text-left"
-              >
-                <span>
-                  <span className="font-semibold text-slate-900">{b.label}</span>
-                  {id === t.headline ? (
-                    <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Headline</span>
-                  ) : null}
-                </span>
-                <span
-                  aria-hidden
-                  className={`inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${
-                    on ? "border-[color:var(--pe-color-primary-600)]" : "border-slate-300"
-                  }`}
-                >
-                  {on ? <span className="h-2 w-2 rounded-full bg-[color:var(--pe-color-primary-600)]" /> : null}
-                </span>
-              </button>
-              <p className="mt-0.5 text-sm leading-5 text-slate-600">{b.description}.</p>
-              <p className="mt-auto pt-1.5 text-xs text-slate-500">
-                Source:{" "}
-                <a href={b.source_url} target="_blank" rel="noreferrer" className="underline">
-                  {b.source}
-                </a>
-              </p>
-            </div>
-          );
-        })}
+    <div className="mb-4" data-testid="take-up-control">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Select
+          label="Take-up"
+          ariaLabel="Take-up of the 30 hours among newly eligible families"
+          options={options}
+          value={basis}
+          onChange={onChange}
+          testId="take-up-select"
+        />
+        <span className="text-xs text-slate-500">Each option&apos;s 30 hours cost in {fyLabel(LEAD_YEAR)}</span>
       </div>
-    </fieldset>
+      <Expandable title="About these take-up options" testId="take-up-options" id={TAKE_UP_OPTIONS_ID} compact className="mt-3">
+        <ul className="space-y-3 text-sm leading-5 text-slate-600">
+          {t.order.map((id) => {
+            const b = t.bases[id];
+            return (
+              <li key={id} data-testid={`take-up-option-${id}`} aria-current={id === basis ? "true" : undefined}>
+                <span className={`font-semibold ${id === basis ? "text-[color:var(--pe-color-primary-700)]" : "text-slate-800"}`}>
+                  {b.short_label}
+                </span>
+                {id === t.headline ? (
+                  <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Headline</span>
+                ) : null}
+                <span className="block">{b.description}.</span>
+                <span className="block text-xs text-slate-500">
+                  Source:{" "}
+                  <a href={b.source_url} target="_blank" rel="noreferrer" className="underline">
+                    {b.source}
+                  </a>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Expandable>
+    </div>
   );
 }
 
@@ -310,7 +308,7 @@ export function Dashboard({ data }) {
   }
 
   return (
-    <div className="app-shell min-h-screen">
+    <div className="app-shell min-h-screen overflow-x-clip">
       <header className="title-row">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4 md:px-10 lg:pl-24">
           <h1>Scrapping the childcare cliff edge</h1>

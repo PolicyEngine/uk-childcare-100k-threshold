@@ -11,11 +11,11 @@ const router = { replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => searchParams }));
 
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
-import LandingTab from "./LandingTab";
+import LandingTab, { rangeChartRows } from "./LandingTab";
 import { CENTAX } from "./Comparison";
 import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
-import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
+import { cliffSummary, getHouseholdGrid, getUncertainty, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
 import { formatBn, formatMoneyBn, formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
@@ -361,41 +361,72 @@ describe("the labour supply control", () => {
 describe("the take-up control", () => {
   const lead = String(LEAD_YEAR);
   const basis = (id) => takeUp.bases[id];
+  const select = () => screen.getByTestId("take-up-select");
+  const choose = (id) => fireEvent.change(select(), { target: { value: id } });
 
-  it("opens on the headline, DfE's rates by age, and offers every basis with its label and source", () => {
+  it("opens on the headline, DfE's rates by age, with each option's 30 hours cost in the drop-down", () => {
     render(<Dashboard data={data} />);
-    const control = screen.getByTestId("take-up-control");
-    expect(within(control).getAllByRole("radio")).toHaveLength(takeUp.order.length);
-    for (const id of takeUp.order) expect(within(control).getByRole("radio", { name: basis(id).label })).toBeTruthy();
-    expect(screen.getByTestId(`take-up-${takeUp.headline}`).getAttribute("aria-checked")).toBe("true");
-    for (const id of takeUp.order) {
-      expect(control.textContent).toContain(basis(id).label);
-      expect(within(control).getByRole("link", { name: basis(id).source }).getAttribute("href")).toBe(basis(id).source_url);
+    expect(screen.getByLabelText("Take-up of the 30 hours among newly eligible families")).toBe(select());
+    expect(select().value).toBe(takeUp.headline);
+    const options = within(select()).getAllByRole("option");
+    expect(options.map((o) => o.value)).toEqual(takeUp.order);
+    for (const [k, id] of takeUp.order.entries()) {
+      expect(options[k].textContent).toContain(basis(id).short_label);
+      expect(options[k].textContent).toContain(bn(basis(id).gross_bn.thirty_hours[lead]));
     }
+    expect(options[takeUp.order.indexOf(takeUp.headline)].textContent).toContain("(headline)");
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(LEAD_YEAR)));
+  });
+
+  it("explains every option once, with its source, in a box closed by default", () => {
+    render(<Dashboard data={data} />);
+    const box = screen.getByTestId("take-up-options");
+    expect(box.tagName).toBe("DETAILS");
+    expect(box.open).toBe(false);
+    for (const id of takeUp.order) {
+      const item = within(box).getByTestId(`take-up-option-${id}`);
+      expect(item.textContent).toContain(basis(id).description);
+      expect(within(item).getByRole("link", { name: basis(id).source }).getAttribute("href")).toBe(basis(id).source_url);
+    }
+    // DfE's rates appear once on Budget impact: in this box ("42% at 9-11 months" is the first of them).
+    const first = basis(takeUp.headline).rates_text.split(",")[0];
+    expect(document.body.textContent.split(first).length - 1).toBe(1);
   });
 
   it.each(["centax", "contract"])("switches the headline figures to %s and keeps it in the URL", (id) => {
     router.replace.mockClear();
     render(<Dashboard data={data} />);
-    fireEvent.click(screen.getByTestId(`take-up-${id}`));
-    expect(screen.getByTestId(`take-up-${id}`).getAttribute("aria-checked")).toBe("true");
+    choose(id);
+    expect(select().value).toBe(id);
     const g = basis(id).gross_bn;
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(g.total[lead]));
     expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[lead])} and ${bn(g.tax_free_childcare[lead])}`);
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(basis(id).recipients[lead].families_gaining));
-    expect(screen.getByTestId("uncertainty-table").textContent).toContain(basis(id).label);
-    expect(screen.getByTestId("take-up-note").textContent).toContain(basis(id).source);
+    expect(screen.getByTestId("uncertainty-table").textContent).toContain(basis(id).short_label);
+    expect(screen.getByTestId("range-legend-central").textContent).toContain(basis(id).short_label);
+    expect(screen.getByTestId("take-up-note").textContent).toContain(basis(id).short_label);
     expect(router.replace).toHaveBeenLastCalledWith(`/?takeup=${id}`, { scroll: false });
     // Back to the headline: the URL is clean again.
-    fireEvent.click(screen.getByTestId(`take-up-${takeUp.headline}`));
+    choose(takeUp.headline);
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(LEAD_YEAR)));
     expect(router.replace).toHaveBeenLastCalledWith("/", { scroll: false });
   });
 
+  it("gives the per-point effect only on the flat rate, and links the rates to the options box", () => {
+    render(<Dashboard data={data} />);
+    const note = () => screen.getByTestId("take-up-note");
+    expect(note().textContent).not.toContain("percentage point");
+    const link = within(note()).getByRole("link", { name: "the take-up for its age" });
+    expect(link.getAttribute("href")).toBe("#take-up-options");
+    fireEvent.click(link);
+    expect(screen.getByTestId("take-up-options").open).toBe(true);
+    choose("contract");
+    expect(note().textContent).toContain(`£${basis("contract").per_point_m[lead]}m`);
+  });
+
   it("adds the labour supply response to the chosen basis's cost", () => {
     render(<Dashboard data={data} />);
-    fireEvent.click(screen.getByTestId("take-up-centax"));
+    choose("centax");
     fireEvent.click(screen.getByTestId("toggle-intensive"));
     const cost = basis("centax").gross_bn.total[lead] - data.labour_supply.intensive.offset_bn.central[lead];
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
@@ -405,7 +436,7 @@ describe("the take-up control", () => {
     searchParams.set("takeup", "contract");
     try {
       render(<Dashboard data={data} />);
-      expect(screen.getByTestId("take-up-contract").getAttribute("aria-checked")).toBe("true");
+      expect(select().value).toBe("contract");
       expect(screen.getByTestId("card-cost").textContent).toContain(bn(basis("contract").gross_bn.total[lead]));
       fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
       expect(screen.queryByTestId("take-up-control")).toBeNull();
@@ -427,7 +458,32 @@ describe("the take-up control", () => {
     const g = takeUp.bases[takeUp.headline].gross_bn;
     expect(textOf(<LandingTab data={data} />)).toContain(bn(g.total[lead]));
     expect(textOf(<MethodTab data={data} />)).toContain(bn(g.total[String(final)]));
-    expect(textOf(<MethodTab data={data} />)).toContain(basis(takeUp.headline).rates_text);
+    // On Methodology the rates are stated once, in the comparison table's take-up row.
+    const method = textOf(<MethodTab data={data} />);
+    expect(method.split(basis(takeUp.headline).rates_text).length - 1).toBe(1);
+  });
+});
+
+describe("the range chart", () => {
+  it("draws, for each year, the 30 hours and both schemes from the file, with CenTax and the single draw on the 30 hours", () => {
+    const u = data.budget.uncertainty.by_year;
+    const centax = data.benchmarks[0].underlying_static_by_year_bn;
+    const rows = rangeChartRows(getUncertainty(data), centax);
+    expect(rows).toHaveLength(2 * Object.keys(u).length);
+    for (const [y, v] of Object.entries(u)) {
+      const [thirty, both] = rows.filter((r) => r.key.startsWith(y));
+      expect(thirty.range).toEqual([v[takeUp.headline].thirty_hours.p5_bn, v[takeUp.headline].thirty_hours.p95_bn]);
+      expect(both.range).toEqual([v[takeUp.headline].total.p5_bn, v[takeUp.headline].total.p95_bn]);
+      expect(thirty.central).toBe(takeUp.bases[takeUp.headline].gross_bn.thirty_hours[y]);
+      expect(both.central).toBe(takeUp.bases[takeUp.headline].gross_bn.total[y]);
+      expect(thirty.centax).toBe(centax[y]);
+      expect(thirty.single).toBe(data.budget.single_draw_bn.thirty_hours[y]);
+      expect(both.centax).toBeNull();
+    }
+    render(<LandingTab data={data} />);
+    const chart = screen.getByTestId("range-chart");
+    expect(within(chart).getByRole("img").getAttribute("aria-describedby")).toBe("range-chart-desc");
+    expect(document.getElementById("range-chart-desc").textContent).toContain(bn(rows[0].range[0]));
   });
 });
 

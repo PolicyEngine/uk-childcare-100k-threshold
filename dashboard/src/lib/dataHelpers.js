@@ -186,7 +186,7 @@ export function getTakeUp(data) {
   for (const id of t.order) {
     const b = t.bases[id];
     const block = `budget.take_up.bases.${id}`;
-    if (![b?.label, b?.description, b?.source, b?.source_url].every(isText)) fail(block, "label, description or source missing");
+    if (![b?.label, b?.short_label, b?.description, b?.source, b?.source_url].every(isText)) fail(block, "label, description or source missing");
     if (b.unit === "family") {
       if (!isNum(b.rate) || b.rate <= 0 || b.rate > 1) fail(`${block}.rate`, "invalid");
       byYear(b.per_point_m, years, `${block}.per_point_m`);
