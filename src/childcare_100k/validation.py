@@ -112,7 +112,6 @@ def rows_for(runs):
                VALIDATION_YEAR + 1: ("ey_funding_bn", DFE_FUNDING_SOURCE, DFE_FUNDING_URL)}
     h = runs["baseline_hours30"]
     for year, (key, source, url) in funding.items():
-        source = source + " (sum of the illustrative totals by age)"
         out.append(_row("Free early years entitlements spending (all three entitlements)", year,
                         round(_total(b(year, "hh_free"), b(year, "hh_weight")) / BN, 2), OFFICIAL[key], "£bn",
                         source, url, lab,
@@ -127,7 +126,7 @@ def rate_rows(runs):
     b = runs["baseline"]
     y = VALIDATION_YEAR + 1
     rates = b(y, "rate_by_age")
-    src = DFE_FUNDING_SOURCE + " (national average hourly rate)"
+    src = DFE_FUNDING_SOURCE
     return [
         _row("Hourly funding rate, under-2s", y, round(float(rates[1]), 2), OFFICIAL["rate_under_2"], "£/hour", src,
              DFE_FUNDING_URL, "parameters"),
