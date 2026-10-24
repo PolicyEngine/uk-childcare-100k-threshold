@@ -20,7 +20,7 @@ import {
   parseTakeUp,
   takeUpParams,
 } from "../lib/dataHelpers";
-import { Expandable, Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
+import { Expandable, ExpandableGroup, ExpandableRow, Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
 import { formatBn } from "../lib/formatters";
 
 export const TAB_OPTIONS = [
@@ -212,7 +212,7 @@ export function takeUpOptionName(t, id) {
 /**
  * Who takes up the 30 hours among newly eligible children: one drop-down, the headline (DfE's rates by age) chosen
  * by default, each option showing the 30 hours' cost it gives in the first full year. What each option is, and its
- * source, is in a closed box underneath; it is the one place on Budget impact that states the rates.
+ * source, is in a closed row underneath, in the same box; it is the one place on Budget impact that states the rates.
  */
 export function TakeUpControl({ data, basis, onChange }) {
   const t = getTakeUp(data);
@@ -220,8 +220,8 @@ export function TakeUpControl({ data, basis, onChange }) {
   const cost = (id) => formatBn(t.bases[id].gross_bn.thirty_hours[year], 2);
   const options = t.order.map((id) => ({ id, label: `${takeUpOptionName(t, id)}: ${cost(id)}` }));
   return (
-    <div className="mb-4" data-testid="take-up-control">
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+    <ExpandableGroup className="mb-4" testId="take-up-control">
+      <ExpandableRow compact testId="take-up-row">
         <Select
           label="Take-up"
           ariaLabel="Take-up of the 30 hours among newly eligible families"
@@ -229,10 +229,13 @@ export function TakeUpControl({ data, basis, onChange }) {
           value={basis}
           onChange={onChange}
           testId="take-up-select"
+          nowrapLabel
         />
+      </ExpandableRow>
+      <ExpandableRow compact testId="take-up-cost-note">
         <span className="text-xs text-slate-500">Each option&apos;s 30 hours cost in {fyLabel(LEAD_YEAR)}</span>
-      </div>
-      <Expandable title="About these take-up options" testId="take-up-options" id={TAKE_UP_OPTIONS_ID} compact className="mt-3">
+      </ExpandableRow>
+      <Expandable title="About these take-up options" testId="take-up-options" id={TAKE_UP_OPTIONS_ID} compact>
         <ul className="space-y-3 text-sm leading-5 text-slate-600">
           {t.order.map((id) => {
             const b = t.bases[id];
@@ -256,7 +259,7 @@ export function TakeUpControl({ data, basis, onChange }) {
           })}
         </ul>
       </Expandable>
-    </div>
+    </ExpandableGroup>
   );
 }
 

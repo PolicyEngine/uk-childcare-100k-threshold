@@ -310,11 +310,14 @@ export function openDetails(id) {
   if (el && el.tagName === "DETAILS") el.open = true;
 }
 
-/** A labelled drop-down for choosing one option, styled to match the page; `ariaLabel` names it more fully. */
-export function Select({ label, options, value, onChange, ariaLabel, testId }) {
+/**
+ * A labelled drop-down for choosing one option, styled to match the page; `ariaLabel` names it more fully. `nowrapLabel`
+ * keeps a short label on one line in a narrow box.
+ */
+export function Select({ label, options, value, onChange, ariaLabel, testId, nowrapLabel = false }) {
   return (
     <label className="flex items-center gap-2 text-sm text-slate-600">
-      <span className="font-medium">{label}</span>
+      <span className={`font-medium ${nowrapLabel ? "shrink-0 whitespace-nowrap" : ""}`}>{label}</span>
       <span className="relative">
         <select
           className="cursor-pointer appearance-none rounded-full border border-slate-200 bg-white py-1.5 pl-4 pr-9 text-sm font-medium text-slate-800 shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/30"
