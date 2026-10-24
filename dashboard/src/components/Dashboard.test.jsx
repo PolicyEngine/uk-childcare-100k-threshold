@@ -417,8 +417,11 @@ describe("the take-up control", () => {
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(g.total[lead]));
     expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[lead])} and ${bn(g.tax_free_childcare[lead])}`);
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(basis(id).recipients[lead].families_gaining));
-    expect(screen.getByTestId("uncertainty-table").textContent).toContain(basis(id).short_label);
-    expect(screen.getByTestId("range-legend-central").textContent).toContain(basis(id).short_label);
+    const phrase = { centax: "CenTax's take-up rates", contract: "one flat take-up rate" }[id];
+    expect(screen.getByTestId("uncertainty-table").textContent).toContain(`With ${phrase}`);
+    expect(screen.getByTestId("range-legend-central").textContent).toBe(`Our estimate, with ${phrase}`);
+    expect(document.getElementById("uncertainty").textContent).toContain(`using ${phrase}`);
+    if (id === "centax") expect(screen.getByTestId("range-legend-centax").textContent).toBe("CenTax's own estimate (static)");
     expect(router.replace).toHaveBeenLastCalledWith(`/?takeup=${id}`, { scroll: false });
     // Back to the headline: the URL is clean again.
     choose(takeUp.headline);
@@ -525,7 +528,7 @@ describe("the range chart", () => {
     expect(rowCount()).toBe(n);
     expect(document.getElementById("range-chart-desc").textContent).not.toContain("CenTax");
     expect(legend()).toEqual(["band", "central"]);
-    expect(tableLabels()).toEqual(["Both schemes: standard deviation", "Both schemes: 5th to 95th percentile"]);
+    expect(tableLabels()).toEqual(["Both schemes: our standard deviation", "Both schemes: our likely range (90% of resamples)"]);
   });
 });
 

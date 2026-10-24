@@ -271,17 +271,33 @@ const bnRangeCell = (lo, hi) => (
   </>
 );
 
+/** How a take-up option reads after "with" or "using": whose rates our estimate uses. */
+const TAKE_UP_PHRASES = {
+  dfe: "DfE's take-up by age",
+  centax: "CenTax's take-up rates",
+  contract: "one flat take-up rate",
+};
+export function takeUpPhrase(id, basis) {
+  return TAKE_UP_PHRASES[id] ?? `${basis.short_label} take-up`;
+}
+
+/** The band's name: our own sampling range, in plain words. */
+export const RANGE_LABEL = "Our likely range (90% of resamples)";
+/** CenTax's published static cost, marked so it cannot be read as ours. */
+export const CENTAX_MARK_LABEL = "CenTax's own estimate (static)";
+
 /**
  * The bootstrap's standard deviation and 5th-95th percentile on the take-up basis chosen, for the leg the range chart
  * shows (the 30 hours or both schemes).
  */
 export function UncertaintyTable({ data, basis, leg = "thirty_hours" }) {
   const u = getUncertainty(data, basis);
+  const phrase = takeUpPhrase(basis ?? getTakeUp(data).headline, u.basis);
   const rows = [
-    ["thirty_hours", "30 hours: standard deviation", (r) => formatBn(r.chosen.thirty_hours.sd_bn, 2)],
-    ["thirty_hours", "30 hours: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
-    ["total", "Both schemes: standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
-    ["total", "Both schemes: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
+    ["thirty_hours", "30 hours: our standard deviation", (r) => formatBn(r.chosen.thirty_hours.sd_bn, 2)],
+    ["thirty_hours", "30 hours: our likely range (90% of resamples)", (r) => bnRangeCell(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
+    ["total", "Both schemes: our standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
+    ["total", "Both schemes: our likely range (90% of resamples)", (r) => bnRangeCell(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
   ]
     .filter(([l]) => l === leg)
     .map(([, label, cell]) => [label, cell]);
@@ -290,7 +306,7 @@ export function UncertaintyTable({ data, basis, leg = "thirty_hours" }) {
       <table className="data-table compact" data-testid="uncertainty-table">
         <thead>
           <tr>
-            <th className="text-left font-normal text-slate-500">Take-up: {u.basis.short_label}</th>
+            <th className="text-left font-normal text-slate-500">With {phrase}</th>
             {u.rows.map((r) => (
               <th key={r.year} className="text-right">
                 {nb(r.year)}
@@ -383,17 +399,17 @@ function CentralDot({ cx, cy, payload }) {
 
 function CentaxMark({ cx, cy }) {
   if (!isNum(cx) || !isNum(cy)) return null;
-  const d = 5.5;
-  return <path d={`M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`} fill={RANGE_MARKS.centax} stroke="#fff" strokeWidth={1} />;
+  const d = 7;
+  return <path d={`M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`} fill={RANGE_MARKS.centax} stroke="#fff" strokeWidth={1.5} />;
 }
 
 function RangeTooltip({ active, payload }) {
   if (!active || !payload?.length) return null;
   const row = payload[0].payload;
   const lines = [
-    ["Central", formatBn(row.central, 2)],
-    ["5th to 95th percentile", bnRange(row.range[0], row.range[1])],
-    ...(isNum(row.centax) ? [["CenTax, static", formatBn(row.centax, 2)]] : []),
+    ["Our estimate", formatBn(row.central, 2)],
+    [RANGE_LABEL, bnRange(row.range[0], row.range[1])],
+    ...(isNum(row.centax) ? [[CENTAX_MARK_LABEL, formatBn(row.centax, 2)]] : []),
   ];
   return (
     <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
@@ -417,6 +433,7 @@ function RangeTooltip({ active, payload }) {
  */
 export function RangeChart({ data, basis, leg = "thirty_hours" }) {
   const u = getUncertainty(data, basis);
+  const phrase = takeUpPhrase(basis ?? getTakeUp(data).headline, u.basis);
   const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
   const rows = rangeChartRows(u, centax).filter((r) => r.scheme === leg);
   const legName = RANGE_LEGS.find((l) => l.id === leg)?.label;
@@ -430,16 +447,16 @@ export function RangeChart({ data, basis, leg = "thirty_hours" }) {
   const description = rows
     .map(
       (r) =>
-        `${r.year}: central ${formatBn(r.central, 2)}, 5th to 95th percentile ${bnRange(r.range[0], r.range[1])}` +
-        (isNum(r.centax) ? `, CenTax static ${formatBn(r.centax, 2)}` : ""),
+        `${r.year}: our estimate ${formatBn(r.central, 2)}, our likely range ${bnRange(r.range[0], r.range[1])}` +
+        (isNum(r.centax) ? `, CenTax's own static estimate ${formatBn(r.centax, 2)}` : ""),
     )
     .join("; ");
   // CenTax exists for the 30 hours only, so its marker is listed only when it is drawn.
   const legend = [
-    { id: "band", label: "5th to 95th percentile", swatch: <span className="inline-block h-2.5 w-5 rounded-sm" style={{ backgroundColor: RANGE_MARKS[leg].band }} /> },
-    { id: "central", label: `Central (${u.basis.short_label})`, swatch: <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RANGE_MARKS[leg].dot }} /> },
+    { id: "band", label: RANGE_LABEL, swatch: <span className="inline-block h-2.5 w-5 rounded-sm" style={{ backgroundColor: RANGE_MARKS[leg].band }} /> },
+    { id: "central", label: `Our estimate, with ${phrase}`, swatch: <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RANGE_MARKS[leg].dot }} /> },
     ...(rows.some((r) => isNum(r.centax))
-      ? [{ id: "centax", label: "CenTax, static", swatch: <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ backgroundColor: RANGE_MARKS.centax }} /> }]
+      ? [{ id: "centax", label: CENTAX_MARK_LABEL, swatch: <span className="inline-block h-3 w-3 rotate-45 rounded-[1px]" style={{ backgroundColor: RANGE_MARKS.centax }} /> }]
       : []),
   ];
   return (
@@ -451,7 +468,7 @@ export function RangeChart({ data, basis, leg = "thirty_hours" }) {
         style={{ height: 56 * rows.length + 40 }}
       >
         <p id="range-chart-title" className="sr-only">
-          Sampling range of the static cost of {legName === "30 hours" ? "the 30 hours" : "both schemes"}, {years}, on take-up {u.basis.short_label}
+          Sampling range of the static cost of {legName === "30 hours" ? "the 30 hours" : "both schemes"}, {years}: our estimate using {phrase}{rows.some((r) => isNum(r.centax)) ? ", with CenTax's own static estimate for comparison" : ""}
         </p>
         <p id="range-chart-desc" className="sr-only">
           {description}.
@@ -700,7 +717,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
       <Section
         id="uncertainty"
         title="How certain is the cost?"
-        lead={`The static cost rests on a small number of survey households, so it carries sampling uncertainty. The chart shows the range for each year, ${nb(budget.years[0])} to ${nb(budget.years.at(-1))}, on take-up ${chosen.short_label}. Hover over a row for its figures.`}
+        lead={`The static cost rests on a small number of survey households, so it carries sampling uncertainty. The chart shows the range for each year, ${nb(budget.years[0])} to ${nb(budget.years.at(-1))}, using ${takeUpPhrase(chosen.id, chosen)}. Hover over a row for its figures.`}
         boxed={false}
       >
         <div className="panel joined-below">
