@@ -90,18 +90,47 @@ export function Explainer({ children }) {
   );
 }
 
-/** A box closed by default; the title stays visible and opens the content. */
-export function Expandable({ title, children, testId }) {
+/**
+ * A box closed by default (`defaultOpen` opens it on load); the title stays visible and opens the content. `compact`
+ * for a smaller box in a list.
+ */
+export function Expandable({ title, children, testId, id, compact = false, className = "", defaultOpen = false }) {
   return (
-    <details className="expandable group" data-testid={testId}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 font-semibold text-slate-800">
+    <details className={`expandable group ${className}`} data-testid={testId} id={id} open={defaultOpen || undefined}>
+      <summary
+        className={`flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-slate-800 ${
+          compact ? "px-4 py-2.5 text-sm" : "px-4 py-3"
+        }`}
+      >
         <span>{title}</span>
         <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-90">
           ›
         </span>
       </summary>
-      <div className="border-t border-slate-200 px-4 py-4">{children}</div>
+      <div className={`border-t border-slate-200 ${compact ? "px-3 py-3 sm:px-4" : "px-4 py-4"}`}>{children}</div>
     </details>
+  );
+}
+
+/**
+ * Adjacent closed boxes as one box, stacked flush with a rule between them; `joined` attaches it to the bottom of the
+ * panel just above it (give that panel `joined-below`). The children are Expandables, or ExpandableRows for an item
+ * with nothing to open.
+ */
+export function ExpandableGroup({ children, joined = false, className = "", testId }) {
+  return (
+    <div className={`expandable-group ${joined ? "joined-above" : ""} ${className}`} data-testid={testId}>
+      {children}
+    </div>
+  );
+}
+
+/** An item in an ExpandableGroup with no detail to open: the same padding as a closed box's title, no chevron. */
+export function ExpandableRow({ children, testId, compact = false }) {
+  return (
+    <div className={`expandable-row ${compact ? "px-4 py-2.5 text-sm" : "px-4 py-3"}`} data-testid={testId}>
+      {children}
+    </div>
   );
 }
 
@@ -132,11 +161,28 @@ export function Panel({ children, className = "", footer, footerTitle = "More de
  * One section of a tab: a title, a one-line takeaway, the content in a box, and the longer explanation closed
  * underneath. Sections are divided by a rule so a tab reads as a short list of separate parts.
  */
-export function Section({ id, title, lead, details, detailsTitle = "More detail", children, boxed = true }) {
+export function Section({ id, title, lead, details, detailsTitle = "More detail", children, boxed = true, grouped = false }) {
+  // A section whose content is itself a closed box: it and the longer explanation stack as one group of boxes.
+  if (grouped) {
+    return (
+      <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
+        <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
+        {lead ? <p className="mt-2 text-base leading-relaxed text-slate-600">{lead}</p> : null}
+        <ExpandableGroup className="mt-5">
+          {children}
+          {details ? (
+            <Expandable title={detailsTitle}>
+              <div className="space-y-2 text-sm leading-6 text-slate-600">{details}</div>
+            </Expandable>
+          ) : null}
+        </ExpandableGroup>
+      </section>
+    );
+  }
   return (
     <section id={id} className="section-block" data-testid={id ? `section-${id}` : undefined}>
       <h2 className="text-xl font-semibold tracking-tight text-slate-900">{title}</h2>
-      {lead ? <p className="mt-2 text-[0.95rem] leading-6 text-slate-600">{lead}</p> : null}
+      {lead ? <p className="mt-2 text-base leading-relaxed text-slate-600">{lead}</p> : null}
       {children && boxed ? (
         <Panel className="mt-5" footer={details} footerTitle={detailsTitle}>
           {children}
@@ -160,6 +206,20 @@ export function Section({ id, title, lead, details, detailsTitle = "More detail"
  */
 export function TabLayout({ sections, children }) {
   const [active, setActive] = useState(sections[0]?.id);
+  // A link to an anchor on this tab (from another tab, or a fresh load) opens the closed box it is in, or is, and
+  // scrolls to it once the tab has rendered.
+  useEffect(() => {
+    function openHash() {
+      const id = decodeURIComponent(window.location.hash.slice(1));
+      const el = id ? document.getElementById(id) : null;
+      if (!el) return;
+      for (let d = el.closest("details"); d; d = d.parentElement?.closest("details")) d.open = true;
+      el.scrollIntoView({ block: "start" });
+    }
+    openHash();
+    window.addEventListener("hashchange", openHash);
+    return () => window.removeEventListener("hashchange", openHash);
+  }, []);
   useEffect(() => {
     function onScroll() {
       // The last section whose top has passed a line near the top of the window is the one being read.
@@ -228,7 +288,7 @@ export function TabLayout({ sections, children }) {
                     />
                     <span
                       className={`whitespace-nowrap font-medium transition-colors ${
-                        state === "current" ? "text-slate-900" : "text-slate-400 group-hover:text-slate-700"
+                        state === "current" ? "text-slate-900" : "text-slate-500 group-hover:text-slate-800"
                       }`}
                     >
                       {s.title}
@@ -244,21 +304,34 @@ export function TabLayout({ sections, children }) {
   );
 }
 
-/** A labelled drop-down for choosing one option, styled to match the page. */
-export function Select({ label, options, value, onChange }) {
+/** The id of the box on Budget impact that explains the take-up options; other mentions of the rates link to it. */
+export const TAKE_UP_OPTIONS_ID = "take-up-options";
+
+/** Opens a closed <details> box (an Expandable) before a link to it scrolls there. */
+export function openDetails(id) {
+  const el = typeof document === "undefined" ? null : document.getElementById(id);
+  if (el && el.tagName === "DETAILS") el.open = true;
+}
+
+/**
+ * A labelled drop-down for choosing one option, styled to match the page; `ariaLabel` names it more fully. `stacked`
+ * puts the label above a full-width drop-down, for a narrow card.
+ */
+export function Select({ label, options, value, onChange, ariaLabel, testId, stacked = false }) {
   return (
-    <label className="flex items-center gap-2 text-sm text-slate-600">
-      <span className="font-medium">{label}</span>
+    <label className={stacked ? "flex flex-col gap-1.5 text-sm text-slate-600" : "flex items-center gap-2 text-sm text-slate-600"}>
+      <span className={stacked ? "font-semibold text-slate-900" : "font-medium"}>{label}</span>
       <span className="relative">
         <select
-          className="cursor-pointer appearance-none rounded-full border border-slate-200 bg-white py-1.5 pl-4 pr-9 text-sm font-medium text-slate-800 shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/30"
+          className={`${stacked ? "w-full " : ""}cursor-pointer appearance-none rounded-full border border-slate-200 bg-white py-1.5 pl-4 pr-9 text-sm font-medium text-slate-800 shadow-sm hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-teal-600/30`}
           value={value}
           onChange={(e) => {
             const option = options.find((o) => String(o.id) === e.target.value);
             if (!option) throw new Error(`Select ${label}: no option ${e.target.value}`);
             onChange(option.id);
           }}
-          aria-label={label}
+          aria-label={ariaLabel ?? label}
+          data-testid={testId}
         >
           {options.map((o) => (
             <option key={o.id} value={o.id}>
@@ -335,5 +408,93 @@ export function SubTabs({ options, value, onChange }) {
         </button>
       ))}
     </div>
+  );
+}
+
+/**
+ * Text from results.json with its [label](url) links rendered: an internal link (starting "?" or "#") opens in the
+ * same tab, an external one in a new tab.
+ */
+export function RichText({ text }) {
+  if (typeof text !== "string") return text ?? null;
+  const parts = [];
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let last = 0;
+  for (let m = re.exec(text); m; m = re.exec(text)) {
+    if (m.index > last) parts.push(text.slice(last, m.index));
+    const [, label, href] = m;
+    const internal = href.startsWith("?") || href.startsWith("#");
+    parts.push(
+      internal ? (
+        <a key={m.index} href={href}>
+          {label}
+        </a>
+      ) : (
+        <a key={m.index} href={href} target="_blank" rel="noopener noreferrer">
+          {label}
+        </a>
+      ),
+    );
+    last = m.index + m[0].length;
+  }
+  if (last < text.length) parts.push(text.slice(last));
+  return <>{parts}</>;
+}
+
+/** The text of a [label](url)-marked string with the markup removed, for plain-text uses (aria labels, tests). */
+export function plainText(text) {
+  return String(text).replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, "$1");
+}
+
+/** A plain bulleted (or numbered) list of items, with no box or rules between them: body type, 16px at 1.6. */
+export function BulletList({ children, testId, ordered = false, className = "" }) {
+  const Tag = ordered ? "ol" : "ul";
+  return (
+    <Tag
+      className={`${ordered ? "list-decimal" : "list-disc"} space-y-3 pl-5 text-base leading-relaxed text-slate-700 marker:text-slate-500 ${className}`}
+      data-testid={testId}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+/** The "More ›" (or a title's) disclosure control: teal, one step below body size, a 32px tap target. */
+export const DISCLOSURE_SUMMARY =
+  "inline-flex min-h-8 cursor-pointer list-none items-center gap-1 rounded text-sm font-semibold text-[color:var(--pe-color-primary-700)] hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]";
+
+/**
+ * One item of a BulletList: a bold label and an optional summary on the bullet; any further detail sits behind a
+ * "More ›" under it (or, with no summary, behind the label itself, which then has no full stop). `id` and `testId`
+ * go on the disclosure when there is one, so a link to `#id` opens it.
+ */
+export function ListItem({ title, summary, children, id, testId }) {
+  const head = summary ? (
+    <>
+      <strong className="font-semibold text-slate-900">{title}.</strong> {summary}
+    </>
+  ) : (
+    <strong className="font-semibold text-slate-900">{title}</strong>
+  );
+  if (!children) {
+    return (
+      <li id={id} data-testid={testId}>
+        {head}
+      </li>
+    );
+  }
+  return (
+    <li>
+      {summary ? head : null}
+      <details className="group" id={id} data-testid={testId}>
+        <summary className={DISCLOSURE_SUMMARY}>
+          {summary ? "More" : title}
+          <span aria-hidden="true" className="transition-transform group-open:rotate-90">
+            ›
+          </span>
+        </summary>
+        <div className="mt-1 space-y-2">{children}</div>
+      </details>
+    </li>
   );
 }

@@ -92,16 +92,20 @@ export function getReform(data) {
   return r;
 }
 
-/** The gross cost by scheme and in total, each year (£bn, positive = extra spending). */
-export function getBudget(data) {
+/**
+ * The gross cost by scheme and in total, each year (£bn, positive = extra spending): the headline, or, given a
+ * take-up basis id, that basis's costs (budget.take_up.bases).
+ */
+export function getBudget(data, basis) {
   const years = getYears(data);
-  const g = data?.budget?.gross_bn;
-  const thirty = byYear(g?.thirty_hours, years, "budget.gross_bn.thirty_hours");
-  const tfc = byYear(g?.tax_free_childcare, years, "budget.gross_bn.tax_free_childcare");
-  const total = byYear(g?.total, years, "budget.gross_bn.total");
+  const block = basis === undefined ? "budget.gross_bn" : `budget.take_up.bases.${basis}.gross_bn`;
+  const g = basis === undefined ? data?.budget?.gross_bn : data?.budget?.take_up?.bases?.[basis]?.gross_bn;
+  const thirty = byYear(g?.thirty_hours, years, `${block}.thirty_hours`);
+  const tfc = byYear(g?.tax_free_childcare, years, `${block}.tax_free_childcare`);
+  const total = byYear(g?.total, years, `${block}.total`);
   // The two schemes must add up to the total (to rounding), or the split shown would not match the headline.
   years.forEach((y, i) => {
-    if (Math.abs(thirty[i] + tfc[i] - total[i]) > 0.02) fail("budget.gross_bn", `${y}: schemes do not add up to the total`);
+    if (Math.abs(thirty[i] + tfc[i] - total[i]) > 0.02) fail(block, `${y}: schemes do not add up to the total`);
   });
   return {
     years,
@@ -153,6 +157,136 @@ export function getThirtyHoursComponents(data) {
     universal: byYear(c?.universal, years, "budget.thirty_hours_components_bn.universal"),
     targeted: byYear(c?.targeted, years, "budget.thirty_hours_components_bn.targeted"),
   };
+}
+
+// ── Take-up of the 30 hours ────────────────────────────────────────────────
+
+/** The recipients block of one take-up basis in one year: totals only, the mean gain null only when nobody gains. */
+function checkBasisRecipients(r, block) {
+  if (!r) fail(block, "missing");
+  for (const k of ["families_gaining", "children_gaining"]) if (!isNum(r[k])) fail(`${block}.${k}`, "not a number");
+  for (const k of ["by_scheme", "children_by_scheme"]) if (!SCHEMES.every((sc) => isNum(r[k]?.[sc]))) fail(`${block}.${k}`, "invalid");
+  if (r.mean_gain_gbp === null ? r.families_gaining !== 0 : !isNum(r.mean_gain_gbp)) fail(`${block}.mean_gain_gbp`, "invalid");
+  return r;
+}
+
+/**
+ * Who takes up the 30 hours among newly eligible children: the headline basis, the order the page offers the bases
+ * in, the age they are applied by, and each basis's label, description, source, costs, range and recipients. The
+ * headline basis's costs must be the published headline (budget.gross_bn).
+ */
+export function getTakeUp(data) {
+  const years = getYears(data);
+  const t = data?.budget?.take_up;
+  if (!t || !t.bases || typeof t.bases !== "object") fail("budget.take_up", "missing");
+  if (!Array.isArray(t.order) || t.order.length === 0 || !t.order.every((id) => isText(id) && id in t.bases)) fail("budget.take_up.order", "invalid");
+  if (!t.order.includes(t.headline)) fail("budget.take_up.headline", "not one of the bases");
+  if (!isText(t.age)) fail("budget.take_up.age", "missing");
+  const bases = {};
+  for (const id of t.order) {
+    const b = t.bases[id];
+    const block = `budget.take_up.bases.${id}`;
+    if (![b?.label, b?.short_label, b?.description, b?.source, b?.source_url].every(isText)) fail(block, "label, description or source missing");
+    if (b.unit === "family") {
+      if (!isNum(b.rate) || b.rate <= 0 || b.rate > 1) fail(`${block}.rate`, "invalid");
+      byYear(b.per_point_m, years, `${block}.per_point_m`);
+    } else if (b.unit === "child") {
+      const rates = Object.values(b.rates_by_dfe_age ?? {});
+      if (rates.length === 0 || !rates.every((r) => isNum(r) && r > 0 && r <= 1)) fail(`${block}.rates_by_dfe_age`, "invalid");
+      if (!isText(b.rates_text)) fail(`${block}.rates_text`, "missing");
+    } else fail(`${block}.unit`, "neither child nor family");
+    const budget = getBudget(data, id);
+    const net = byYear(b.net_bn?.total, years, `${block}.net_bn.total`);
+    const r = b.range_bn;
+    const [low, central, high] = ["low", "central", "high"].map((k) => byYear(r?.[k], years, `${block}.range_bn.${k}`));
+    years.forEach((y, i) => {
+      if (!(low[i] <= central[i] && central[i] <= high[i])) fail(`${block}.range_bn`, `${y}: low, central and high are out of order`);
+      if (Math.abs(central[i] - budget.rows[i].total) > 0.001) fail(`${block}.range_bn.central`, `${y}: not the basis's total`);
+    });
+    const recipients = Object.fromEntries(years.map((y) => [y, checkBasisRecipients(b.recipients?.[String(y)], `${block}.recipients.${y}`)]));
+    bases[id] = { id, ...b, budget, net, range: { low, central, high }, recipients };
+  }
+  const headline = getBudget(data).rows;
+  bases[t.headline].budget.rows.forEach((row, i) => {
+    if (SCHEMES.some((sc) => Math.abs(row[sc] - headline[i][sc]) > 0.0005)) fail(`budget.take_up.bases.${t.headline}`, `${row.year}: not the headline`);
+  });
+  return { headline: t.headline, order: t.order, age: t.age, bases };
+}
+
+/** The take-up basis from the URL (`?takeup=centax`): the headline when absent or unknown. */
+export function parseTakeUp(param, data) {
+  const t = getTakeUp(data);
+  return t.order.includes(param) ? param : t.headline;
+}
+
+/** The URL parameters for a take-up basis: none for the headline, so the default URL stays clean. */
+export function takeUpParams(basis, data) {
+  return basis === getTakeUp(data).headline ? [] : [["takeup", basis]];
+}
+
+/**
+ * How certain the static cost is: the bootstrap over FRS source households for the years it covers, on the take-up
+ * basis chosen (the headline's when none is given), with the single take-up draw beside it, and the one-sided
+ * age-profile sensitivity. Each basis's 30-hours cost must lie inside its own range.
+ */
+export function getUncertainty(data, basis) {
+  const years = getYears(data);
+  const b = data?.budget;
+  const u = b?.uncertainty;
+  const takeUp = getTakeUp(data);
+  const id = basis ?? takeUp.headline;
+  if (!(id in takeUp.bases)) fail("budget.take_up", `no basis ${JSON.stringify(id)}`);
+  if (!u || !u.by_year || typeof u.by_year !== "object") fail("budget.uncertainty", "missing");
+  if (!Number.isInteger(u.draws) || u.draws < 100) fail("budget.uncertainty.draws", "missing");
+  if (!isText(u.method) || !isText(u.reproduces_url)) fail("budget.uncertainty", "method or source missing");
+  const single = {
+    thirty_hours: byYear(b?.single_draw_bn?.thirty_hours, years, "budget.single_draw_bn.thirty_hours"),
+    total: byYear(b?.single_draw_bn?.total, years, "budget.single_draw_bn.total"),
+  };
+  const rows = Object.entries(u.by_year).map(([key, v]) => {
+    const year = Number(key);
+    const i = years.indexOf(year);
+    if (i < 0) fail(`budget.uncertainty.by_year.${key}`, "not a modelled year");
+    const legs = {};
+    for (const legBasis of [...takeUp.order, "drawn"]) {
+      legs[legBasis] = {};
+      for (const leg of ["thirty_hours", "tax_free_childcare", "total"]) {
+        const c = v?.[legBasis]?.[leg];
+        if (!c || ![c.sd_bn, c.p5_bn, c.p95_bn].every(isNum) || c.sd_bn <= 0 || c.p5_bn > c.p95_bn) {
+          fail(`budget.uncertainty.by_year.${key}.${legBasis}.${leg}`, "invalid");
+        }
+        legs[legBasis][leg] = c;
+      }
+      const central = legBasis === "drawn" ? single.thirty_hours[i] : takeUp.bases[legBasis].budget.rows[i].thirty_hours;
+      if (!(legs[legBasis].thirty_hours.p5_bn <= central && central <= legs[legBasis].thirty_hours.p95_bn)) {
+        fail(`budget.uncertainty.by_year.${key}.${legBasis}`, "the cost is outside its own range");
+      }
+    }
+    for (const k of ["source_households_30_hours", "effective_source_households_30_hours"]) {
+      if (!Number.isInteger(v[k]) || v[k] <= 0) fail(`budget.uncertainty.by_year.${key}.${k}`, "missing");
+    }
+    const central = takeUp.bases[id].budget.rows[i];
+    return {
+      year,
+      label: fyLabel(year),
+      thirty: central.thirty_hours,
+      total: central.total,
+      singleThirty: single.thirty_hours[i],
+      singleTotal: single.total[i],
+      chosen: legs[id],
+      ...legs,
+      sourceHouseholds: v.source_households_30_hours,
+      effectiveSourceHouseholds: v.effective_source_households_30_hours,
+    };
+  });
+  if (rows.length === 0) fail("budget.uncertainty.by_year", "empty");
+  const a = b?.age_profile_sensitivity;
+  if (!a || !Number.isInteger(a.year) || ![a.even_spread_bn, a.centax_gradient_bn, a.babies_bn].every(isNum) || !isText(a.source_url)) {
+    fail("budget.age_profile_sensitivity", "invalid");
+  }
+  const share = a.share_over_limit_by_age_pct;
+  if (!share || ![0, 1, 2, 3, 4].every((k) => isNum(share[String(k)]))) fail("budget.age_profile_sensitivity.share_over_limit_by_age_pct", "invalid");
+  return { draws: u.draws, method: u.method, sourceUrl: u.reproduces_url, rows, basis: takeUp.bases[id], years, age: a };
 }
 
 /** The net cost and each scheme's limit removed alone. */
@@ -392,9 +526,13 @@ export function getBenchmarks(data) {
   return rows;
 }
 
+/** The limitations: each a short title, a one-sentence summary and the detail (possibly empty). */
 export function getLimitations(data) {
   const rows = data?.limitations;
-  if (!(Array.isArray(rows) && rows.length > 0 && rows.every(isText))) fail("limitations", "missing");
+  if (!(Array.isArray(rows) && rows.length > 0)) fail("limitations", "missing");
+  rows.forEach((r, i) => {
+    if (!r || !isText(r.title) || !isText(r.summary) || typeof r.detail !== "string") fail(`limitations[${i}]`, "needs a title, a summary and a detail");
+  });
   return rows;
 }
 
@@ -565,6 +703,8 @@ export function validateResults(data) {
   getSensitivities(data);
   getThirtyHoursComponents(data);
   getBudgetComparisons(data);
+  getTakeUp(data);
+  getUncertainty(data);
   getDistributionYears(data);
   for (const y of years) getChildrenByAge(data, y);
   getValidation(data);

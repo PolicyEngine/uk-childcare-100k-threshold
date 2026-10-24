@@ -7,7 +7,7 @@ from concurrent.futures import ProcessPoolExecutor
 from itertools import product
 from pathlib import Path
 
-from .config import CLIFF, HOUSEHOLD_GRID, REFORM_PARAMETERS, REMOVED
+from .config import CLIFF, HOUSEHOLD_GRID, METHOD_URL, REFORM_PARAMETERS, REMOVED
 from .corrections import corrected_household_simulations
 
 FREE_HOURS_VARIABLES = (
@@ -102,8 +102,8 @@ def cliff_example(grid):
         "net_income_baseline": series["baseline"],
         "net_income_reform": series["reform"],
         "notes": (
-            "Computed with policyengine.py's household calculator (calculate_household), the same model "
-            "release and the same model corrections (corrections.py) as the population runs. Net income is household net income (after tax and benefits, "
+            "Calculated with PolicyEngine UK's household calculator, using the same model and model "
+            "correction as the population estimates. Net income is household net income (after tax and benefits, "
             "including the value of funded hours at the local-authority funding rate and the Tax-Free "
             f"Childcare top-up) minus the family's own childcare spending of £{spend:,} a year "
             f"(£{c['childcare_spend_per_child']:,} per child), held fixed in both scenarios as in the population "
@@ -112,7 +112,8 @@ def cliff_example(grid):
             "hours x 38 weeks for each child (the model's default usage for a single household). The personal "
             "allowance taper between £100,000 and £125,140 applies in both scenarios. Exactly £100,000 still "
             "qualifies for both schemes, as in law (a parent is excluded only if income exceeds £100,000); the "
-            "support is lost from £100,001."
+            "support is lost from £100,001. "
+            f"[Method notes on GitHub]({METHOD_URL})."
         ),
     }
 

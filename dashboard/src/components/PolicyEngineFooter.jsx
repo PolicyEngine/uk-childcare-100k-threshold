@@ -24,11 +24,11 @@ export default function PolicyEngineFooter() {
           "linear-gradient(to right, var(--pe-color-primary-800, #234E52), var(--pe-color-primary-600, #2C7A7B))",
       }}
     >
-      <div className="mx-auto flex max-w-[1400px] flex-col gap-4 px-6 py-8 md:px-8">
+      <div className="mx-auto flex max-w-[1400px] flex-wrap items-center gap-x-8 gap-y-2.5 px-6 py-4 md:px-8">
         <a
           href="https://policyengine.org/uk"
           aria-label="PolicyEngine UK home"
-          className="w-fit"
+          className="w-fit shrink-0"
         >
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -39,7 +39,7 @@ export default function PolicyEngineFooter() {
         </a>
         <nav
           aria-label="PolicyEngine site footer"
-          className="flex flex-wrap gap-x-6 gap-y-2"
+          className="order-last flex w-full flex-wrap gap-x-5 gap-y-1 md:order-none md:w-auto"
         >
           {FOOTER_LINKS.map((link) => (
             <a
@@ -51,7 +51,7 @@ export default function PolicyEngineFooter() {
             </a>
           ))}
         </nav>
-        <p className="m-0 text-[13px] text-white/70">
+        <p className="m-0 ml-auto text-[13px] text-white/70">
           &copy; {new Date().getFullYear()} PolicyEngine
         </p>
       </div>

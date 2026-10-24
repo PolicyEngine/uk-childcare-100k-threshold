@@ -250,6 +250,57 @@
     box-shadow: 0 1px 3px color-mix(in srgb, var(--pe-color-gray-900) 6%, transparent);
   }
 
+  /* Keyboard focus on a closed box's title shows as a teal ring inside its border. */
+  .expandable > summary:focus-visible {
+    outline: 2px solid var(--pe-color-primary-600);
+    outline-offset: -2px;
+    border-radius: 14px;
+  }
+
+  /*
+   * A run of closed boxes as one box: the items stacked flush, a thin rule between them, the outer corners only
+   * rounded. Joined under a panel (.panel.joined-below + .expandable-group.joined-above) the two read as one card,
+   * the panel's bottom border the rule between them.
+   */
+  .expandable-group {
+    background: var(--pe-color-bg-primary);
+    border: 1px solid var(--pe-color-border-light);
+    border-radius: 14px;
+    box-shadow: 0 1px 3px color-mix(in srgb, var(--pe-color-gray-900) 6%, transparent);
+    overflow: hidden;
+  }
+
+  .expandable-group > .expandable,
+  .expandable-group > .expandable-row {
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .expandable-group > * + * {
+    border-top: 1px solid var(--pe-color-border-light) !important;
+  }
+
+  .expandable-group > .expandable > summary:focus-visible {
+    border-radius: 0;
+  }
+
+  .expandable-group > .expandable > summary:hover {
+    background: var(--pe-color-gray-50);
+  }
+
+  .panel.joined-below {
+    border-bottom-left-radius: 0;
+    border-bottom-right-radius: 0;
+    box-shadow: none;
+  }
+
+  .expandable-group.joined-above {
+    border-top: none;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+  }
+
   /* The tab's section list stays at the middle of the window, against its right edge. */
   .section-nav {
     position: fixed;
@@ -266,7 +317,13 @@
     border-top: 1px solid var(--pe-color-border-light);
     margin-top: 28px;
     padding-top: 32px;
-    scroll-margin-top: 16px;
+    /* Clear the sticky title bar (about 58px) when a link jumps here. */
+    scroll-margin-top: 64px;
+  }
+
+  /* Any other anchor (a closed box, a step) also lands below the sticky title bar. */
+  main [id]:not(.section-block) {
+    scroll-margin-top: 80px;
   }
 
   /* No rule above a tab's first section: the tab bar already separates it. */
@@ -358,6 +415,17 @@
     color: var(--pe-color-gray-500);
     padding: 12px 14px;
     border-bottom: 1px solid var(--pe-color-border-light);
+  }
+
+  /* A small table inside a box: tighter cells on phones so it fits without scrolling. */
+  @media (max-width: 639px) {
+    .data-table.compact {
+      font-size: 0.8rem;
+    }
+    .data-table.compact th,
+    .data-table.compact td {
+      padding: 8px 5px;
+    }
   }
 
   .data-table td {

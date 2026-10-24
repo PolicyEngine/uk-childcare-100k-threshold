@@ -35,7 +35,7 @@ import {
 import { formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { Expandable, AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Select } from "./ui";
+import { Expandable, AXIS_STYLE, CustomTooltip, LegendSwatches, RichText, Section, Select } from "./ui";
 
 export const SUPPRESSED = "too few records";
 
@@ -195,7 +195,7 @@ function HouseholdSection({ data }) {
     <Section
       id="household"
       title="How does the limit affect your family?"
-      lead={`Choose the parents, the children and how much the family spends on childcare. The chart shows the family's net income after paying for childcare in ${fyLabel(grid.year)}, as the higher earner's pay rises from £0 to £140,000. The solid line is today's rules: once pay passes £100,000 the family loses the 30 funded hours and Tax-Free Childcare at once, so its income falls. The dashed line removes the limit, so the support continues and income keeps rising. Where the two lines meet, the limit makes no difference to this family. It opens on a couple with two young children, who hit the cliff.`}
+      lead={`Pick the parents, children and childcare spending. The chart shows the family's net income after childcare in ${fyLabel(grid.year)} as the higher earner's pay rises to ${formatCurrency(Math.floor(Math.max(...grid.earnings) / 1000) * 1000)}. Today's rules (solid line) withdraw the 30 hours and Tax-Free Childcare at £100,000, so income drops. Without the limit (dashed line), it keeps rising.`}
       details={
         <>
         <p data-testid="cliff-drop">
@@ -218,7 +218,7 @@ function HouseholdSection({ data }) {
             Without the limit the support continues at every income. Above £100,000 the family still faces the high
             marginal tax rate from the withdrawal of the Personal Allowance, which this reform does not change.
           </p>
-          {cliff.notes ? <p>{cliff.notes}</p> : null}
+          {cliff.notes ? <p data-testid="cliff-notes"><RichText text={cliff.notes} /></p> : null}
         </>
       }
     >
@@ -318,8 +318,7 @@ function BreakdownSection({ data, year, yearSelect }) {
   const groupRows = by === "income" ? null : getGroups(data, year, by);
   const fy = fyLabel(year);
   const leads = {
-    income:
-      `The average gain per household in ${fy} in each tenth of households, ranked from the lowest to the highest income. Only families where a parent earns over £100,000 gain, so the gains sit almost entirely in the highest-income tenth, with a little in the two below it. The averages include every household in the group, most of which have no young children, so they are far smaller than the gain to a family that benefits. Switch to see the gain as a share of net income, or the share of households that gain.`,
+    income: `Average gain per household in ${fy} by income tenth. Only families with a parent earning over £100,000 gain, so almost all of it goes to the top tenth. The averages include households without young children, so they are far below the gain to a family that benefits.`,
     family_type: groupLead(groupRows, fy, "family type",
       (top) => `${top.name} receive the largest share. To gain, a family must have a parent over £100,000 and pass the minimum earnings test, so almost all the gains go to couples; lone parents earning over £100,000 are few.`),
     region: groupLead(groupRows, fy, "region",
@@ -351,7 +350,12 @@ function BreakdownSection({ data, year, yearSelect }) {
     <Section
       id="breakdown"
       title="Where do the gains go?"
-      lead={leads[by]}
+      lead={
+        <>
+          {leads[by]} These breakdowns use the dataset&apos;s single draw of who claims the 30 hours;{" "}
+          <a href="?tab=budget#at-a-glance">Budget impact</a> has the totals for each take-up option.
+        </>
+      }
       details={
         <>
           {details[by]}
@@ -483,6 +487,7 @@ function GenderSection({ data, year }) {
   return (
     <Section
       id="gender"
+        grouped
       title="Is it mothers or fathers who are over the limit?"
       lead={`Families gaining in ${fy}, by which parent earns over £100,000.${
         fatherShare !== null ? ` In ${fatherShare}% of them it is the father alone.` : ""
@@ -499,7 +504,7 @@ function GenderSection({ data, year }) {
             CenTax find, from HMRC records, that when a father&apos;s income crosses £100,000 the share of mothers out
             of work rises by 3 to 4 points; they read this as the loss of the free hours leading some mothers to stop
             work. Our costing does not model that response. Source:{" "}
-            <a href={CENTAX_GENDER_URL} target="_blank" rel="noreferrer">
+            <a href={CENTAX_GENDER_URL} target="_blank" rel="noopener noreferrer">
               CenTax, Removing the childcare cliff-edge, Figure 3.12
             </a>
             .
@@ -534,7 +539,6 @@ export default function WhoGainsTab({ data }) {
   const [y, setYear] = useState(LEAD_YEAR);
   const recipients = getRecipients(data, y);
   const ages = getChildrenByAge(data, y);
-  const fy = fyLabel(y);
   const [chosenView, setView] = useState("families");
   const views = recipientViews(recipients);
   // A view the chosen year cannot show (no children_by_scheme) falls back to families, so switching years never
@@ -554,12 +558,12 @@ export default function WhoGainsTab({ data }) {
       <Section
         id="recipients"
         title="How many families and children gain?"
-        lead={`Families and children who gain from each scheme in ${fy}, the year chosen above. A family gains if its support rises by more than £1 a year. Many gain from both schemes, so the two scheme bars add up to more than "either or both". Use Show to count children instead, or to see the children gaining by age: Tax-Free Childcare covers children up to 11, so many of them are of school age.`}
+        lead={`Families and children gaining from each scheme in the chosen year (support up by more than £1 a year). Many gain from both, so the two scheme bars add up to more than "either or both". Switch to count children, or see them by age: Tax-Free Childcare covers children up to 11, so many are of school age.`}
         details={
           <>
             <p>
               Tax-Free Childcare covers children up to 11, so most children gaining are of school age. The 30 hours
-              cover children from 9 months, but the model holds ages in whole years and gives no hours at age 0.
+              cover children from the term after they turn 9 months until they start reception.
             </p>
             {recipients.families_losing > 0 ? (
               <p>

@@ -21,7 +21,7 @@ The page reads one file, `public/data/results.json`, bundled at build time. The 
 bun run data    # cp ../data/results.json public/data/results.json, then validate it
 ```
 
-The analysis runs on Microcosm UK 2024-25 (the certified national release) through policyengine.py; there is one
+The analysis runs on Microcosm UK 2024-25 (the national release of 19 October 2026, not yet certified) through policyengine.py; there is one
 dataset and no cross-check.
 
 The tests read their expected numbers from the same file, so they pass on any valid results file. Every block is
@@ -31,6 +31,13 @@ missing or invalid. There is no fallback: `scripts/validate-results.mjs` runs ev
 than print a placeholder. Vercel builds with bun (`vercel.json`) so the prebuild step runs there too.
 
 The page leads with 2027-28 (`LEAD_YEAR`); 2026-27 is more than half over, so tables label it illustrative.
+
+Budget impact has a take-up toggle for the 30 hours among newly eligible families: DfE's rates by age (the
+headline, and what the page shows without the toggle), CenTax's two rates, and the dataset's one flat rate. It is kept
+in the URL as `?takeup=centax` or `?takeup=contract` (none for the headline), and switches the cost cards, the yearly
+chart, the families gaining and the bootstrap table to `budget.take_up.bases[id]`. Labels, descriptions and sources
+come from the file. The comparison on Methodology stays on the headline, since the effects in its rows are measured
+from it, and Who gains stays on the dataset's single take-up draw, like every breakdown.
 
 ### Schema
 
@@ -47,6 +54,17 @@ budget               gross_bn {thirty_hours, tax_free_childcare, total}       ea
                      thirty_hours_components_bn {extended, universal, targeted}
                      range_bn {low, central, high}                            central = gross_bn.total
                      sensitivities {effects_bn {id: {...}}, low [ids], high [ids], descriptions {id: str}}
+                     single_draw_bn {thirty_hours, tax_free_childcare, total}  gross_bn is the headline basis's
+                     take_up {headline: "dfe", order ["dfe", "centax", "contract"], age, bases {id: {label,
+                       description, unit "child" | "family", source, source_url, gross_bn, net_bn {total},
+                       range_bn {low, central, high}, recipients {"2027": {families_gaining, children_gaining,
+                       by_scheme, children_by_scheme, mean_gain_gbp}}, child: rates_by_dfe_age, rates_text;
+                       family: rate, per_point_m {...}}}}
+                     uncertainty {draws, method, reproduces_url, by_year {"2027": {dfe, centax, contract, drawn:
+                       {thirty_hours, tax_free_childcare, total: {sd_bn, p5_bn, p95_bn}},
+                       source_households_30_hours, effective_source_households_30_hours}}}
+                     age_profile_sensitivity {year, even_spread_bn, centax_gradient_bn, babies_bn,
+                       share_over_limit_by_age_pct {"0".."4"}, source_url}
 recipients           {"2029": {families_gaining, children_gaining, by_scheme, children_by_scheme,
                      children_gaining_by_age {"0-1", "2", "3-4", "5-11", "12+"}, mean_gain_gbp, families_losing}}
                      mean_gain_gbp is null only when suppressed (families_gaining 0, or suppressed: true)

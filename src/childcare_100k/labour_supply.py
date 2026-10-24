@@ -43,8 +43,7 @@ Every adult (the first two in each benefit unit, not self-employed, students or 
 and over: the OBR's exclusions, Tables A3 and A4; for moving into work, also not disabled
 (receiving DLA or PIP), which Table A4 adds and Table A3 does not) in a
 benefit unit whose youngest child is under 12 and in which at least one adult's income,
-as the limits test it (adjusted net income less salary sacrifice returned to pay,
-``corrections.py``), is over £100,000 in the baseline: the parent over the limit as
+as the limits test it (adjusted net income, after pension contributions), is over £100,000 in the baseline: the parent over the limit as
 well as their partner. Under 12 because Tax-Free Childcare runs to 11 and contains the
 30 hours' 9 months-4 years band: following Brewer et al., a parent whose *youngest*
 child is in the band is the one the support frees to work. The over-£100,000 condition
@@ -181,10 +180,8 @@ def excluded(sim, year):
 
 
 def limit_income(sim, year):
-    """Income as the childcare limits test it (corrections.py): ANI less salary sacrifice returned to pay."""
-    return values(sim, "adjusted_net_income", year).astype(float) - values(
-        sim, "salary_sacrifice_returned_to_income", year
-    ).astype(float)
+    """Income as the childcare limits test it: adjusted net income, after pension contributions (policyengine-uk 2.147.2)."""
+    return values(sim, "adjusted_net_income", year).astype(float)
 
 
 def responding(sim, year):

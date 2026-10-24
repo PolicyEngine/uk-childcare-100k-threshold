@@ -2,13 +2,14 @@
 
 import { useState } from "react";
 
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { colors, schemeColors } from "../lib/colors";
 import {
   fyLabel,
+  getBenchmarks,
   getBudget,
-  getBudgetComparisons,
-  getRecipients,
+  getTakeUp,
+  getUncertainty,
   isNum,
   isStatic,
   labourSupplyLabel,
@@ -22,7 +23,10 @@ import {
 import { formatBn, formatCurrency, formatMoneyBn, formatPct, formatThousands } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { Expandable, AXIS_STYLE, CustomTooltip, Section } from "./ui";
+import { Expandable, ExpandableGroup, AXIS_STYLE, CustomTooltip, Section, Select } from "./ui";
+
+const FRS_URL = "https://www.gov.uk/government/collections/family-resources-survey--2";
+const MICROCOSM_URL = "https://github.com/PolicyEngine/microcosm";
 
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
@@ -205,7 +209,7 @@ function CostChart({ rows, series, offsetName }) {
           <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 0 }} stackOffset="sign">
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
             <XAxis dataKey="label" tick={AXIS_STYLE} />
-            <YAxis tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, digits)} {...axis} />
+            <YAxis tick={AXIS_STYLE} tickFormatter={(v) => (v === 0 ? "£0" : formatBn(v, digits))} {...axis} />
             <Tooltip
               cursor={{ fill: colors.gray[100] }}
               content={<CustomTooltip formatter={(v) => formatMoneyBn(v)} totalLabel={withOffset ? "Cost after the response" : "Total"} />}
@@ -259,6 +263,286 @@ export function netGrossGapM(net, gross) {
 }
 
 /** Each scheme side by side: where it applies, what it gives, who qualifies today and what the reform changes. */
+const bnRange = (lo, hi) => `${formatBn(lo, 2)} to ${formatBn(hi, 2)}`;
+// In a narrow table cell a range breaks after "to", never inside a figure.
+const bnRangeCell = (lo, hi) => (
+  <>
+    <span className="whitespace-nowrap">{formatBn(lo, 2)} to</span> <span className="whitespace-nowrap">{formatBn(hi, 2)}</span>
+  </>
+);
+
+/** How a take-up option reads after "with" or "using": whose rates our estimate uses. */
+const TAKE_UP_PHRASES = {
+  dfe: "DfE's take-up by age",
+  centax: "CenTax's take-up rates",
+  contract: "one flat take-up rate",
+};
+export function takeUpPhrase(id, basis) {
+  return TAKE_UP_PHRASES[id] ?? `${basis.short_label} take-up`;
+}
+
+/** The band's name: our own sampling range, in plain words. */
+export const RANGE_LABEL = "Our likely range (90% of resamples)";
+/** CenTax's published static cost, marked so it cannot be read as ours. */
+export const CENTAX_MARK_LABEL = "CenTax's own estimate (static)";
+
+/**
+ * The bootstrap's standard deviation and 5th-95th percentile on the take-up basis chosen, for the leg the range chart
+ * shows (the 30 hours or both schemes).
+ */
+export function UncertaintyTable({ data, basis, leg = "thirty_hours" }) {
+  const u = getUncertainty(data, basis);
+  const phrase = takeUpPhrase(basis ?? getTakeUp(data).headline, u.basis);
+  const rows = [
+    ["thirty_hours", "30 hours: our standard deviation", (r) => formatBn(r.chosen.thirty_hours.sd_bn, 2)],
+    ["thirty_hours", "30 hours: our likely range (90% of resamples)", (r) => bnRangeCell(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
+    ["total", "Both schemes: our standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
+    ["total", "Both schemes: our likely range (90% of resamples)", (r) => bnRangeCell(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
+  ]
+    .filter(([l]) => l === leg)
+    .map(([, label, cell]) => [label, cell]);
+  return (
+    <div className="overflow-x-auto">
+      <table className="data-table compact" data-testid="uncertainty-table">
+        <thead>
+          <tr>
+            <th className="text-left font-normal text-slate-500">With {phrase}</th>
+            {u.rows.map((r) => (
+              <th key={r.year} className="text-right">
+                {nb(r.year)}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, cell]) => (
+            <tr key={label}>
+              <td className="font-medium text-slate-800 sm:min-w-[180px]">{label}</td>
+              {u.rows.map((r) => (
+                <td key={r.year} className="text-right tabular-nums sm:whitespace-nowrap">
+                  {cell(r)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// The marks of the range chart, used by the chart and its legend alike.
+const RANGE_MARKS = {
+  thirty_hours: { band: colors.primary[200], dot: schemeColors.thirty_hours },
+  total: { band: colors.gray[300], dot: colors.gray[700] },
+  centax: colors.gray[900],
+};
+
+/** The two legs the range chart can show, one at a time. */
+export const RANGE_LEGS = [
+  { id: "thirty_hours", label: "30 hours" },
+  { id: "total", label: "Both schemes" },
+];
+
+/** The range chart's rows: per year, the 30 hours and both schemes, each a 5th-95th percentile band and the central cost. */
+export function rangeChartRows(u, centax) {
+  return u.rows.flatMap((r) => [
+    {
+      key: `${r.year}-thirty`,
+      year: nb(r.year),
+      part: "30 hours",
+      scheme: "thirty_hours",
+      range: [r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn],
+      central: r.thirty,
+      centax: isNum(centax[String(r.year)]) ? centax[String(r.year)] : null,
+    },
+    {
+      key: `${r.year}-total`,
+      year: nb(r.year),
+      part: "Both schemes",
+      scheme: "total",
+      range: [r.chosen.total.p5_bn, r.chosen.total.p95_bn],
+      central: r.total,
+      centax: null,
+    },
+  ]);
+}
+
+function RangeTick({ x, y, payload, rows }) {
+  const row = rows.find((r) => r.key === payload.value);
+  if (!row) return null;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={-6} y={4} textAnchor="end" fontSize={12} fontWeight={600} fill={colors.gray[800]}>
+        {row.year}
+      </text>
+    </g>
+  );
+}
+
+/** The band's two ends labelled under it. */
+function RangeEnds({ x, y, width, height, value }) {
+  if (!Array.isArray(value) || !isNum(x) || !isNum(width)) return null;
+  const ty = y + height + 11;
+  return (
+    <g fontSize={10.5} fill={colors.gray[600]}>
+      <text x={x} y={ty} textAnchor="start">{formatBn(value[0], 2)}</text>
+      <text x={x + width} y={ty} textAnchor="end">{formatBn(value[1], 2)}</text>
+    </g>
+  );
+}
+
+function CentralDot({ cx, cy, payload }) {
+  if (!isNum(cx) || !isNum(cy)) return null;
+  return <circle cx={cx} cy={cy} r={5.5} fill={RANGE_MARKS[payload.scheme].dot} stroke="#fff" strokeWidth={1.5} />;
+}
+
+function CentaxMark({ cx, cy }) {
+  if (!isNum(cx) || !isNum(cy)) return null;
+  const d = 7;
+  return <path d={`M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`} fill={RANGE_MARKS.centax} stroke="#fff" strokeWidth={1.5} />;
+}
+
+function RangeTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  const lines = [
+    ["Our estimate", formatBn(row.central, 2)],
+    [RANGE_LABEL, bnRange(row.range[0], row.range[1])],
+    ...(isNum(row.centax) ? [[CENTAX_MARK_LABEL, formatBn(row.centax, 2)]] : []),
+  ];
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
+      <div className="mb-2 font-semibold text-slate-800">
+        {row.part}, {row.year}
+      </div>
+      {lines.map(([k, v]) => (
+        <div key={k} className="flex items-center justify-between gap-4">
+          <span className="text-slate-600">{k}</span>
+          <span className="font-medium tabular-nums text-slate-800">{v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The bootstrap's 5th-95th percentile range for each year, for one leg (the 30 hours or both schemes), with the
+ * central cost on the take-up option chosen and, for the 30 hours, CenTax's static cost of the free hours. The axis
+ * fits the leg shown.
+ */
+export function RangeChart({ data, basis, leg = "thirty_hours" }) {
+  const u = getUncertainty(data, basis);
+  const phrase = takeUpPhrase(basis ?? getTakeUp(data).headline, u.basis);
+  const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
+  const rows = rangeChartRows(u, centax).filter((r) => r.scheme === leg);
+  const legName = RANGE_LEGS.find((l) => l.id === leg)?.label;
+  if (!rows.length || !legName) throw new Error(`RangeChart: no leg ${leg}`);
+  const values = rows.flatMap((r) => [...r.range, r.central, r.centax].filter(isNum));
+  const lo = Math.floor(Math.min(...values) * 10) / 10;
+  const hi = Math.ceil(Math.max(...values) * 10) / 10;
+  const ticks = [];
+  for (let v = lo; v <= hi + 1e-9; v += 0.2) ticks.push(Math.round(v * 10) / 10);
+  const years = u.rows.length > 1 ? `${fyLabel(u.rows[0].year)} to ${fyLabel(u.rows.at(-1).year)}` : fyLabel(u.rows[0].year);
+  const description = rows
+    .map(
+      (r) =>
+        `${r.year}: our estimate ${formatBn(r.central, 2)}, our likely range ${bnRange(r.range[0], r.range[1])}` +
+        (isNum(r.centax) ? `, CenTax's own static estimate ${formatBn(r.centax, 2)}` : ""),
+    )
+    .join("; ");
+  // CenTax exists for the 30 hours only, so its marker is listed only when it is drawn.
+  const legend = [
+    { id: "band", label: RANGE_LABEL, swatch: <span className="inline-block h-2.5 w-5 rounded-sm" style={{ backgroundColor: RANGE_MARKS[leg].band }} /> },
+    { id: "central", label: `Our estimate, with ${phrase}`, swatch: <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RANGE_MARKS[leg].dot }} /> },
+    ...(rows.some((r) => isNum(r.centax))
+      ? [{ id: "centax", label: CENTAX_MARK_LABEL, swatch: <span className="inline-block h-3 w-3 rotate-45 rounded-[1px]" style={{ backgroundColor: RANGE_MARKS.centax }} /> }]
+      : []),
+  ];
+  return (
+    <figure data-testid="range-chart">
+      <div
+        role="img"
+        aria-labelledby="range-chart-title"
+        aria-describedby="range-chart-desc"
+        style={{ height: 56 * rows.length + 40 }}
+      >
+        <p id="range-chart-title" className="sr-only">
+          Sampling range of the static cost of {legName === "30 hours" ? "the 30 hours" : "both schemes"}, {years}: our estimate using {phrase}{rows.some((r) => isNum(r.centax)) ? ", with CenTax's own static estimate for comparison" : ""}
+        </p>
+        <p id="range-chart-desc" className="sr-only">
+          {description}.
+        </p>
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={rows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barCategoryGap="38%">
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} horizontal={false} />
+            <XAxis type="number" domain={[lo, hi]} ticks={ticks} tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, 1)} />
+            <YAxis type="category" dataKey="key" width={76} tickLine={false} axisLine={false} tick={<RangeTick rows={rows} />} />
+            <Tooltip cursor={{ fill: colors.gray[50] }} content={<RangeTooltip />} />
+            <Bar dataKey="range" isAnimationActive={false} radius={4}>
+              {rows.map((r) => (
+                <Cell key={r.key} fill={RANGE_MARKS[r.scheme].band} />
+              ))}
+              <LabelList dataKey="range" content={<RangeEnds />} />
+            </Bar>
+            <Line dataKey="central" stroke="none" isAnimationActive={false} dot={<CentralDot />} activeDot={false} legendType="none" />
+            <Line dataKey="centax" stroke="none" isAnimationActive={false} dot={<CentaxMark />} activeDot={false} legendType="none" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <figcaption className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-600">
+        {legend.map((l) => (
+          <span key={l.id} className="flex items-center gap-2" data-testid={`range-legend-${l.id}`}>
+            {l.swatch}
+            {l.label}
+          </span>
+        ))}
+      </figcaption>
+      <ChartLogo />
+    </figure>
+  );
+}
+
+/** The note under the range chart on how wide the range is, a closed box in the group under the chart. */
+export function RangeNote({ data, basis }) {
+  const u = getUncertainty(data, basis);
+  const benchmark = getBenchmarks(data)[0] ?? {};
+  const centax = benchmark.underlying_static_by_year_bn ?? {};
+  const centaxYears = u.rows.filter((r) => isNum(centax[String(r.year)]));
+  const centaxInside =
+    centaxYears.length > 0 &&
+    centaxYears.every((r) => {
+      const c = centax[String(r.year)];
+      return r.chosen.thirty_hours.p5_bn <= c && c <= r.chosen.thirty_hours.p95_bn;
+    });
+  const centaxYearsText = centaxYears.map((r) => nb(r.year)).join(" and ");
+  return (
+    <Expandable title="How wide is the range?" testId="note-range" compact>
+      <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-700">
+        <li>
+          A floor on the sampling uncertainty: {u.draws.toLocaleString("en-GB")} resamples of the{" "}
+          <a href={FRS_URL} target="_blank" rel="noopener noreferrer">
+            FRS
+          </a>{" "}
+          households behind the{" "}
+          <a href={MICROCOSM_URL} target="_blank" rel="noopener noreferrer">
+            Microcosm
+          </a>{" "}
+          dataset.
+        </li>
+        <li>The weights and calibration are held fixed, and the survey&apos;s clustering is ignored.</li>
+        <li data-testid="note-range-centax">
+          <a href={benchmark.underlying_source_url} target="_blank" rel="noopener noreferrer">
+            CenTax
+          </a>{" "}
+          publishes static costs for {centaxYearsText} only, so its marker is in those years
+          {centaxInside ? "; both lie inside the range" : ""}.
+        </li>
+      </ul>
+    </Expandable>
+  );
+}
+
 function SchemesTable() {
   const rows = [
     ["Where", "England", "UK-wide"],
@@ -299,16 +583,21 @@ function SchemesTable() {
   );
 }
 
-export default function LandingTab({ data, setting = STATIC_SETTING }) {
-  const budget = getBudget(data);
+export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
+  const takeUp = getTakeUp(data);
+  const chosen = takeUp.bases[basis ?? takeUp.headline];
+  const budget = getBudget(data, chosen.id);
   const dynamic = !isStatic(setting);
   const offsets = labourSupplyOffset(data, setting);
   const cost = budget.rows.map((r, i) => r.total - offsets[i]);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const [scheme, setScheme] = useState(null);
+  // The range chart shows one leg at a time: the 30 hours by default.
+  const [leg, setLeg] = useState(RANGE_LEGS[0].id);
   const lead = budget.rows[li];
-  const recipients = getRecipients(data, lead.year);
-  const cmp = getBudgetComparisons(data);
+  // Families and children gaining on the chosen take-up basis (totals only; the breakdowns are on Who gains).
+  const recipients = chosen.recipients[lead.year];
+  const cmp = { net: chosen.net };
   const chart = costChartData(budget, offsets, dynamic);
   const gapM = netGrossGapM(cmp.net, budget.rows.map((r) => r.total));
   const fy = nb(lead.year);
@@ -318,7 +607,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
+        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year, with take-up of the 30 hours on the option chosen above (${chosen.short_label}${chosen.id === takeUp.headline ? ", the headline" : ""}). Click a year's bar to change the year, or a scheme to show it alone.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -372,6 +661,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
 
       <Section
         id="schemes"
+        grouped
         title="What changes for each scheme?"
         lead="Both schemes are withdrawn in full when either parent's adjusted net income goes over £100,000. The reform removes that test from both; nothing else changes."
       >
@@ -383,7 +673,14 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       <Section
         id="each-year"
         title="How much does it cost each year?"
-        lead="Extra government spending in each fiscal year from removing the limit, split between the 30 funded hours and Tax-Free Childcare. The £100,000 limit is not uprated, so as pay rises more parents pass it each year and the cost of removing it grows. Hover over a bar for its figures. The assumptions behind these figures, and what each one changes, are on the Methodology tab."
+        lead={
+          <>
+            Extra government spending in each fiscal year from removing the limit, split between the 30 funded hours and
+            Tax-Free Childcare. The £100,000 limit is not uprated, so as pay rises more parents pass it each year and the
+            cost of removing it grows. Hover over a bar for its figures. The assumptions behind these figures, and what
+            each one changes, are on the <a href="?tab=method#assumptions">Methodology tab</a>.
+          </>
+        }
         detailsTitle="How to read this chart"
         details={
           <>
@@ -404,8 +701,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       >
         {dynamic ? (
           <p className="mb-3 text-sm text-slate-600" data-testid="chart-setting">
-            Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see
-            Methodology):{" "}
+            Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see{" "}
+            <a href="?tab=method#labour-supply">Methodology</a>):{" "}
             {offsets.every((v) => v >= 0)
               ? "the grey bars below zero are the money back from parents working more"
               : offsets.every((v) => v <= 0)
@@ -415,6 +712,33 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
           </p>
         ) : null}
         <CostChart rows={chart.rows} series={chart.series} offsetName={chart.offsetName} />
+      </Section>
+
+      <Section
+        id="uncertainty"
+        title="How certain is the cost?"
+        lead={`The static cost rests on a small number of survey households, so it carries sampling uncertainty. The chart shows the range for each year, ${nb(budget.years[0])} to ${nb(budget.years.at(-1))}, using ${takeUpPhrase(chosen.id, chosen)}. Hover over a row for its figures.`}
+        boxed={false}
+      >
+        <div className="panel joined-below">
+          <div className="mb-4">
+            <Select
+              label="Show"
+              ariaLabel="Show the range for the 30 hours or both schemes"
+              options={RANGE_LEGS}
+              value={leg}
+              onChange={setLeg}
+              testId="range-leg-select"
+            />
+          </div>
+          <RangeChart data={data} basis={chosen.id} leg={leg} />
+        </div>
+        <ExpandableGroup joined testId="uncertainty-notes">
+          <Expandable title="Show the numbers" testId="uncertainty-expandable" compact>
+            <UncertaintyTable data={data} basis={chosen.id} leg={leg} />
+          </Expandable>
+          <RangeNote data={data} basis={chosen.id} />
+        </ExpandableGroup>
       </Section>
 
     </div>

@@ -7,7 +7,16 @@ from pathlib import Path
 
 import pytest
 
-from childcare_100k.config import FAMILY_TYPES, REFORM_PARAMETERS, REGIONS, SCENARIOS, YEARS, parameter_changes
+from childcare_100k.config import (
+    FAMILY_TYPES,
+    HEADLINE_TAKE_UP_BASIS,
+    REFORM_PARAMETERS,
+    REGIONS,
+    SCENARIOS,
+    TAKE_UP_BASES,
+    YEARS,
+    parameter_changes,
+)
 
 REPO = Path(__file__).resolve().parents[1]
 RESULTS = json.loads((REPO / "data" / "results.json").read_text())
@@ -41,8 +50,11 @@ def test_meta():
     assert m["lead_year"] == 2027
     assert m["run_provenance"]["dataset_sha256"] == m["dataset_sha256"]
     assert m["dataset"] == "microcosm_uk_2024_25"
-    assert m["dataset_revision"] == "f9d1922cddab6b54a0dd37794a9bac74e3780c88"
-    assert m["dataset_sha256"] == "aa31bdf67c977927ea2b325567d1cf7a79d94381239bc79918a0a0fc9c9588af"
+    assert m["dataset_revision"] == "c3a751d911ac82e482d298dda0b6f2c949f4ed4d"
+    assert m["dataset_release"] == "microcosm-uk-2024-25-national-20261023T075039Z-a133f37a"
+    assert m["dataset_sha256"] == "64f83900ca3a1242fb017585234844ce89f743d32e41cd2b6558057777f914aa"
+    assert m["policyengine_uk"] == "2.147.2"
+    assert "dataset_certified" not in m
     assert not any("cross_check" in k for k in m)
     assert "sample" not in m  # the dashboard fixture's flag; never set on real results
 
@@ -102,7 +114,9 @@ def test_validation_benchmarks_cliff():
     assert c["year"] == 2027
     b = RESULTS["benchmarks"][0]
     assert b["source"] == "Conservative Party" and _number(b["ours"]) and b["url"].startswith("https://")
-    assert all(isinstance(s, str) for s in RESULTS["limitations"])
+    for lim in RESULTS["limitations"]:
+        assert set(lim) == {"title", "summary", "detail"} and all(isinstance(v, str) for v in lim.values())
+        assert lim["title"] and lim["summary"].endswith(".")
 
 
 # ── Totals add up ──────────────────────────────────────────────────────────
@@ -126,9 +140,104 @@ def test_range_brackets_central():
     for y in YEAR_KEYS:
         assert r["central"][y] == RESULTS["budget"]["gross_bn"]["total"][y]
         assert r["low"][y] <= r["central"][y] <= r["high"][y]
-        low = r["central"][y] + eff["ani_net_of_pension_contributions_and_tfc_routed_share"][y]
-        high = r["central"][y] + eff["full_30_hour_usage"][y] + eff["under_ones"][y]
+        low = r["central"][y] + eff["tfc_routed_share"][y]
+        high = r["central"][y] + eff["full_30_hour_usage"][y]
         assert abs(low - r["low"][y]) <= 0.004 and abs(high - r["high"][y]) <= 0.004
+
+
+def test_expected_mode_headline_and_single_draw():
+    """The headline is the expected cost on DfE's take-up by age; the contract basis is the claim-all pair times the
+    contract rate."""
+    b = RESULTS["budget"]
+    t = b["take_up"]
+    assert t["headline"] == HEADLINE_TAKE_UP_BASIS == "dfe"
+    contract = t["bases"]["contract"]
+    assert 0 < contract["rate"] < 1
+    for y in YEAR_KEYS:
+        c = b["thirty_hours_components_bn"]
+        assert abs(c["extended"][y] + c["universal"][y] + c["targeted"][y] - b["gross_bn"]["thirty_hours"][y]) <= 0.002
+        # Each point of the contract rate is a hundredth of the claim-all cost, which that basis is rate times.
+        assert contract["per_point_m"][y] == pytest.approx(
+            1000 * contract["gross_bn"]["thirty_hours"][y] / contract["rate"] / 100, abs=1)
+        single = b["single_draw_bn"]
+        assert abs(single["thirty_hours"][y] + single["tax_free_childcare"][y] - single["total"][y]) <= 0.002
+    assert "thirty_hours_take_up" not in b  # moved into take_up.bases.contract
+
+
+def test_take_up_bases_block():
+    """Each take-up basis: its definition and source as config sets them, costs that add up, a range around its own
+    total and totals-only recipients. The headline basis is the published headline."""
+    t = RESULTS["budget"]["take_up"]
+    assert t["order"] == list(TAKE_UP_BASES) == ["dfe", "centax", "contract"]
+    assert set(t["bases"]) == set(TAKE_UP_BASES)
+    assert "31 December" in t["age"]
+    eff = RESULTS["budget"]["sensitivities"]["effects_bn"]
+    for basis, spec in TAKE_UP_BASES.items():
+        b = t["bases"][basis]
+        for k in ("label", "short_label", "description", "source", "source_url", "unit"):
+            assert b[k] == spec[k]
+        if spec["unit"] == "child":
+            assert b["rates_by_dfe_age"] == {str(a): r for a, r in spec["rates_by_dfe_age"].items()}
+            assert b["rates_text"]
+        else:
+            assert b["rate"] == spec["rate"]
+        g = b["gross_bn"]
+        for y in YEAR_KEYS:
+            assert abs(g["thirty_hours"][y] + g["tax_free_childcare"][y] - g["total"][y]) <= 0.002
+            assert abs(b["net_bn"]["total"][y] - g["total"][y]) <= 0.01
+            r = b["range_bn"]
+            assert r["central"][y] == g["total"][y]
+            assert r["low"][y] == pytest.approx(g["total"][y] + eff["tfc_routed_share"][y], abs=0.0015)
+            assert r["high"][y] == pytest.approx(g["total"][y] + eff["full_30_hour_usage"][y], abs=0.0015)
+            rec = b["recipients"][y]
+            # Totals only, rounded: no breakdown by age, region or family is published on a take-up basis.
+            assert set(rec) == {"families_gaining", "children_gaining", "by_scheme", "children_by_scheme", "mean_gain_gbp"}
+            for v in (rec["families_gaining"], rec["children_gaining"], *rec["by_scheme"].values(),
+                      *rec["children_by_scheme"].values()):
+                assert v % 1000 == 0
+            assert max(rec["by_scheme"].values()) <= rec["families_gaining"]
+            assert _number(rec["mean_gain_gbp"])
+    head = t["bases"][HEADLINE_TAKE_UP_BASIS]
+    for k in ("thirty_hours", "tax_free_childcare", "total"):
+        assert head["gross_bn"][k] == RESULTS["budget"]["gross_bn"][k]
+    assert head["net_bn"]["total"] == RESULTS["budget"]["net_bn"]["total"]
+    assert head["range_bn"] == RESULTS["budget"]["range_bn"]
+
+
+def test_contract_gap_by_dfe_age_adds_up():
+    """The split by DfE age of the gap between the contract basis and DfE's adds up to the gap in the 30 hours'
+    cost, and the contract's effective rate is below its flat rate only where the usage draw bites (age 0)."""
+    t = RESULTS["budget"]["take_up"]
+    gap = t["contract_gap_by_dfe_age"]
+    y = str(gap["year"])
+    bases = t["bases"]
+    total_m = 1000 * (bases["contract"]["gross_bn"]["thirty_hours"][y] - bases["dfe"]["gross_bn"]["thirty_hours"][y])
+    assert gap["gap_total_m"] == pytest.approx(total_m, abs=2)
+    assert sum(gap["gap_m"].values()) == pytest.approx(gap["gap_total_m"], abs=3)
+    for k in gap["gap_m"]:
+        assert gap["gap_m"][k] == pytest.approx(gap["contract_m"][k] - gap["dfe_m"][k], abs=1)
+    rate = bases["contract"]["rate"]
+    assert gap["contract_effective_rate"]["0"] < rate - 0.05
+    for k in ("1", "2", "3-5"):
+        assert gap["contract_effective_rate"][k] == pytest.approx(rate, abs=0.02)
+
+
+def test_bootstrap_brackets_the_headline():
+    u = RESULTS["budget"]["uncertainty"]
+    assert u["draws"] == 2000
+    assert list(u["by_year"]) == [str(y) for y in RESULTS["meta"]["years"]]
+    bases = RESULTS["budget"]["take_up"]["bases"]
+    for y, v in u["by_year"].items():
+        assert "expected" not in v  # one block per take-up basis instead
+        centrals = {"drawn": RESULTS["budget"]["single_draw_bn"], **{k: b["gross_bn"] for k, b in bases.items()}}
+        for basis, central in centrals.items():
+            for leg in ("thirty_hours", "tax_free_childcare", "total"):
+                c = v[basis][leg]
+                assert c["sd_bn"] > 0
+                assert c["p5_bn"] < central[leg][y] < c["p95_bn"]
+        assert 0 < v["effective_source_households_30_hours"] <= v["source_households_30_hours"]
+    a = RESULTS["budget"]["age_profile_sensitivity"]
+    assert a["even_spread_bn"] > 0 and a["centax_gradient_bn"] > 0
 
 
 # ── The reform changes only the two limits ────────────────────────────────
@@ -144,8 +253,34 @@ def test_scenarios_only_touch_the_two_limits():
         assert set(parameter_changes(spec["params"])) == set(spec["params"])
     assert set(SCENARIOS["reform"]["params"]) == set(REFORM_PARAMETERS)
     # Sensitivity overrides are identical in the baseline and reform run they are compared with.
-    for name in ("hours30", "routed"):
+    for name in ("hours30", "routed", "tfc_all"):
         assert SCENARIOS[f"baseline_{name}"]["inputs"] == SCENARIOS[f"reform_{name}"]["inputs"]
+        assert SCENARIOS[f"reform_{name}"]["base"] == f"baseline_{name}"
+    # Every reform nets the new funded hours off childcare spending against its own baseline; no baseline does.
+    for name, spec in SCENARIOS.items():
+        assert spec.get("net_new_hours", False) == bool(spec["params"])
+        assert "toggles" not in spec
+
+
+def test_tax_free_childcare_leg_and_reconciliation():
+    t = RESULTS["budget"]["tax_free_childcare_bn"]
+    for k in ("central", "before_netting", "take_up_newly_eligible_low", "take_up_newly_eligible_all"):
+        _by_year(t[k])
+    assert t["take_up_newly_eligible_low_rate"] == 0.7
+    for y in YEAR_KEYS:
+        assert t["central"][y] == RESULTS["budget"]["gross_bn"]["tax_free_childcare"][y]
+        # Netting the new funded hours off spending can only lower the top-up.
+        assert t["central"][y] <= t["before_netting"][y]
+        assert t["take_up_newly_eligible_low"][y] == pytest.approx(0.7 * t["take_up_newly_eligible_all"][y], abs=0.0015)
+    for gone in ("centax_basis_bn", "bootstrap_sd_bn"):
+        assert gone not in RESULTS["budget"]
+    r = RESULTS["reconciliation"]
+    assert "thirty_hours_reception_excluded_bn" not in r
+    for y in YEAR_KEYS:
+        assert 0 < r["concentration"][y]["top_ten_share_pct"] <= 100
+        assert r["concentration"][y]["kish_effective_sample_size"] <= r["concentration"][y]["gaining_sample_size"]
+        assert r["parents_over_100k_with_child_under_5_thousands"][y] % 1000 == 0
+    assert "ours_centax_basis" not in RESULTS["benchmarks"][0]
 
 
 def test_model_parameter_tree_differs_only_in_the_two_limits():
@@ -255,7 +390,7 @@ def test_benchmark_and_take_up_wording():
     assert "like-for-like comparison is our static cost of the 30 funded hours" in b["like_for_like"]
     assert b["ours"] == RESULTS["budget"]["gross_bn"]["thirty_hours"][str(b["year"])]
     assert "CenTax" in b["like_for_like"] and b["underlying_source_url"].startswith("https://centax.org.uk/")
-    text = " ".join(RESULTS["limitations"])
+    text = " ".join(f"{x['summary']} {x['detail']}" for x in RESULTS["limitations"])
     assert "same for families above and below" not in text
     assert "expects" in text  # the realised-for-expected income proxy is disclosed
 
@@ -264,7 +399,17 @@ def test_modelling_assumptions_carry_the_tested_effects():
     rows = {r["id"]: r for r in RESULTS["modelling_assumptions"]}
     eff = RESULTS["budget"]["sensitivities"]["effects_bn"]
     assert rows["hours"]["effect_bn"] == eff["full_30_hour_usage"]
-    assert rows["under_ones"]["effect_bn"] == eff["under_ones"]
+    assert "effect_bn" not in rows["under_ones"]  # in the model since policyengine-uk#2570
+    assert rows["income_test"]["effect_bn"] == eff["tfc_routed_share"]
+    t = RESULTS["budget"]["tax_free_childcare_bn"]
+    bases = RESULTS["budget"]["take_up"]["bases"]
+    for y in YEAR_KEYS:
+        assert rows["tfc_take_up"]["effect_bn"][y] == pytest.approx(
+            t["take_up_newly_eligible_low"][y] - t["central"][y], abs=1e-9)
+        # The 30 hours' take-up alternatives: CenTax's two rates and the contract's flat rate, against DfE's by age.
+        for row, basis in (("take_up", "centax"), ("take_up_contract", "contract")):
+            assert rows[row]["effect_bn"][y] == pytest.approx(
+                bases[basis]["gross_bn"]["total"][y] - bases["dfe"]["gross_bn"]["total"][y], abs=1e-9)
     for r in rows.values():
         assert r["title"] and r["modelled"]
         assert ("alternative" in r) == ("effect_bn" in r)
@@ -356,3 +501,11 @@ def test_gender_breakdown_adds_up_and_is_suppressed_safely(year):
     for p in g["partner_not_working"]:
         if not p["suppressed"]:
             assert 0 <= p["partner_not_working_pct"] <= 100
+
+
+def test_limitation_splits_at_the_first_sentence():
+    from childcare_100k.cli import limitation
+
+    t = "Rule (SI 2015/448 reg 15(1)). Then pp. 5-6 here. Last."
+    assert limitation("T", t) == {"title": "T", "summary": "Rule (SI 2015/448 reg 15(1)).", "detail": "Then pp. 5-6 here. Last."}
+    assert limitation("T", "One sentence.")["detail"] == ""

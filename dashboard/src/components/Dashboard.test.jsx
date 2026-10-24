@@ -11,17 +11,21 @@ const router = { replace: vi.fn() };
 vi.mock("next/navigation", () => ({ useRouter: () => router, useSearchParams: () => searchParams }));
 
 import Dashboard, { TAB_OPTIONS } from "./Dashboard";
-import LandingTab from "./LandingTab";
+import LandingTab, { rangeChartRows } from "./LandingTab";
 import { CENTAX } from "./Comparison";
 import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPRESSED } from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
-import { cliffSummary, getHouseholdGrid, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
-import { formatBn, formatMoneyBn, formatThousands } from "../lib/formatters";
+import { plainText, RichText } from "./ui";
+import { cliffSummary, getHouseholdGrid, getUncertainty, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
+import { formatMoneyBn, formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
 const years = data.meta.years;
 const final = years.at(-1);
 const total = (y) => data.budget.gross_bn.total[String(y)];
+const takeUp = data.budget.take_up;
+// Families and children gaining on the headline take-up basis, as Budget impact shows them.
+const headlineRecipients = (y) => takeUp.bases[takeUp.headline].recipients[String(y)];
 
 describe("the page", () => {
   it("renders every tab without broken or placeholder text", () => {
@@ -53,10 +57,15 @@ describe("the page", () => {
     }
   });
 
-  it("names the policyengine.py version and the dataset in the footer, from the file", () => {
+  it("names the policyengine.py version in the footer, from the file, and links the replication code", () => {
     render(<Dashboard data={data} />);
-    const text = screen.getByTestId("replication").textContent;
-    expect(text).toContain(`policyengine.py ${data.meta.policyengine} on Microcosm UK 2024-25. Replication code`);
+    const footer = screen.getByTestId("replication");
+    expect(footer.textContent).toBe(
+      `Built with policyengine.py ${data.meta.policyengine}. Replication code: PolicyEngine/uk-childcare-100k-threshold.`,
+    );
+    expect(within(footer).getByRole("link", { name: "PolicyEngine/uk-childcare-100k-threshold" }).getAttribute("href")).toBe(
+      "https://github.com/PolicyEngine/uk-childcare-100k-threshold",
+    );
   });
 
   it("states the modelled period in the intro, from the file", () => {
@@ -83,7 +92,7 @@ describe("budget impact", () => {
     expect(card).toContain(bn(total(LEAD_YEAR)));
     expect(card).not.toMatch(/Range/);
     expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[LEAD_YEAR])} and ${bn(g.tax_free_childcare[LEAD_YEAR])}`);
-    const rec = data.recipients[LEAD_YEAR];
+    const rec = headlineRecipients(LEAD_YEAR);
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.families_gaining));
     if (rec.mean_gain_gbp !== null) expect(screen.getByTestId("card-families").textContent).toContain(gbp(rec.mean_gain_gbp));
   });
@@ -92,12 +101,12 @@ describe("budget impact", () => {
     render(<LandingTab data={data} />);
     fireEvent.click(within(screen.getByTestId("card-cost")).getByRole("button", { name: new RegExp(fy(final)) }));
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(final)));
-    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(data.recipients[final].families_gaining));
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(headlineRecipients(final).families_gaining));
   });
 
   it("shows one scheme in both cards when it is clicked, and both again on a second click", () => {
     render(<LandingTab data={data} />);
-    const rec = data.recipients[LEAD_YEAR];
+    const rec = headlineRecipients(LEAD_YEAR);
     const bar = () => within(screen.getByTestId("card-families")).getByRole("button", { name: /^Tax-Free Childcare/ });
     fireEvent.click(bar());
     expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(rec.by_scheme.tax_free_childcare));
@@ -220,13 +229,24 @@ describe("your household", () => {
 });
 
 describe("methodology", () => {
-  it("shows the versions, every validation row and every limitation from the file", () => {
+  it("shows the pinned versions, every validation row and every limitation from the file", () => {
     render(<MethodTab data={data} />);
-    expect(screen.getByTestId("versions-table").textContent).toContain(data.meta.dataset_label);
+    const versions = screen.getByTestId("method-step-versions").textContent;
+    for (const k of ["policyengine", "policyengine_uk"]) expect(versions, k).toContain(data.meta[k]);
     const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(data.baseline_validation.length);
-    expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(6);
-    expect(within(screen.getByTestId("limitations")).getAllByRole("listitem")).toHaveLength(data.limitations.length);
+    // Every limitation in the file, plus the age profile, each a title and a one-sentence summary in one group.
+    const group = screen.getByTestId("limitations");
+    expect(group.children).toHaveLength(data.limitations.length + 1);
+    for (const l of data.limitations) expect(group.textContent).toContain(`${l.title}. ${plainText(l.summary)}`);
+  });
+
+  it("shows every costing step inline, with no expanders, in about 200 words", () => {
+    render(<MethodTab data={data} />);
+    const card = document.getElementById("model");
+    expect(card.querySelectorAll("details")).toHaveLength(0);
+    expect(screen.getByTestId("method-steps").children).toHaveLength(5);
+    expect(card.textContent.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(210);
   });
 
   it("compares every modelling choice in one table, with each tested alternative's effect in £m from the file", () => {
@@ -234,44 +254,38 @@ describe("methodology", () => {
     const table = screen.getByTestId("comparison-table");
     const final = years.at(-1);
     for (const a of data.modelling_assumptions.filter((x) => x.effect_bn || x.id === "static")) {
-      expect(table.textContent, a.id).toContain(a.ours);
+      // A long choice is shown as its key point with the detail on a second line.
+      for (const part of a.ours.split(/: |; /)) expect(table.textContent, a.id).toContain(part);
       if (a.effect_bn) {
         const m = Math.round(a.effect_bn[final] * 1000);
         expect(table.textContent, a.id).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
-        const row = screen.getByTestId(`effect-${a.id}`);
-        const m0 = Math.round(a.effect_bn[years[0]] * 1000);
-        expect(row.textContent).toContain(`£${Math.abs(m0).toLocaleString("en-GB")}m`);
+        // The alternative it tests sits under the effect, as the one home for it.
+        const cell = screen.getByTestId(`effect-${a.id}`);
+        expect(cell.textContent).toContain(`£${Math.abs(m).toLocaleString("en-GB")}m`);
+        expect(cell.textContent).toContain(a.alternative);
       }
     }
+  });
+
+  it("has no separate list of the choices: the comparison table and one method-notes link carry them", () => {
+    render(<MethodTab data={data} />);
+    expect(screen.queryByTestId("choices")).toBeNull();
+    expect(screen.queryByTestId("effects-table")).toBeNull();
+    const card = document.getElementById("assumptions");
+    expect(within(card).getAllByRole("link", { name: /method notes on GitHub/i })).toHaveLength(1);
   });
 
   it("does not call the take-up rates equal above and below £100,000", () => {
     render(<MethodTab data={data} />);
     expect(document.body.textContent).not.toMatch(/the same above and below £100,000/);
-    expect(document.body.textContent).toMatch(/held fixed/);
   });
 
-  it("reports the entry and income-basis sensitivities of the labour supply response", () => {
+  it("keeps the labour supply sensitivities in the method notes, linked from the Sensitivities item", () => {
     render(<MethodTab data={data} />);
-    const text = screen.getByTestId("labour-supply-method").textContent;
-    const ls = data.labour_supply;
-    const y = String(Object.keys(ls.extensive.offset_bn.central).at(-1));
-    const b3 = (x) => formatBn(x, 3);
-    const m = (x) => `£${Math.abs(x).toFixed(1)}m`;
-    expect(text).toContain(m(ls.extensive.entry_sensitivity.same_cell_only.offset_m[y]));
-    expect(text).toContain(m(ls.extensive.entry_sensitivity.worker_profile.offset_m[y]));
-    expect(text).toContain(b3(ls.intensive_income_basis.paid_care_fixed_spend.offset_bn[y]));
-    expect(text).toContain(b3(ls.intensive_income_basis.government_cost.offset_bn[y]));
-    expect(text).toContain(b3(ls.intensive_price_basis.original_spend.offset_bn[y]));
-    expect(text).toContain(b3(ls.intensive_price_basis.tfc_only.offset_bn[y]));
-    expect(text).toMatch(/Universal Credit childcare element it no longer gets/);
+    const item = screen.getByTestId("ls-sensitivities");
+    expect(within(item).getByRole("link", { name: "method notes on GitHub" }).getAttribute("href")).toMatch(/docs\/METHOD\.md$/);
   });
 
-  it("pins the model package and the dataset release, revision and checksum", () => {
-    render(<MethodTab data={data} />);
-    const text = screen.getByTestId("versions-table").textContent;
-    for (const k of ["policyengine", "policyengine_uk", "dataset_release", "dataset_revision", "dataset_sha256"]) expect(text, k).toContain(data.meta[k]);
-  });
 });
 
 describe("the labour supply control", () => {
@@ -317,7 +331,7 @@ describe("the labour supply control", () => {
 
   it("explains labour supply on Methodology from the results file", () => {
     const text = textOf(<MethodTab data={data} />);
-    expect(text).toContain(ls.responding_population);
+    expect(text).toContain(plainText(ls.responding_population));
     expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
     expect(text).toContain(ls.not_modelled);
     expect(text).toContain(bn(CENTAX.parentsBn));
@@ -330,21 +344,24 @@ describe("the labour supply control", () => {
     const i = ls.intensive;
     expect(i.price_offset_bn.central[f]).toBeGreaterThanOrEqual(0);
     expect(i.income_offset_bn.central[f]).toBeLessThanOrEqual(0);
-    expect(text).toContain(ls.assumptions.income_elasticities);
+    expect(text).toContain("OBR's income elasticities");
     expect(text).toContain(`price effect brings back ${formatMoneyBn(i.price_offset_bn.central[f])}`);
     expect(text).toContain(`${formatMoneyBn(i.over_limit.price_offset_bn.central[f])} from those over it`);
     expect(text).toContain(`income effect costs ${formatMoneyBn(-i.income_offset_bn.central[f])}`);
     expect(text).toContain(`a net ${formatMoneyBn(i.offset_bn.central[f])} back`);
+    // The findings give the totals; the split by group is in the Method list's "Hours" item.
+    expect(screen.queryByTestId("ls-intensive")).toBeNull();
   });
 
   it("fills the comparison's dynamic cost: both margins with the range when off, the chosen margins when on", () => {
     const f = String(final);
     const off = textOf(<MethodTab data={data} />);
-    expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])} (${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("moving into work, and hours net of the income effect; bunching not modelled");
+    // The key figure, then the range and what it covers on a second line.
+    expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])}${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
+    expect(off).toContain("partners moving into work and hours, net of the income effect; bunching not modelled");
     const on = textOf(<MethodTab data={data} setting={{ extensive: true, intensive: false, bound: "low" }} />);
     const cost = data.budget.gross_bn.total[f] - ls.extensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)} (moving into work at the low setting)`);
+    expect(on).toContain(`${bn(cost)}moving into work at the low setting`);
   });
 
   it("shows the money back in the yearly chart only when a margin is on", () => {
@@ -352,6 +369,162 @@ describe("the labour supply control", () => {
     expect(textOf(<LandingTab data={data} setting={{ extensive: true, intensive: true, bound: "central" }} />)).toContain(
       "Back from parents working more",
     );
+  });
+});
+
+describe("the take-up control", () => {
+  const lead = String(LEAD_YEAR);
+  const basis = (id) => takeUp.bases[id];
+  const select = () => screen.getByTestId("take-up-select");
+  const choose = (id) => fireEvent.change(select(), { target: { value: id } });
+
+  it("opens on the headline, DfE's rates by age, with each option's 30 hours cost in the drop-down", () => {
+    render(<Dashboard data={data} />);
+    expect(screen.getByLabelText("Take-up of the 30 hours among newly eligible families")).toBe(select());
+    expect(select().value).toBe(takeUp.headline);
+    const options = within(select()).getAllByRole("option");
+    expect(options.map((o) => o.value)).toEqual(takeUp.order);
+    for (const [k, id] of takeUp.order.entries()) {
+      expect(options[k].textContent).toContain(basis(id).short_label);
+      expect(options[k].textContent).toContain(bn(basis(id).gross_bn.thirty_hours[lead]));
+    }
+    expect(options[takeUp.order.indexOf(takeUp.headline)].textContent).toContain("(headline)");
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(LEAD_YEAR)));
+  });
+
+  it("explains every option once, with its source, in a box closed by default", () => {
+    render(<Dashboard data={data} />);
+    const box = screen.getByTestId("take-up-options");
+    expect(box.tagName).toBe("DETAILS");
+    expect(box.open).toBe(false);
+    for (const id of takeUp.order) {
+      const item = within(box).getByTestId(`take-up-option-${id}`);
+      expect(item.textContent).toContain(basis(id).description);
+      expect(within(item).getByRole("link", { name: basis(id).source }).getAttribute("href")).toBe(basis(id).source_url);
+    }
+    // DfE's rates appear once on Budget impact: in this box ("42% at 9-11 months" is the first of them).
+    const first = basis(takeUp.headline).rates_text.split(",")[0];
+    expect(document.body.textContent.split(first).length - 1).toBe(1);
+  });
+
+  it.each(["centax", "contract"])("switches the headline figures to %s and keeps it in the URL", (id) => {
+    router.replace.mockClear();
+    render(<Dashboard data={data} />);
+    choose(id);
+    expect(select().value).toBe(id);
+    const g = basis(id).gross_bn;
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(g.total[lead]));
+    expect(screen.getByTestId("card-split").textContent).toContain(`${bn(g.thirty_hours[lead])} and ${bn(g.tax_free_childcare[lead])}`);
+    expect(screen.getByTestId("card-families").textContent).toContain(formatThousands(basis(id).recipients[lead].families_gaining));
+    const phrase = { centax: "CenTax's take-up rates", contract: "one flat take-up rate" }[id];
+    expect(screen.getByTestId("uncertainty-table").textContent).toContain(`With ${phrase}`);
+    expect(screen.getByTestId("range-legend-central").textContent).toBe(`Our estimate, with ${phrase}`);
+    expect(document.getElementById("uncertainty").textContent).toContain(`using ${phrase}`);
+    if (id === "centax") expect(screen.getByTestId("range-legend-centax").textContent).toBe("CenTax's own estimate (static)");
+    expect(router.replace).toHaveBeenLastCalledWith(`/?takeup=${id}`, { scroll: false });
+    // Back to the headline: the URL is clean again.
+    choose(takeUp.headline);
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(LEAD_YEAR)));
+    expect(router.replace).toHaveBeenLastCalledWith("/", { scroll: false });
+  });
+
+  it("explains take-up on Methodology, with the flat rate's per-point effect and links to the options", () => {
+    render(<MethodTab data={data} />);
+    const step = screen.getByTestId("method-take-up");
+    expect(step.id).toBe("take-up-method");
+    expect(step.textContent).toContain(`£${basis("contract").per_point_m[lead]}m`);
+    expect(within(step).getByRole("link", { name: "Budget impact" }).getAttribute("href")).toBe("?tab=budget#take-up-options");
+  });
+
+  it("groups the boxes under the range chart, with no pointer line to Methodology under them", () => {
+    render(<LandingTab data={data} />);
+    const group = screen.getByTestId("uncertainty-notes");
+    expect(group.className).toContain("expandable-group");
+    expect([...group.children].map((c) => c.dataset.testid)).toEqual(["uncertainty-expandable", "note-range"]);
+    expect(screen.queryByTestId("take-up-note")).toBeNull();
+    expect(screen.queryByTestId("note-age")).toBeNull();
+    expect(screen.queryByTestId("uncertainty-method-link")).toBeNull();
+  });
+
+  it("adds the labour supply response to the chosen basis's cost", () => {
+    render(<Dashboard data={data} />);
+    choose("centax");
+    fireEvent.click(screen.getByTestId("toggle-intensive"));
+    const cost = basis("centax").gross_bn.total[lead] - data.labour_supply.intensive.offset_bn.central[lead];
+    expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
+  });
+
+  it("opens on the basis the URL names, and shows only on Budget impact", () => {
+    searchParams.set("takeup", "contract");
+    try {
+      render(<Dashboard data={data} />);
+      expect(select().value).toBe("contract");
+      expect(screen.getByTestId("card-cost").textContent).toContain(bn(basis("contract").gross_bn.total[lead]));
+      fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
+      expect(screen.queryByTestId("take-up-control")).toBeNull();
+      fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
+      expect(screen.queryByTestId("take-up-control")).toBeNull();
+      // The comparison stays on the headline, whose effects its rows measure, whatever the basis chosen.
+      const table = screen.getByTestId("comparison-table").textContent;
+      const f = String(final);
+      const staticCell = screen.getByTestId("static-cell").textContent;
+      expect(staticCell.startsWith(bn(basis(takeUp.headline).gross_bn.total[f]))).toBe(true);
+      expect(staticCell).toContain(`take-up: ${basis(takeUp.headline).label}`);
+      expect(table).not.toContain(`${bn(basis("contract").gross_bn.total[f])}30 hours`);
+      expect(screen.getByTestId("dynamic-cell").textContent).toContain(bn(data.labour_supply.dynamic_cost_bn.central[f]));
+    } finally {
+      searchParams.delete("takeup");
+    }
+  });
+
+  it("works without the control: each tab alone shows the headline", () => {
+    const g = takeUp.bases[takeUp.headline].gross_bn;
+    expect(textOf(<LandingTab data={data} />)).toContain(bn(g.total[lead]));
+    expect(textOf(<MethodTab data={data} />)).toContain(bn(g.total[String(final)]));
+    // On Methodology the rates are stated once, in the comparison table's take-up row.
+    const method = textOf(<MethodTab data={data} />);
+    expect(method.split(basis(takeUp.headline).rates_text).length - 1).toBe(1);
+  });
+});
+
+describe("the range chart", () => {
+  it("draws, for each year, the 30 hours and both schemes from the file, with CenTax on the 30 hours and no single draw", () => {
+    const u = data.budget.uncertainty.by_year;
+    const centax = data.benchmarks[0].underlying_static_by_year_bn;
+    const rows = rangeChartRows(getUncertainty(data), centax);
+    expect(rows).toHaveLength(2 * Object.keys(u).length);
+    for (const [y, v] of Object.entries(u)) {
+      const [thirty, both] = rows.filter((r) => r.key.startsWith(y));
+      expect(thirty.range).toEqual([v[takeUp.headline].thirty_hours.p5_bn, v[takeUp.headline].thirty_hours.p95_bn]);
+      expect(both.range).toEqual([v[takeUp.headline].total.p5_bn, v[takeUp.headline].total.p95_bn]);
+      expect(thirty.central).toBe(takeUp.bases[takeUp.headline].gross_bn.thirty_hours[y]);
+      expect(both.central).toBe(takeUp.bases[takeUp.headline].gross_bn.total[y]);
+      expect(thirty.centax).toBe(centax[y] ?? null);
+      expect("single" in thirty).toBe(false);
+      expect(both.centax).toBeNull();
+    }
+    render(<LandingTab data={data} />);
+    const chart = screen.getByTestId("range-chart");
+    expect(within(chart).getByRole("img").getAttribute("aria-describedby")).toBe("range-chart-desc");
+    expect(document.getElementById("range-chart-desc").textContent).toContain(bn(rows[0].range[0]));
+  });
+
+  it("shows one leg at a time, the 30 hours by default, with only that leg's markers and numbers", () => {
+    render(<LandingTab data={data} />);
+    const n = Object.keys(data.budget.uncertainty.by_year).length;
+    const select = screen.getByTestId("range-leg-select");
+    const rowCount = () => document.getElementById("range-chart-desc").textContent.split(";").length;
+    const legend = () => ["band", "central", "centax", "single"].filter((id) => screen.queryByTestId(`range-legend-${id}`));
+    const tableLabels = () => [...screen.getByTestId("uncertainty-table").querySelectorAll("tbody td:first-child")].map((td) => td.textContent);
+    expect(select.value).toBe("thirty_hours");
+    expect(rowCount()).toBe(n);
+    expect(legend()).toEqual(["band", "central", "centax"]);
+    expect(tableLabels().every((l) => l.startsWith("30 hours"))).toBe(true);
+    fireEvent.change(select, { target: { value: "total" } });
+    expect(rowCount()).toBe(n);
+    expect(document.getElementById("range-chart-desc").textContent).not.toContain("CenTax");
+    expect(legend()).toEqual(["band", "central"]);
+    expect(tableLabels()).toEqual(["Both schemes: our standard deviation", "Both schemes: our likely range (90% of resamples)"]);
   });
 });
 
@@ -373,3 +546,29 @@ describe("who gains: the recipients view across years", () => {
   });
 });
 
+
+describe("links in the results file's text", () => {
+  it("renders [label](url) as links: external in a new tab, internal in the same one", () => {
+    render(<p data-testid="rt"><RichText text="See [the law](https://www.legislation.gov.uk/uksi/2015/448/regulation/15) and [below](#validation)." /></p>);
+    const [ext, int] = within(screen.getByTestId("rt")).getAllByRole("link");
+    expect(ext.getAttribute("target")).toBe("_blank");
+    expect(ext.getAttribute("rel")).toContain("noopener");
+    expect(int.getAttribute("target")).toBeNull();
+    expect(screen.getByTestId("rt").textContent).toBe("See the law and below.");
+    expect(plainText("a [b](c) d")).toBe("a b d");
+  });
+
+  it("leaves no raw markup on any tab", () => {
+    for (const Tab of [LandingTab, WhoGainsTab, MethodTab]) {
+      expect(textOf(<Tab data={data} />)).not.toMatch(/\]\((https?:|\?|#)/);
+    }
+  });
+});
+
+describe("who gains: the intros", () => {
+  it("says the single-draw point once on the tab", () => {
+    const text = textOf(<WhoGainsTab data={data} />);
+    expect(text.split("single draw of who claims").length - 1).toBe(1);
+    expect(text).toContain(`as the higher earner's pay rises to £140,000.`);
+  });
+});

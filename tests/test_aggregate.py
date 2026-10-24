@@ -21,20 +21,18 @@ class FakeRun:
         return self.arrays[name]
 
 
-def _pair(year=2026, n=4, d_free=None, d_tfc=None, over_law=None, newly=None, n_age0=None, **extra):
+def _pair(year=2026, n=4, d_free=None, d_tfc=None, newly=None, **extra):
     """A baseline and reform run over ``n`` one-family households (household = family = one adult)."""
     w = np.arange(1.0, n + 1)
     zero = np.zeros(n)
     d_free = zero if d_free is None else np.asarray(d_free, float)
     d_tfc = zero if d_tfc is None else np.asarray(d_tfc, float)
-    over_law = np.ones(n, bool) if over_law is None else np.asarray(over_law, bool)
     newly = np.zeros(n, bool) if newly is None else np.asarray(newly, bool)
-    n_age0 = zero if n_age0 is None else np.asarray(n_age0, float)
     common = dict(
         hh_weight=w, bu_weight=w, p_weight=w,
         hh_gov_balance=zero, hh_net_income=np.full(n, 50_000.0), hh_decile=np.arange(1, n + 1),
         hh_country=np.array(["ENGLAND"] * n), bu_country=np.zeros(n, int), bu_region=np.zeros(n, int), bu_family_type=np.zeros(n, int),
-        bu_any_over_law=over_law, bu_n_age0=n_age0, rate_by_age=np.array([11.0, 11.0, 8.0, 6.0, 6.0]),
+        rate_by_age=np.array([11.0, 11.0, 8.0, 6.0, 6.0]),
         p_age=np.full(n, 3.0), p_is_child=np.ones(n, bool),
         **extra,
     )
@@ -113,38 +111,43 @@ def test_lone_suppressed_cell_gets_the_smallest_changed_complement():
 
 def _sensitivity_runs(base, ref, d_routed_extra):
     """Hours30 runs identical to central; routed runs change TFC gains by ``d_routed_extra``."""
+    extra = np.asarray(d_routed_extra, float)
     rb = FakeRun(2026, **base.arrays)
-    rr = FakeRun(2026, **{**ref.arrays, "bu_tfc": ref.arrays["bu_tfc"] + np.asarray(d_routed_extra, float)})
+    rr = FakeRun(2026, **{**ref.arrays, "bu_tfc": ref.arrays["bu_tfc"] + extra, "hh_tfc": ref.arrays["hh_tfc"] + extra})
     return {"baseline": base, "reform": ref, "baseline_hours30": base, "reform_hours30": ref,
             "baseline_routed": rb, "reform_routed": rr}
 
 
-def test_joint_low_end_does_not_double_count():
-    # Family 0 already qualifies in law (not over £100k net of pension contributions): its whole
-    # gain is removed, so its routed-share change must not be removed a second time.
-    base, ref = _pair(d_tfc=[1000, 1000, 0, 0], over_law=[False, True, True, True])
+def test_low_end_is_central_plus_the_routed_share_effect():
+    base, ref = _pair(d_tfc=[1000, 1000, 0, 0])
     runs = _sensitivity_runs(base, ref, [-400, -400, 0, 0])
     out = A.sensitivities(runs, years=[2026])
-    joint = out["effects_bn"][A.JOINT_LOW]["2026"]
-    # Pension removes family 0's gain (w=1 x 1000); routed counts family 1 only (w=2 x -400).
-    assert joint == round((-1 * 1000 + 2 * -400) / 1e9, 3)
+    routed = out["effects_bn"][A.ROUTED_LOW]["2026"]
+    assert routed == round((1 * -400 + 2 * -400) / 1e9, 3)
     rng = out["range_bn"]
-    assert rng["low"]["2026"] == round(rng["central"]["2026"] + joint, 3)
+    assert rng["low"]["2026"] == round(rng["central"]["2026"] + routed, 3)
+    assert rng["high"]["2026"] == rng["central"]["2026"]  # hours30 runs equal the central ones here
 
 
-def test_under_ones_use_the_term_delayed_share_of_the_year():
-    base, ref = _pair(newly=[True, False, False, False], n_age0=[1, 1, 0, 0])
-    runs = _sensitivity_runs(base, ref, [0, 0, 0, 0])
-    out = A.sensitivities(runs, years=[2026])
-    expected = 1 * 1 * (1.125 / 12) * 30 * 38 * 11.0
-    assert out["effects_bn"]["under_ones"]["2026"] == round(expected / 1e9, 3)
-    assert A.UNDER_ONE_SHARE_OF_YEAR == pytest.approx(0.09375)
+def test_tfc_take_up_line_is_the_rate_times_the_full_take_up_leg():
+    """Central is the netted leg; before_netting reads the reform's pre-netting top-up; the 70% line scales the
+    leg with every eligible family claiming."""
+    base, ref = _pair(d_tfc=[1e8, 0, 0, 0])
+    ref.arrays["hh_tfc_before_netting"] = ref.arrays["hh_tfc"] + np.array([5e7, 0, 0, 0])
+    full_b = FakeRun(2026, **base.arrays)
+    full_r = FakeRun(2026, **{**ref.arrays, "hh_tfc": np.array([2e8, 0, 0, 0])})
+    out = A.tax_free_childcare_leg({"baseline": base, "reform": ref, "baseline_tfc_all": full_b,
+                                    "reform_tfc_all": full_r}, years=[2026])
+    assert out["central"]["2026"] == 0.1
+    assert out["before_netting"]["2026"] == 0.15
+    assert out["take_up_newly_eligible_all"]["2026"] == 0.2
+    assert out["take_up_newly_eligible_low"]["2026"] == round(0.7 * 0.2, 3)
 
 
 def test_routed_runs_with_different_weights_raise():
     base, ref = _pair(d_tfc=[1000, 0, 0, 0])
     runs = _sensitivity_runs(base, ref, [0, 0, 0, 0])
-    runs["reform_routed"].arrays["bu_weight"] = runs["reform_routed"].arrays["bu_weight"] * 2
+    runs["reform_routed"].arrays["hh_weight"] = runs["reform_routed"].arrays["hh_weight"] * 2
     with pytest.raises(ValueError):
         A.sensitivities(runs, years=[2026])
 
@@ -157,7 +160,6 @@ def test_a_child_counts_as_gaining_only_from_their_own_entitlement():
         hh_weight=np.full(1, 1_000.0), bu_weight=np.full(1, 1_000.0), p_weight=np.full(2, 1_000.0),
         hh_gov_balance=np.zeros(1), hh_net_income=np.full(1, 50_000.0), hh_decile=np.array([10]),
         hh_country=np.array(["ENGLAND"]), bu_country=np.zeros(1, int), bu_region=np.zeros(1, int), bu_family_type=np.zeros(1, int),
-        bu_any_over_law=np.ones(1, bool), bu_n_age0=np.zeros(1),
         rate_by_age=np.array([11.0, 11.0, 8.0, 6.0, 6.0]),
         p_age=np.array([3.0, 2.0]), p_is_child=np.ones(2, bool),
         bu_ext_eligible=np.zeros(1, bool),
