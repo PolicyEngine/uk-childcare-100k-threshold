@@ -5,7 +5,6 @@ import {
   getLabourSupply,
   getLimitations,
   getMeta,
-  getReform,
   getTakeUp,
   getUncertainty,
   getValidation,
@@ -30,53 +29,6 @@ const REPO_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold";
 const METHOD_URL = `${REPO_URL}/blob/main/docs/METHOD.md`;
 const MICROCOSM_URL = "https://github.com/PolicyEngine/microcosm";
 
-function VersionsTable({ meta }) {
-  const rows = [
-    [
-      "Model package",
-      <>
-        <a href={`https://pypi.org/project/policyengine/${meta.policyengine}/`} target="_blank" rel="noopener noreferrer">
-          policyengine.py {meta.policyengine}
-        </a>
-        , pinned exactly
-      </>,
-    ],
-    [
-      "Tax and benefit rules",
-      <>
-        <a href={`https://github.com/PolicyEngine/policyengine-uk/tree/${meta.policyengine_uk}`} target="_blank" rel="noopener noreferrer">
-          policyengine-uk {meta.policyengine_uk}
-        </a>
-        , the version the dataset is built for
-      </>,
-    ],
-    ["Dataset", meta.dataset_label ?? meta.dataset],
-    ...(meta.dataset_release ? [["Dataset release", meta.dataset_release]] : []),
-    ["Dataset revision", `${meta.dataset_revision}${meta.dataset_repo ? ` (${meta.dataset_repo})` : ""}`],
-    ...(meta.dataset_sha256 ? [["Dataset sha256, checked before every run", meta.dataset_sha256]] : []),
-    ["Results generated", meta.generated_at],
-    [
-      "Code revision",
-      <a key="rev" href={`${REPO_URL}/commit/${meta.git_revision}`} target="_blank" rel="noopener noreferrer">
-        {meta.git_revision}
-      </a>,
-    ],
-  ];
-  return (
-    <div className="overflow-x-auto">
-      <table className="data-table" data-testid="versions-table">
-        <tbody>
-          {rows.map(([k, v]) => (
-            <tr key={k}>
-              <td className="w-[260px] font-medium text-slate-700">{k}</td>
-              <td className="break-all">{v}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
 
 function ValidationTable({ rows }) {
   // One dataset in the file: the dataset column appears only if rows from more than one are present.
@@ -137,11 +89,6 @@ const Ext = ({ href, children }) => (
     {children}
   </a>
 );
-
-/** Detail under a list item's "More". */
-function Prose({ children }) {
-  return <div className="space-y-2">{children}</div>;
-}
 
 function LabourSupplySection({ data }) {
   const ls = getLabourSupply(data);
@@ -266,43 +213,11 @@ function Subhead({ children }) {
   return <h3 className="mb-2 mt-6 text-sm font-semibold uppercase tracking-wide text-slate-600 first:mt-0">{children}</h3>;
 }
 
-/** One step of the costing, an item of a numbered list: a one-line summary, and its detail behind "More". */
-function Step({ title, children, detail, id, testId }) {
-  return (
-    <ListItem title={title} summary={children} id={id} testId={testId}>
-      {detail ? <Prose>{detail}</Prose> : null}
-    </ListItem>
-  );
+/** One step of the costing, an item of a numbered list, all inline. */
+function Step({ title, children, id, testId }) {
+  return <ListItem title={title} summary={children} id={id} testId={testId} />;
 }
 
-/** The limitation on take-up among newly eligible families: its one home is the Take-up step, not Limitations. */
-const TAKE_UP_LIMITATION = "Take-up among newly eligible families";
-
-/** The flat rate's cost per point, how to switch between the options, and what is uncertain about take-up. */
-function TakeUpDetail({ data, limitation }) {
-  const t = getTakeUp(data);
-  const flat = t.order.map((id) => t.bases[id]).find((b) => b.unit === "family");
-  return (
-    <>
-      {flat ? (
-        <p>
-          On the dataset&apos;s flat rate ({formatPct(flat.rate * 100, 1)}{" "}
-          of families), each percentage point moves the 30 hours&apos; cost by about{" "}
-          £{flat.per_point_m[String(LEAD_YEAR)]}m in {fyLabel(LEAD_YEAR)}.
-        </p>
-      ) : null}
-      <p>
-        <a href="?tab=budget#take-up-options">Budget impact</a>{" "}
-        switches between the options, and <a href="#assumptions">the comparison table</a> shows what each changes.
-      </p>
-      {limitation ? (
-        <p data-testid="take-up-limitation">
-          <strong className="font-semibold text-slate-700">What is uncertain.</strong> <RichText text={limitation.detail} />
-        </p>
-      ) : null}
-    </>
-  );
-}
 
 /** The age-profile sensitivity as a limitation: one-sided, so it can only push the cost up. */
 function ageProfileLimitation(data) {
@@ -319,20 +234,14 @@ function ageProfileLimitation(data) {
   };
 }
 
-/** The reform's two parameters, named in words. */
-const PARAMETER_NAMES = {
-  "gov.dfe.extended_childcare_entitlement.income.limit": "30 hours income limit",
-  "gov.hmrc.tax_free_childcare.income.income_limit": "Tax-Free Childcare income limit",
-};
 
 export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const meta = getMeta(data);
-  const reform = getReform(data);
   const validation = getValidation(data);
   const takeUp = getTakeUp(data);
   const fileLimitations = getLimitations(data);
-  const takeUpLimitation = fileLimitations.find((l) => l.title === TAKE_UP_LIMITATION);
-  const limitations = [...fileLimitations.filter((l) => l !== takeUpLimitation), ageProfileLimitation(data)];
+  const limitations = [...fileLimitations, ageProfileLimitation(data)];
+  const flat = takeUp.order.map((id) => takeUp.bases[id]).find((b) => b.unit === "family");
   const years = `${fyLabel(meta.years[0])} to ${fyLabel(meta.years.at(-1))}`;
   const dataset = (meta.dataset_label ?? meta.dataset).replace(/\s*\(.*\)$/, "");
 
@@ -344,69 +253,27 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             <Ext href={MICROCOSM_URL}>{dataset}</Ext>: PolicyEngine&apos;s survey-based dataset of UK households,
             reweighted to official totals.
           </Step>
-          <Step
-            title="Two runs and the cost"
-            testId="method-step-runs"
-            detail={
-              <>
-                <p>
-                  The £100,000 test is on each parent: a couple both earning £95,000 qualify today, a couple earning
-                  £101,000 and £20,000 do not. We read the pledge as England&apos;s 30 hours plus UK-wide Tax-Free
-                  Childcare; the devolved governments&apos; own offers are unchanged.{" "}
-                  <a href="?tab=budget#schemes">Budget impact</a> sets out each scheme.
-                </p>
-                <div className="overflow-x-auto">
-                  <table className="data-table" data-testid="parameters-table">
-                    <thead>
-                      <tr>
-                        <th>Parameter</th>
-                        <th>Today</th>
-                        <th>Reform</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {reform.parameters.map((p) => (
-                        <tr key={p.name}>
-                          <td>{PARAMETER_NAMES[p.name] ?? p.name}</td>
-                          <td className="tabular-nums">{formatCurrency(p.baseline)}</td>
-                          <td>Removed</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            }
-          >
+          <Step title="Two runs and the cost" testId="method-step-runs">
             For each year, {years}, the model runs on the same households with today&apos;s rules and with the
-            £100,000 limit removed from both schemes. The cost is the extra spending on funded hours and Tax-Free
-            Childcare top-ups between the two runs.
+            £100,000 limit removed from England&apos;s 30 hours and UK-wide Tax-Free Childcare (set out on{" "}
+            <a href="?tab=budget#schemes">Budget impact</a>). The limit tests each parent: a couple both earning £95,000
+            qualify today. The cost is the extra spending between the two runs.
           </Step>
-          <Step
-            title="Take-up"
-            id="take-up-method"
-            testId="method-take-up"
-            detail={<TakeUpDetail data={data} limitation={takeUpLimitation} />}
-          >
-            Each newly eligible child takes up the 30 hours with{" "}
-            <Ext href={takeUp.bases[takeUp.headline].source_url}>DfE&apos;s take-up for its age</Ext>, the headline.
+          <Step title="Take-up" id="take-up-method" testId="method-take-up">
+            Each newly eligible child takes up the 30 hours at{" "}
+            <Ext href={takeUp.bases[takeUp.headline].source_url}>DfE&apos;s rate for its age</Ext>.{" "}
+            <a href="?tab=budget#take-up-options">Budget impact</a>
+            {" also offers CenTax's rates and one flat rate"}
+            {flat ? ` (each point of which moves the 30 hours by about £${flat.per_point_m[String(LEAD_YEAR)]}m in ${fyLabel(LEAD_YEAR)})` : ""};{" "}
+            <a href="#limitations">Limitations</a> says why take-up is uncertain.
           </Step>
-          <Step
-            title="Sensitivities"
-            testId="method-step-sensitivities"
-            detail={
-              <p>
-                The sampling uncertainty, from resampling the survey&apos;s households, is on{" "}
-                <a href="?tab=budget#uncertainty">Budget impact</a>.
-              </p>
-            }
-          >
-            Further runs change one uncertain assumption at a time; <a href="#assumptions">the comparison below</a>{" "}
-            shows what each changes.
+          <Step title="Sensitivities" testId="method-step-sensitivities">
+            Further runs change one uncertain assumption at a time; <a href="#assumptions">the comparison table</a>{" "}
+            shows what each changes, and <a href="?tab=budget#uncertainty">Budget impact</a> the sampling uncertainty.
           </Step>
-          <Step title="Pinned versions" testId="method-step-versions" detail={<VersionsTable meta={meta} />}>
-            The model and dataset versions are fixed and the dataset&apos;s checksum is checked before each run, so the
-            results can be rebuilt exactly.
+          <Step title="Pinned versions" testId="method-step-versions">
+            {`policyengine.py ${meta.policyengine}, policyengine-uk ${meta.policyengine_uk} and the dataset are fixed, and the dataset's checksum is checked before each run, so the results can be rebuilt exactly from `}
+            <Ext href={`${REPO_URL}/commit/${meta.git_revision}`}>this code revision</Ext>.
           </Step>
         </BulletList>
       </Card>

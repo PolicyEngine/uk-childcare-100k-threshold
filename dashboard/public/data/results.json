@@ -28,9 +28,9 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-24T21:53:01+00:00",
-  "git_revision": "fd64d3557181cb619c0408fd9dc0a9488820b11a",
-  "aggregation_sha256": "6f463eeb108cb19fc78cfdd84e09e321998a5323c23f0146db256c8a08fa6fbe",
+  "generated_at": "2026-10-24T22:09:38+00:00",
+  "git_revision": "bb99328c55208f6bdf5d269251e6c9d6bde21706",
+  "aggregation_sha256": "e25469f5af755277594d260487569cb297335e8f7da6775efc17e0888059c63b",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 71.6,
@@ -26994,8 +26994,8 @@
   },
   {
    "title": "Take-up among newly eligible families",
-   "summary": "Take-up of the 30 hours among newly eligible families is [DfE's January 2025 take-up](https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025) among all eligible children, by age.",
-   "detail": "Nothing measures it for families over £100,000: they may use formal childcare more than average, or claim less where the hours are worth little to them. DfE treats its 2025 rates with caution, and the under-3 rates predate the rise to 30 hours in September 2025. CenTax's low-cost scenario assumes 60% ([pp. 100-101](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=101)). Breakdowns by family, income and region use the dataset's own record of who claims, not DfE's rates."
+   "summary": "Nothing measures take-up of the 30 hours among families over £100,000, who are not eligible today.",
+   "detail": "They may use formal childcare more than average, or claim less where the hours are worth little to them. DfE treats its [2025 rates](https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025) with caution, and the under-3 rates predate the rise to 30 hours in September 2025. CenTax's low-cost scenario assumes 60% ([pp. 100-101](https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=101)). Breakdowns by family, income and region use the dataset's own record of who claims, not DfE's rates."
   },
   {
    "title": "Funded hours: baseline context",

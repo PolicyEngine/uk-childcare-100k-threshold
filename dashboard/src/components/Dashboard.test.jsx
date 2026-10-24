@@ -229,20 +229,24 @@ describe("your household", () => {
 });
 
 describe("methodology", () => {
-  it("shows the versions, every validation row and every limitation from the file", () => {
+  it("shows the pinned versions, every validation row and every limitation from the file", () => {
     render(<MethodTab data={data} />);
-    expect(screen.getByTestId("versions-table").textContent).toContain(data.meta.dataset_label);
+    const versions = screen.getByTestId("method-step-versions").textContent;
+    for (const k of ["policyengine", "policyengine_uk"]) expect(versions, k).toContain(data.meta[k]);
     const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(data.baseline_validation.length);
-    // Every limitation in the file, plus the age profile, each a title and a one-sentence summary in one group;
-    // take-up's is stated once, in the Take-up step, so it is not repeated here.
+    // Every limitation in the file, plus the age profile, each a title and a one-sentence summary in one group.
     const group = screen.getByTestId("limitations");
-    const takeUpLimitation = data.limitations.find((l) => l.title === "Take-up among newly eligible families");
-    expect(takeUpLimitation).toBeTruthy();
-    expect(group.children).toHaveLength(data.limitations.length);
-    for (const l of data.limitations.filter((x) => x !== takeUpLimitation)) expect(group.textContent).toContain(`${l.title}. ${plainText(l.summary)}`);
-    expect(group.textContent).not.toContain(takeUpLimitation.title);
-    expect(screen.getByTestId("take-up-limitation").textContent).toContain(plainText(takeUpLimitation.detail));
+    expect(group.children).toHaveLength(data.limitations.length + 1);
+    for (const l of data.limitations) expect(group.textContent).toContain(`${l.title}. ${plainText(l.summary)}`);
+  });
+
+  it("shows every costing step inline, with no expanders, in about 200 words", () => {
+    render(<MethodTab data={data} />);
+    const card = document.getElementById("model");
+    expect(card.querySelectorAll("details")).toHaveLength(0);
+    expect(screen.getByTestId("method-steps").children).toHaveLength(5);
+    expect(card.textContent.split(/\s+/).filter(Boolean).length).toBeLessThanOrEqual(210);
   });
 
   it("compares every modelling choice in one table, with each tested alternative's effect in £m from the file", () => {
@@ -282,11 +286,6 @@ describe("methodology", () => {
     expect(within(item).getByRole("link", { name: "method notes on GitHub" }).getAttribute("href")).toMatch(/docs\/METHOD\.md$/);
   });
 
-  it("pins the model package and the dataset release, revision and checksum", () => {
-    render(<MethodTab data={data} />);
-    const text = screen.getByTestId("versions-table").textContent;
-    for (const k of ["policyengine", "policyengine_uk", "dataset_release", "dataset_revision", "dataset_sha256"]) expect(text, k).toContain(data.meta[k]);
-  });
 });
 
 describe("the labour supply control", () => {
@@ -432,12 +431,9 @@ describe("the take-up control", () => {
   it("explains take-up on Methodology, with the flat rate's per-point effect and links to the options", () => {
     render(<MethodTab data={data} />);
     const step = screen.getByTestId("method-take-up");
-    expect(step.tagName).toBe("DETAILS");
     expect(step.id).toBe("take-up-method");
     expect(step.textContent).toContain(`£${basis("contract").per_point_m[lead]}m`);
     expect(within(step).getByRole("link", { name: "Budget impact" }).getAttribute("href")).toBe("?tab=budget#take-up-options");
-    expect(within(step).getByRole("link", { name: "the comparison table" }).getAttribute("href")).toBe("#assumptions");
-    expect(document.getElementById("assumptions")).not.toBeNull();
   });
 
   it("groups the boxes under the range chart, with no pointer line to Methodology under them", () => {
