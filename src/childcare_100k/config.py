@@ -153,7 +153,7 @@ TAKE_UP_BASES = {
         # today, 73% of parents of 9-month- to 2-year-olds and 91% of parents of 3- and 4-year-olds (DfE, 2025).
         "rates_by_dfe_age": {0: 0.73, 1: 0.73, 2: 0.73, 3: 0.91, 4: 0.91, 5: 0.91},
         "source": "CenTax, Removing the childcare cliff-edge, pp. 33-34 and 75",
-        "source_url": CENTAX_REPORT_URL,
+        "source_url": f"{CENTAX_REPORT_URL}#page=34",
         "pair": ("baseline_claim_use_all", "reform_claim_use_all"),
     },
     "contract": {

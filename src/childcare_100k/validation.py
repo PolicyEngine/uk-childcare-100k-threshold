@@ -9,7 +9,7 @@ from microdf import MicroSeries
 from .aggregate import BN, Run
 from .config import DATASET_LABELS, PRIMARY_DATASET, VALIDATION_YEAR
 
-DFE_EY_URL = "https://explore-education-statistics.service.gov.uk/find-statistics/education-provision-children-under-5"
+DFE_EY_URL = "https://explore-education-statistics.service.gov.uk/find-statistics/funded-early-education-and-childcare/2025"
 DFE_EY_SOURCE = "DfE, Education provision: children under 5 years of age, January 2025 census"
 HMRC_TFC_URL = "https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026"
 HMRC_TFC_SOURCE = "HMRC, Tax-Free Childcare statistics, June 2026"
@@ -59,7 +59,7 @@ OFFICIAL = {
 
 
 CENSUS_NOTE = (
-    "January 2025 census, which the release's DfE rows bind (PolicyEngine/microcosm#1338); the model's 2025-26 spring "
+    "January 2025 census, which the release's DfE rows bind ([PolicyEngine/microcosm#1338](https://github.com/PolicyEngine/microcosm/pull/1338)); the model's 2025-26 spring "
     "term is January 2026, when DfE counted 501,700 under 3 and 388,700 aged 3 and 4. Model: children whose working "
     "parent hours, before the universal 15 are allocated, are funded in the term starting 1 January, by age on 31 "
     "December (DfE's basis), as the release's rows count them. DfE's under-3 figure includes 29,200 aged 9-11 months."
