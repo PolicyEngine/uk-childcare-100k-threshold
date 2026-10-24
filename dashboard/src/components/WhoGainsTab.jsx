@@ -35,7 +35,7 @@ import {
 import { formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { Expandable, AXIS_STYLE, CustomTooltip, LegendSwatches, Section, Select } from "./ui";
+import { Expandable, AXIS_STYLE, CustomTooltip, LegendSwatches, RichText, Section, Select } from "./ui";
 
 export const SUPPRESSED = "too few records";
 
@@ -218,7 +218,7 @@ function HouseholdSection({ data }) {
             Without the limit the support continues at every income. Above £100,000 the family still faces the high
             marginal tax rate from the withdrawal of the Personal Allowance, which this reform does not change.
           </p>
-          {cliff.notes ? <p>{cliff.notes}</p> : null}
+          {cliff.notes ? <p data-testid="cliff-notes"><RichText text={cliff.notes} /></p> : null}
         </>
       }
     >

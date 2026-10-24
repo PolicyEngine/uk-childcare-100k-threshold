@@ -28,9 +28,9 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-24T21:42:59+00:00",
-  "git_revision": "c42648c1fd26cff932ed9f9fec2b2bc21aaf636d",
-  "aggregation_sha256": "0d40a3a75aecd0458fb1e8784a07153cfc3b7f0b69189d01b8d3a83d10f3593d",
+  "generated_at": "2026-10-24T21:53:01+00:00",
+  "git_revision": "fd64d3557181cb619c0408fd9dc0a9488820b11a",
+  "aggregation_sha256": "6f463eeb108cb19fc78cfdd84e09e321998a5323c23f0146db256c8a08fa6fbe",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 71.6,
@@ -937,25 +937,21 @@
    "2026": {
     "gaining_sample_size": 1802,
     "top_ten_share_pct": 32.4,
-    "largest_share_pct": 6.6,
     "kish_effective_sample_size": 159
    },
    "2027": {
     "gaining_sample_size": 1843,
     "top_ten_share_pct": 31.1,
-    "largest_share_pct": 6.4,
     "kish_effective_sample_size": 171
    },
    "2028": {
     "gaining_sample_size": 1882,
     "top_ten_share_pct": 30.1,
-    "largest_share_pct": 6.1,
     "kish_effective_sample_size": 181
    },
    "2029": {
     "gaining_sample_size": 1943,
     "top_ten_share_pct": 28.9,
-    "largest_share_pct": 5.9,
     "kish_effective_sample_size": 180
    }
   },
@@ -2804,7 +2800,7 @@
    119685,
    120215
   ],
-  "notes": "Computed with policyengine.py's household calculator (calculate_household), the same model release and the same model corrections (corrections.py) as the population runs. Net income is household net income (after tax and benefits, including the value of funded hours at the local-authority funding rate and the Tax-Free Childcare top-up) minus the family's own childcare spending of £20,000 a year (£10,000 per child), held fixed in both scenarios as in the population run. Both parents are under 40, work, pass the minimum income test and make no pension contributions, so adjusted net income equals employment income. Funded hours are valued at 30 hours x 38 weeks for each child (the model's default usage for a single household). The personal allowance taper between £100,000 and £125,140 applies in both scenarios. Exactly £100,000 still qualifies for both schemes, as in law (a parent is excluded only if income exceeds £100,000); the support is lost from £100,001."
+  "notes": "Calculated with PolicyEngine UK's household calculator, using the same model and model correction as the population estimates. Net income is household net income (after tax and benefits, including the value of funded hours at the local-authority funding rate and the Tax-Free Childcare top-up) minus the family's own childcare spending of £20,000 a year (£10,000 per child), held fixed in both scenarios as in the population run. Both parents are under 40, work, pass the minimum income test and make no pension contributions, so adjusted net income equals employment income. Funded hours are valued at 30 hours x 38 weeks for each child (the model's default usage for a single household). The personal allowance taper between £100,000 and £125,140 applies in both scenarios. Exactly £100,000 still qualifies for both schemes, as in law (a parent is excluded only if income exceeds £100,000); the support is lost from £100,001. [Method notes on GitHub](https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/docs/METHOD.md)."
  },
  "household_grid": {
   "year": 2027,
@@ -27008,7 +27004,7 @@
   },
   {
    "title": "Concentration on a few families",
-   "summary": "In 2027-28 the ten survey families with the largest weighted gains carry 31% of the static cost, and the largest alone 6%. [Budget impact](?tab=budget#uncertainty) shows the sampling uncertainty this leaves.",
+   "summary": "In 2027-28 the ten survey families with the largest weighted gains carry 31% of the static cost. [Budget impact](?tab=budget#uncertainty) shows the sampling uncertainty this leaves.",
    "detail": ""
   },
   {
