@@ -11,7 +11,7 @@
   "dataset_revision": "c3a751d911ac82e482d298dda0b6f2c949f4ed4d",
   "dataset_sha256": "64f83900ca3a1242fb017585234844ce89f743d32e41cd2b6558057777f914aa",
   "dataset_management": "pinned_by_repo_unmanaged_by_bundle",
-  "dataset_status": "Cut on 23 October 2026 from PolicyEngine/microcosm 829c1bc26, a head of #1338 before its last commit (#1338 merged later that day at a12885f9), with its own signed release certification, and run on policyengine-uk 2.147.2, the version its manifest pins. It is the latest national release (latest-national.json has pointed at it since 23 October 2026). No policyengine.py bundle registers it yet (6.10.2's still registers 6cba5d71), so this repository pins the file by revision and sha256.",
+  "dataset_status": "Cut on 23 October 2026 from PolicyEngine/microcosm [829c1bc26](https://github.com/PolicyEngine/microcosm/commit/829c1bc26), a head of [#1338](https://github.com/PolicyEngine/microcosm/pull/1338) before its last commit (#1338 merged later that day at [a12885f9](https://github.com/PolicyEngine/microcosm/commit/a12885f9)), with its own signed release certification, and run on [policyengine-uk 2.147.2](https://github.com/PolicyEngine/policyengine-uk/tree/2.147.2), the version its manifest pins. It is the latest national release (latest-national.json has pointed at it since 23 October 2026). No policyengine.py bundle registers it yet (6.10.2's still registers 6cba5d71), so this repository pins the file by revision and sha256.",
   "lead_year": 2027,
   "run_provenance": {
    "dataset": "microcosm_uk_2024_25",
@@ -28,9 +28,9 @@
    2028,
    2029
   ],
-  "generated_at": "2026-10-24T20:06:53+00:00",
-  "git_revision": "cdafdce26aa4d618be41223bed8d1e2cbdf5a645",
-  "aggregation_sha256": "54e6f051d9871b18fd24bb4cfc93eb2ec0b73fd2ea7afc1639949fe8dad80817",
+  "generated_at": "2026-10-24T21:10:28+00:00",
+  "git_revision": "e7e71e248089fe5e2aca10fe3d77141b95eeeda0",
+  "aggregation_sha256": "e193402f2d7e665a31f042015eefc65f13c2fc6969ce8023698a49fdaf08d13c",
   "min_cell_size": 10,
   "run_seconds": {
    "microcosm_uk_2024_25/baseline": 71.6,
@@ -25720,7 +25720,7 @@
     "label": "Microcosm take-up contract",
     "url": "https://github.com/PolicyEngine/microcosm/blob/829c1bc26/packages/microcosm-build/src/microcosm/build/uk/take_up_contract.json"
    },
-   "modelled": "The Tax-Free Childcare draw is a claim flag fitted to HMRC's top-up and account counts, not a take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use is limited by reported spending (the table shows both). Nothing identifies take-up among families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly eligible families, about today's use among all eligible families. The alternative's effect and the leg before netting are measured on the dataset's single take-up draw of the 30 hours, not on DfE's rates.",
+   "modelled": "The Tax-Free Childcare draw is a claim flag fitted to [HMRC's top-up and account counts](https://www.gov.uk/government/statistics/tax-free-childcare-statistics-june-2026), not a take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use is limited by reported spending (the table shows both). Nothing identifies take-up among families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly eligible families, about today's use among all eligible families. The alternative's effect and the leg before netting are measured on the dataset's single take-up draw of the 30 hours, not on DfE's rates.",
    "sources": [
     {
      "label": "Microcosm take-up contract",
@@ -27061,7 +27061,7 @@
   },
   {
    "title": "Funded hours: baseline context",
-   "summary": "The baseline's free-hours spending in 2026-27 is about 4% above DfE's illustrative total (see [Baseline validation](#validation)).",
+   "summary": "The baseline's free-hours spending in 2026-27 is about 4% above [DfE's illustrative total](https://www.gov.uk/government/publications/early-years-funding-2026-to-2027/2026-to-2027-early-years-national-funding-formulae-technical-note) (see [Baseline validation](#validation)).",
    "detail": "DfE's totals are illustrative (based partly on forecasts) and are context only: matching the aggregate baseline does not bound the incremental cost for newly eligible families above £100,000, whose take-up and hours may differ."
   },
   {

@@ -31,6 +31,7 @@ export function formatUnit(value, unit) {
 }
 
 const REPO_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold";
+const MICROCOSM_URL = "https://github.com/PolicyEngine/microcosm";
 
 function VersionsTable({ meta }) {
   const rows = [
@@ -45,12 +46,17 @@ function VersionsTable({ meta }) {
     ],
     [
       "Tax and benefit rules",
-      `policyengine-uk ${meta.policyengine_uk}, the version the Microcosm release pins, pinned exactly in pyproject.toml${
-        meta.policyengine_bundle_model_version ? ` (the policyengine.py bundle carries ${meta.policyengine_bundle_model_version})` : ""
-      }`,
+      <>
+        <a href={`https://github.com/PolicyEngine/policyengine-uk/tree/${meta.policyengine_uk}`} target="_blank" rel="noopener noreferrer">
+          policyengine-uk {meta.policyengine_uk}
+        </a>
+        {`, the version the Microcosm release pins, pinned exactly in pyproject.toml${
+          meta.policyengine_bundle_model_version ? ` (the policyengine.py bundle carries ${meta.policyengine_bundle_model_version})` : ""
+        }`}
+      </>,
     ],
     ["Dataset", meta.dataset_label ?? meta.dataset],
-    ...(meta.dataset_status ? [["Dataset status", meta.dataset_status]] : []),
+    ...(meta.dataset_status ? [["Dataset status", <RichText key="status" text={meta.dataset_status} />]] : []),
     ...(meta.dataset_release ? [["Dataset release", meta.dataset_release]] : []),
     ["Dataset revision", `${meta.dataset_revision}${meta.dataset_repo ? ` (${meta.dataset_repo})` : ""}`],
     ...(meta.dataset_sha256 ? [["Dataset sha256, checked before every run", meta.dataset_sha256]] : []),
@@ -571,6 +577,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const meta = getMeta(data);
   const reform = getReform(data);
   const validation = getValidation(data);
+  const takeUp = getTakeUp(data);
   const fileLimitations = getLimitations(data);
   const takeUpLimitation = fileLimitations.find((l) => l.title === TAKE_UP_LIMITATION);
   const limitations = [...fileLimitations.filter((l) => l !== takeUpLimitation), ageProfileLimitation(data)];
@@ -584,7 +591,8 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
       <Section id="model" title="How we cost it" lead="Five steps, from the data to the published figures. Open a step for its detail." boxed={false}>
         <ExpandableGroup testId="method-steps">
           <Step n={1} title="Data" testId="method-step-data">
-            {dataset}: PolicyEngine&apos;s survey-based dataset of UK households, reweighted to official totals.
+            <Ext href={MICROCOSM_URL}>{dataset}</Ext>: PolicyEngine&apos;s survey-based dataset of UK households,
+            reweighted to official totals.
           </Step>
           <Step
             n={2}
@@ -639,7 +647,8 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             testId="method-take-up"
             detail={<TakeUpDetail data={data} limitation={takeUpLimitation} />}
           >
-            Each newly eligible child takes up the 30 hours with DfE&apos;s take-up for its age, the headline.
+            Each newly eligible child takes up the 30 hours with{" "}
+            <Ext href={takeUp.bases[takeUp.headline].source_url}>DfE&apos;s take-up for its age</Ext>, the headline.
           </Step>
           <Step
             n={4}

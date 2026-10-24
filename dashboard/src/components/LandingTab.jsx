@@ -25,6 +25,9 @@ import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
 import { Expandable, ExpandableGroup, AXIS_STYLE, CustomTooltip, Section, Select } from "./ui";
 
+const FRS_URL = "https://www.gov.uk/government/collections/family-resources-survey--2";
+const MICROCOSM_URL = "https://github.com/PolicyEngine/microcosm";
+
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
 
@@ -486,7 +489,8 @@ export function RangeChart({ data, basis, leg = "thirty_hours" }) {
 /** The note under the range chart on how wide the range is, a closed box in the group under the chart. */
 export function RangeNote({ data, basis }) {
   const u = getUncertainty(data, basis);
-  const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
+  const benchmark = getBenchmarks(data)[0] ?? {};
+  const centax = benchmark.underlying_static_by_year_bn ?? {};
   const centaxYears = u.rows.filter((r) => isNum(centax[String(r.year)]));
   const centaxInside =
     centaxYears.length > 0 &&
@@ -499,12 +503,22 @@ export function RangeNote({ data, basis }) {
     <Expandable title="How wide is the range?" testId="note-range" compact>
       <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-700">
         <li>
-          A floor on the sampling uncertainty: {u.draws.toLocaleString("en-GB")} resamples of the FRS households
-          behind the release, each with all its Microcosm copies.
+          A floor on the sampling uncertainty: {u.draws.toLocaleString("en-GB")} resamples of the{" "}
+          <a href={FRS_URL} target="_blank" rel="noopener noreferrer">
+            FRS
+          </a>{" "}
+          households behind the release, each with all its{" "}
+          <a href={MICROCOSM_URL} target="_blank" rel="noopener noreferrer">
+            Microcosm
+          </a>{" "}
+          copies.
         </li>
         <li>The weights and calibration are held fixed, and the survey&apos;s clustering is ignored.</li>
         <li data-testid="note-range-centax">
-          CenTax publishes static costs for {centaxYearsText} only, so its marker is in those years
+          <a href={benchmark.underlying_source_url} target="_blank" rel="noopener noreferrer">
+            CenTax
+          </a>{" "}
+          publishes static costs for {centaxYearsText} only, so its marker is in those years
           {centaxInside ? "; both lie inside the range" : ""}.
         </li>
       </ul>
