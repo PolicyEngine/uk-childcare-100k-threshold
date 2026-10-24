@@ -45,9 +45,7 @@ const SECTIONS = {
     { id: "gender", title: "Mothers and fathers" },
   ],
   method: [
-    { id: "in-short", title: "In short" },
     { id: "model", title: "How we cost it" },
-    { id: "limits", title: "How the limits work" },
     { id: "labour-supply", title: "Labour supply" },
     { id: "assumptions", title: "Compared with others" },
     { id: "validation", title: "Validation" },

@@ -235,10 +235,15 @@ describe("methodology", () => {
     const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(data.baseline_validation.length);
     expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(9);
-    // Every limitation in the file, plus the age profile, each a title and a one-sentence summary in one group.
+    // Every limitation in the file, plus the age profile, each a title and a one-sentence summary in one group;
+    // take-up's is stated once, in the Take-up step, so it is not repeated here.
     const group = screen.getByTestId("limitations");
-    expect(group.children).toHaveLength(data.limitations.length + 1);
-    for (const l of data.limitations) expect(group.textContent).toContain(`${l.title}. ${plainText(l.summary)}`);
+    const takeUpLimitation = data.limitations.find((l) => l.title === "Take-up among newly eligible families");
+    expect(takeUpLimitation).toBeTruthy();
+    expect(group.children).toHaveLength(data.limitations.length);
+    for (const l of data.limitations.filter((x) => x !== takeUpLimitation)) expect(group.textContent).toContain(`${l.title}. ${plainText(l.summary)}`);
+    expect(group.textContent).not.toContain(takeUpLimitation.title);
+    expect(screen.getByTestId("take-up-limitation").textContent).toContain(plainText(takeUpLimitation.detail));
   });
 
   it("compares every modelling choice in one table, with each tested alternative's effect in £m from the file", () => {
