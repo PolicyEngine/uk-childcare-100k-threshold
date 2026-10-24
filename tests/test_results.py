@@ -172,7 +172,7 @@ def test_take_up_bases_block():
     eff = RESULTS["budget"]["sensitivities"]["effects_bn"]
     for basis, spec in TAKE_UP_BASES.items():
         b = t["bases"][basis]
-        for k in ("label", "description", "source", "source_url", "unit"):
+        for k in ("label", "short_label", "description", "source", "source_url", "unit"):
             assert b[k] == spec[k]
         if spec["unit"] == "child":
             assert b["rates_by_dfe_age"] == {str(a): r for a, r in spec["rates_by_dfe_age"].items()}
@@ -200,6 +200,24 @@ def test_take_up_bases_block():
         assert head["gross_bn"][k] == RESULTS["budget"]["gross_bn"][k]
     assert head["net_bn"]["total"] == RESULTS["budget"]["net_bn"]["total"]
     assert head["range_bn"] == RESULTS["budget"]["range_bn"]
+
+
+def test_contract_gap_by_dfe_age_adds_up():
+    """The split by DfE age of the gap between the contract basis and DfE's adds up to the gap in the 30 hours'
+    cost, and the contract's effective rate is below its flat rate only where the usage draw bites (age 0)."""
+    t = RESULTS["budget"]["take_up"]
+    gap = t["contract_gap_by_dfe_age"]
+    y = str(gap["year"])
+    bases = t["bases"]
+    total_m = 1000 * (bases["contract"]["gross_bn"]["thirty_hours"][y] - bases["dfe"]["gross_bn"]["thirty_hours"][y])
+    assert gap["gap_total_m"] == pytest.approx(total_m, abs=2)
+    assert sum(gap["gap_m"].values()) == pytest.approx(gap["gap_total_m"], abs=3)
+    for k in gap["gap_m"]:
+        assert gap["gap_m"][k] == pytest.approx(gap["contract_m"][k] - gap["dfe_m"][k], abs=1)
+    rate = bases["contract"]["rate"]
+    assert gap["contract_effective_rate"]["0"] < rate - 0.05
+    for k in ("1", "2", "3-5"):
+        assert gap["contract_effective_rate"][k] == pytest.approx(rate, abs=0.02)
 
 
 def test_bootstrap_brackets_the_headline():

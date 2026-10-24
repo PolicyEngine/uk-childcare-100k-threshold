@@ -146,6 +146,23 @@ DATASET_STATUS = (
     "registers it yet, so this repository pins the file by revision and sha256."
 )
 
+# CenTax, Removing the childcare cliff-edge, pp. 100-101: about 60% of parents below £100,000 held a live account
+# in 2022, the take-up in their low-cost scenario.
+CENTAX_LIVE_ACCOUNT_SHARE = 0.60
+# Among children eligible today, the share the release has receiving the working-parent hours at some point in
+# 2027-28 (annual, not January only, so a rough check against DfE's rates): review of #12, 24 October 2026.
+RELEASE_TAKE_UP_CHECK_URL = (
+    "https://github.com/PolicyEngine/uk-childcare-100k-threshold/pull/12#issuecomment-6385210332"
+)
+RELEASE_TAKE_UP_BY_AGE_PCT = {1: 75, 2: 82, 3: 90}
+RELEASE_TAKE_UP_TEXT = (
+    "The release itself sits close to DfE's rates: among children eligible today, about "
+    f"{RELEASE_TAKE_UP_BY_AGE_PCT[1]}% at age 1, {RELEASE_TAKE_UP_BY_AGE_PCT[2]}% at 2 and "
+    f"{RELEASE_TAKE_UP_BY_AGE_PCT[3]}% at 3 receive the hours at some point in 2027-28 (an annual measure, so a rough "
+    "check), as a build calibrated to DfE's January 2025 registration counts should; on DfE's rates, baseline and "
+    "reform therefore sit on the same take-up by age."
+)
+
 LIMITATIONS = [
     "Eligibility uses each parent's realised annual adjusted net income, while the law tests the income a parent "
     "expects when applying or reconfirming (SI 2022/1134 reg 14(3)(c)(i) and 15(3)(b)(i); SI 2015/448 reg 15(1)). "
@@ -154,13 +171,15 @@ LIMITATIONS = [
     "eligible today. CenTax found that a third (33%) of parents whose year-end income was £100,000-£120,000 claimed "
     "and received some free childcare (Removing the childcare cliff-edge, September 2026, pp. 5-6 and 59-60). The "
     "net direction for the cost is not known, and it is not tested.",
-    "The release is cut from Microcosm #1338 at 829c1bc26, before its last commit (a12885f9). So it does not key "
-    "the under-2 working-parent take-up draw on DfE's age at 31 December (it uses age at 6 October, so its age-0 rate mixes "
-    "9-11-month-olds with children aged 12-14 months), and its DfE rows bind the January 2025 census, a year before "
-    "the spring term of 2025-26. Both bear on the under-3 cost of the 30 hours. The next national release will be "
-    "built on PolicyEngine/microcosm#1347, which carries the age-date fix (a12885f9) and #1344; on the Microcosm "
-    "team's preview build with the fix, the 30 hours' cost moves by about -£0.02bn, and these figures will be rerun "
-    "on that release.",
+    "The release is cut from Microcosm #1338 at 829c1bc26, before its last commit (a12885f9). So it keys the under-2 "
+    "working-parent take-up draw on age at 6 October rather than DfE's age at 31 December (its age-0 rate mixes "
+    "9-11-month-olds with children aged 12-14 months). On DfE's and CenTax's rates the headline sets both the claim "
+    "and the usage of the hours for newly eligible children, so that draw does not feed it; it still feeds the "
+    "contract basis, the single take-up draw and the breakdowns measured on it. The release's DfE rows bind the "
+    "January 2025 census, a year before the spring term of 2025-26, which still bears on every basis through the "
+    "eligible population. The next national release will be built on PolicyEngine/microcosm#1347, which carries the "
+    "age-date fix (a12885f9) and #1344; the Microcosm team's preview build with the fix moved the 30 hours' cost on "
+    "the dataset's own draw by about -£0.02bn, and these figures will be rerun on that release.",
     "In the reform, each child's childcare spending is reduced by the value of its new funded hours at the funding "
     "rate before Tax-Free Childcare is computed. Fees are above funding rates, so this removes less spending than "
     "the hours replace and the Tax-Free Childcare leg may still be a little high. The hours response's income "
@@ -175,7 +194,9 @@ LIMITATIONS = [
     "eligible 9-11-month-olds does not account for maternity or paternity leave; and its 2-year-olds under the "
     "working-parent entitlement include some who should have been recorded under the disadvantaged 2-year-old "
     "offer, which may put the 84% too high. The under-3 rates were measured on the 15-hour offer, before it rose "
-    "to 30 hours in September 2025; take-up of 30 hours may differ. CenTax's two rates and the dataset's flat rate "
+    "to 30 hours in September 2025; take-up of 30 hours may differ. For the low end, CenTax's low-cost scenario "
+    f"assumes {CENTAX_LIVE_ACCOUNT_SHARE:.0%} take-up, the share of parents below £100,000 who held a live childcare "
+    "account in 2022 (Removing the childcare cliff-edge, pp. 100-101). CenTax's two rates and the dataset's flat rate "
     "are on Budget impact; the breakdowns by family, income and region, who gains by age, the range's adjustments "
     "and the labour supply offsets are measured on the dataset's single take-up draw.",
     "Breakdown cells resting on fewer than ten gaining or changed records are suppressed, and where a single cell "
@@ -245,7 +266,22 @@ def _basis_effect(bases, basis):
     return {y: round(bases[basis]["total"][y] - head[y], 3) for y in head}
 
 
-def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
+def _contract_gap_text(gap):
+    """Why DfE's rates give a lower cost than the contract's flat rate, as the split of the gap by DfE age."""
+    m = gap["gap_m"]
+    eff = gap["contract_effective_rate"]["0"]
+
+    def signed(v):
+        return f"{'+' if v >= 0 else '-'}£{abs(v)}m"
+
+    return (f"Against DfE's rates, the contract's flat rate ({EXTENDED_TAKE_UP_RATE:.1%} of families) is above them at "
+            f"9-11 months, where the dataset's usage draw makes it about {eff:.0%} in effect, and at age 1, about "
+            f"level at 2 and below them at 3 and 4. So in {_fy(gap['year'])} its 30-hours cost is £{gap['gap_total_m']}m "
+            f"higher: {signed(m['0'])} at age 0, {signed(m['1'])} at 1, {signed(m['2'])} at 2 and {signed(m['3-5'])} "
+            "at 3 to 5 (DfE age).")
+
+
+def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases, gap):
     """The choices behind every figure, each as the code makes it, with the tested alternative's effect where there is one."""
     etfc = a["would_claim_tfc_pct"]
     return [
@@ -282,16 +318,14 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
                         "weighted families decide much of the cost on that draw. The headline instead averages over "
                         "take-up child by child: a pair of runs has every family claiming and every child using its "
                         "hours, and each newly entitled child's cost there is multiplied by DfE's take-up for its age "
-                        "(registered over eligible children in January 2025: "
-                        f"{_rates_text(TAKE_UP_BASES['dfe'])}), by its age on 31 December, as DfE's census counts it. "
+                        "(registered over eligible children in January 2025; the rates are in the table). "
+                        f"{TAKE_UP_AGE_NOTE} "
                         "These rates already count whether a family applies and whether the child uses the hours, so "
                         "they replace the dataset's claim and under-2 usage draws rather than adding to them; the "
                         "hours a week a child who uses them takes are the dataset's draw. A child who takes up the new "
                         "hours gets no Tax-Free Childcare on the care they replace; one who does not keeps its top-up "
-                        "(each weighted by the take-up chance). Most of the cost is for under-3s; the "
-                        "flat rate is well above DfE's at 9-11 months and age 1 (42% and 70%), about level at 2 (84%) "
-                        "and below it at 3 and 4 (91%). Budget impact switches between DfE's rates, CenTax's two "
-                        "rates and the flat rate.",
+                        f"(each weighted by the take-up chance). {_contract_gap_text(gap)} {RELEASE_TAKE_UP_TEXT} "
+                        "Budget impact switches between DfE's rates, CenTax's two rates and the flat rate.",
             "sources": [
                 _src(TAKE_UP_BASES["dfe"]["source"], TAKE_UP_BASES["dfe"]["source_url"]),
                 _src(TAKE_UP_BASES["centax"]["source"], TAKE_UP_BASES["centax"]["source_url"]),
@@ -301,6 +335,7 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
                 _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
                 _src("How we apply the rates (aggregate.py)", f"{THIS_REPO}/aggregate.py"),
                 _src("Expected-mode costing (#7)", "https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/7"),
+                _src("The release's take-up by age (review of #12)", RELEASE_TAKE_UP_CHECK_URL),
             ],
             "alternative": f"CenTax's two rates: {_rates_text(TAKE_UP_BASES['centax'])}",
             "effect_bn": _basis_effect(bases, "centax"),
@@ -321,7 +356,8 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
                 _src("Microcosm take-up contract", EXTENDED_TAKE_UP_SOURCE_URL),
                 _src("Expected mode (expectation.py)", f"{THIS_REPO}/expectation.py"),
             ],
-            "alternative": f"The take-up contract's flat rate: {EXTENDED_TAKE_UP_RATE:.1%} of newly eligible families",
+            "alternative": f"The take-up contract's flat rate: {EXTENDED_TAKE_UP_RATE:.1%} of families, with the "
+                           "dataset's under-2 usage draw",
             "effect_bn": _basis_effect(bases, "contract"),
         },
         {
@@ -335,7 +371,9 @@ def modelling_assumptions(a, effects, labour_supply_offset, tfc, bases):
                         "take-up rate: a family gets a top-up only on the paid registered childcare it reports, so use "
                         "is limited by reported spending (the table shows both). Nothing identifies take-up among "
                         "families over £100,000, who are not eligible today, so the alternative sets it to 70% of newly "
-                        "eligible families, about today's use among all eligible families.",
+                        "eligible families, about today's use among all eligible families. The alternative's effect "
+                        "and the leg before netting are measured on the dataset's single take-up draw of the 30 hours, "
+                        "not on DfE's rates.",
             "sources": [
                 _src("Microcosm take-up contract", f"{MICROCOSM_UK}/take_up_contract.json"),
                 _src("would_claim_tfc", f"{PEUK}/hmrc/tax_free_childcare/would_claim_tfc.py"),
@@ -456,6 +494,7 @@ def take_up_block(bases, recipients, expected, net_total, range_bn):
         costs = bases[basis]
         block = {
             "label": spec["label"],
+            "short_label": spec["short_label"],
             "description": spec["description"],
             "unit": spec["unit"],
             "source": spec["source"],
@@ -510,6 +549,8 @@ def build(metas):
     budget["net_total"] = net_total(budget["total"])
     sens["range_bn"] = range_bn(budget["total"])
     take_up = take_up_block(bases, agg.basis_recipients, expected, net_total, range_bn)
+    gap = agg.contract_gap_by_dfe_age(expected)
+    take_up["contract_gap_by_dfe_age"] = gap
     uncertainty = agg.bootstrap(runs, expected)
     age_profile = agg.age_profile_sensitivity(runs)
     validation = baseline_validation(runs)
@@ -600,7 +641,7 @@ def build(metas):
         "cliff_example": cliff_example(grid),
         "household_grid": grid,
         "modelling_assumptions": modelling_assumptions(assumptions, sens["effects_bn"],
-                                                       lsr["total_offset_bn"]["central"], tfc, bases),
+                                                       lsr["total_offset_bn"]["central"], tfc, bases, gap),
         "labour_supply": {
             **lsr,
             "assumptions": {

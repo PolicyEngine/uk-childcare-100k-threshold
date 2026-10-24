@@ -8,9 +8,9 @@ import {
   getMeta,
   getModellingAssumptions,
   getReform,
-  getTakeUp,
   getValidation,
   isNum,
+  isText,
   STATIC_SETTING,
 } from "../lib/dataHelpers";
 import { formatBn, formatCount, formatCurrency, formatMoneyBn, formatPct } from "../lib/formatters";
@@ -376,16 +376,36 @@ function LabourSupplySection({ data }) {
           work is small next to the household&apos;s in-work income, so the OBR elasticity converted to the gain to
           work is small; and the tax entrants pay is set against the childcare support their family then receives.
           The model finds about {formatCount(entrants)} entrants in {year}, and they{" "}
-          {extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost rather than bringing money back.` : `bring back ${formatMoneyBn(extOffset)}.`}
+          {extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost rather than bringing money back.` : `bring back ${formatMoneyBn(extOffset)}.`}{" "}
+          {extOffset < 0
+            ? "Moving into work raises the cost here because both parents must work for the family to qualify: the partner's entry is what unlocks the 30 hours and Tax-Free Childcare. The hours response, of parents already in work and already eligible, changes earnings without unlocking support, so it brings money back."
+            : ""}
         </li>
         <li>
           <strong>Not modelled.</strong> {ls.notModelled}
         </li>
+        {isText(raw.notes?.at(-1)) ? (
+          <li data-testid="moved-outside-note">
+            <strong>A check on who responds.</strong> {raw.notes.at(-1)}
+            {Object.values(raw.population ?? {}).some((p) => p.adults_moved_outside_population > 0) ? (
+              <>
+                {" "}
+                The build allows up to 0.2% of the responding adults here; bringing them into the population is{" "}
+                <a href="https://github.com/PolicyEngine/uk-childcare-100k-threshold/issues/11" target="_blank" rel="noreferrer">
+                  issue #11
+                </a>
+                .
+              </>
+            ) : null}
+          </li>
+        ) : null}
         <li>
           <strong>Against CenTax.</strong> CenTax&apos;s behavioural gain in {CENTAX.year} is{" "}
           {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000 and{" "}
           {formatBn(CENTAX.partnersBn, 2)} from partners entering work. The first is not modelled here; for the second we
-          find {formatMoneyBn(extOffset)}, for the reasons above. Our hours response, of parents at any income working
+          find that partners entering work{" "}
+          {extOffset < 0 ? `add ${formatMoneyBn(-extOffset)} to the cost` : `bring back ${formatMoneyBn(extOffset)}`}, for
+          the reasons above. Our hours response, of parents at any income working
           more or less as childcare prices and family income change, has no CenTax counterpart.
         </li>
       </ul>
@@ -395,8 +415,6 @@ function LabourSupplySection({ data }) {
 
 export default function MethodTab({ data, setting = STATIC_SETTING }) {
   const meta = getMeta(data);
-  const takeUp = getTakeUp(data);
-  const headline = takeUp.bases[takeUp.headline];
   const reform = getReform(data);
   const validation = getValidation(data);
   const limitations = getLimitations(data);
@@ -429,11 +447,10 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
             up the 30 hours, and the dataset&apos;s single random draw of who claims leaves a few heavily weighted
             families deciding much of the cost. So another pair of runs has every family claiming and every child
             using its hours, and the central cost is each newly entitled child&apos;s cost there times{" "}
-            <a href={headline.source_url} target="_blank" rel="noreferrer">
-              DfE&apos;s take-up for its age
-            </a>{" "}
-            ({headline.rates_text}). Budget impact also shows the cost on CenTax&apos;s two rates and on the
-            dataset&apos;s one flat rate. Who gains, by family and income, comes from the single draw.
+            DfE&apos;s take-up for its age (the rates, and why they are the headline, are in the comparison
+            below, under <a href="#assumptions">Who takes up the 30 hours</a>).{" "}
+            Budget impact also shows the cost on CenTax&apos;s two rates and on the dataset&apos;s one flat rate.
+            Who gains, by family and income, comes from the single draw.
           </li>
           <li>
             The headline costing is static: parents work, earn and pay for childcare exactly as they do today in both
