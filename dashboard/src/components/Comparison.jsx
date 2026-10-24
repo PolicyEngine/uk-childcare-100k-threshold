@@ -33,31 +33,25 @@ export function BenchmarkNotes({ data }) {
   return (
     <>
       <li data-testid="benchmark">
-        <strong className="font-semibold text-slate-800">The Conservatives&apos; figure.</strong>{" "}
-        The Conservatives put the cost at about £700m a year when they announced the pledge, to be paid for by
-        cutting staff at arm&apos;s-length public bodies. Their{" "}
+        <strong className="font-semibold text-slate-800">The Conservatives&apos; figure:</strong>{" "}
+        about £700m a year, paid for by cutting staff at arm&apos;s-length public bodies. Their{" "}
         <a href={benchmark.announcement_url} target="_blank" rel="noopener noreferrer">
           announcement
         </a>{" "}
-        covers both the free hours and Tax-Free Childcare, but publishes no method.{" "}
+        covers both the free hours and Tax-Free Childcare but gives no method;{" "}
         <a href={benchmark.url} target="_blank" rel="noopener noreferrer">
           City AM
         </a>{" "}
-        says the figure is based on{" "}
+        says it is based on{" "}
         <a href={benchmark.underlying_source_url} target="_blank" rel="noopener noreferrer">
           CenTax&apos;s report
         </a>
-        , which costs removing the limit on the free childcare hours only, and that adding Tax-Free Childcare
-        &ldquo;pushed up the costs slightly&rdquo;.
+        , which costs the free hours only.
       </li>
       <li data-testid="benchmark-like-for-like">
-        <strong className="font-semibold text-slate-800">Compare figures on the same basis.</strong>{" "}
-        Our 30 hours cost and CenTax&apos;s static cost both cover the free hours
-        before any change in how much parents work, so they are the like-for-like pair. CenTax&apos;s net figures
-        allow for parents earning more once the limit goes (fewer keep their income just below £100,000) and partners
-        moving into work, which brings in extra tax. The party&apos;s £0.7bn is close to CenTax&apos;s central net
-        figure plus a small addition for Tax-Free Childcare. CenTax label tax years by their later year, so their
-        2030 is 2029-30.
+        <strong className="font-semibold text-slate-800">Like-for-like:</strong>{" "}
+        our 30 hours cost and CenTax&apos;s static cost are the like-for-like pair, both before any change in work. The party&apos;s £0.7bn is close to
+        CenTax&apos;s central net figure plus a little for Tax-Free Childcare. CenTax&apos;s 2030 is our 2029-30.
       </li>
     </>
   );

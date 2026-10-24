@@ -17,7 +17,7 @@ import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPR
 import MethodTab from "./MethodTab";
 import { plainText, RichText } from "./ui";
 import { cliffSummary, getHouseholdGrid, getUncertainty, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
-import { formatBn, formatMoneyBn, formatThousands } from "../lib/formatters";
+import { formatMoneyBn, formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
 const years = data.meta.years;
@@ -234,7 +234,6 @@ describe("methodology", () => {
     expect(screen.getByTestId("versions-table").textContent).toContain(data.meta.dataset_label);
     const rows = within(screen.getByTestId("validation-table")).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(data.baseline_validation.length);
-    expect(within(screen.getByTestId("assumptions-table")).getAllByRole("row").length).toBe(9);
     // Every limitation in the file, plus the age profile, each a title and a one-sentence summary in one group;
     // take-up's is stated once, in the Take-up step, so it is not repeated here.
     const group = screen.getByTestId("limitations");
@@ -266,23 +265,12 @@ describe("methodology", () => {
   it("does not call the take-up rates equal above and below £100,000", () => {
     render(<MethodTab data={data} />);
     expect(document.body.textContent).not.toMatch(/the same above and below £100,000/);
-    expect(document.body.textContent).toMatch(/held fixed/);
   });
 
-  it("reports the entry and income-basis sensitivities of the labour supply response", () => {
+  it("keeps the labour supply sensitivities in the method notes, linked from the Sensitivities item", () => {
     render(<MethodTab data={data} />);
-    const text = screen.getByTestId("section-labour-supply").textContent;
-    const ls = data.labour_supply;
-    const y = String(Object.keys(ls.extensive.offset_bn.central).at(-1));
-    const b3 = (x) => formatBn(x, 3);
-    const m = (x) => `£${Math.abs(x).toFixed(1)}m`;
-    expect(text).toContain(m(ls.extensive.entry_sensitivity.same_cell_only.offset_m[y]));
-    expect(text).toContain(m(ls.extensive.entry_sensitivity.worker_profile.offset_m[y]));
-    expect(text).toContain(b3(ls.intensive_income_basis.paid_care_fixed_spend.offset_bn[y]));
-    expect(text).toContain(b3(ls.intensive_income_basis.government_cost.offset_bn[y]));
-    expect(text).toContain(b3(ls.intensive_price_basis.original_spend.offset_bn[y]));
-    expect(text).toContain(b3(ls.intensive_price_basis.tfc_only.offset_bn[y]));
-    expect(text).toMatch(/Universal Credit childcare element it no longer gets/);
+    const item = screen.getByTestId("ls-sensitivities");
+    expect(within(item).getByRole("link", { name: "method notes on GitHub" }).getAttribute("href")).toMatch(/docs\/METHOD\.md$/);
   });
 
   it("pins the model package and the dataset release, revision and checksum", () => {

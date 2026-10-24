@@ -507,11 +507,11 @@ export function RangeNote({ data, basis }) {
           <a href={FRS_URL} target="_blank" rel="noopener noreferrer">
             FRS
           </a>{" "}
-          households behind the release, each with all its{" "}
+          households behind the{" "}
           <a href={MICROCOSM_URL} target="_blank" rel="noopener noreferrer">
             Microcosm
           </a>{" "}
-          copies.
+          dataset.
         </li>
         <li>The weights and calibration are held fixed, and the survey&apos;s clustering is ignored.</li>
         <li data-testid="note-range-centax">

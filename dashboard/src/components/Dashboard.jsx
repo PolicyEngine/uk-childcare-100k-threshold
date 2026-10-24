@@ -181,9 +181,9 @@ export function LabourSupplyControl({ data, setting, onChange }) {
         onChange={(v) => onChange({ ...setting, extensive: v })}
         bound={boundOf(setting, "extensive")}
         onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, extensive: x } })}
-        tag="Extensive margin"
+        tag="Whether people work"
         title="Partners move into work"
-        description="A partner who doesn't work may start, now that working brings the family childcare support."
+        description="A partner who doesn't work may start, now that working brings the family the 30 hours and Tax-Free Childcare. That support outweighs the tax they pay, so this adds to the cost."
         source={link(OBR_ELASTICITIES_URL, "OBR participation elasticities")}
         testId="toggle-extensive"
       />
@@ -192,9 +192,9 @@ export function LabourSupplyControl({ data, setting, onChange }) {
         onChange={(v) => onChange({ ...setting, intensive: v })}
         bound={boundOf(setting, "intensive")}
         onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, intensive: x } })}
-        tag="Intensive margin"
+        tag="How many hours"
         title="Parents change their hours"
-        description="Parents in work, at any income, may work more as an extra hour of childcare gets cheaper, and a little less as their family is better off."
+        description="Parents in work in families where a parent earns over £100,000 may work more as an extra hour of childcare gets cheaper, and a little less as the family is better off. This brings money back."
         source={
           <>
             {link(BREWER_URL, "Brewer et al., IFS WP20/09")} (price, assumed {a.hours_price_elasticity}),{" "}
