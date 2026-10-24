@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from . import aggregate as agg
 from . import expectation
 from .config import (
+    METHOD_URL,
     BASELINE_LIMIT,
     BENCHMARK_YEAR,
     BREWER_HOURS_URL,
@@ -225,7 +226,7 @@ def concentration_limitation(concentration, year):
     """How much of the static cost rests on the few largest-gaining weighted records."""
     c = concentration[str(year)]
     return ("Concentration on a few families", f"In {_fy(year)} the ten survey families with the largest weighted gains carry "
-            f"{c['top_ten_share_pct']:.0f}% of the static cost, and the largest alone {c['largest_share_pct']:.0f}%. "
+            f"{c['top_ten_share_pct']:.0f}% of the static cost. "
             "[Budget impact](?tab=budget#uncertainty) shows the sampling uncertainty this leaves.")
 
 
@@ -234,7 +235,6 @@ SALARY_SACRIFICE_URL = (
     "6-april-2029/salary-sacrifice-reform-for-pension-contributions"
 )
 # Replication code and the full method: the one link a reader needs beyond the official sources.
-METHOD_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/docs/METHOD.md"
 METHOD_NOTES = {"label": "Method notes on GitHub", "url": METHOD_URL}
 
 

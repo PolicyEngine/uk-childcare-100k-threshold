@@ -184,7 +184,6 @@ def concentration(runs, years=YEARS):
         out[str(y)] = {
             "gaining_sample_size": int(gain.sum()),
             "top_ten_share_pct": round(float(100 * cost[:10].sum() / cost.sum()), 1),
-            "largest_share_pct": round(float(100 * cost[0] / cost.sum()), 1),
             "kish_effective_sample_size": int(round(float(w.sum() ** 2 / (w ** 2).sum()))),
         }
     return out

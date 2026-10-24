@@ -12,6 +12,8 @@ DATA = REPO / "data"
 OUTPUT = DATA / "results.json"
 CACHE = REPO / ".cache"
 RUNS = CACHE / "runs"  # record-level arrays per run: gitignored, never published
+# The public method notes, linked from the results text.
+METHOD_URL = "https://github.com/PolicyEngine/uk-childcare-100k-threshold/blob/main/docs/METHOD.md"
 
 # Fiscal years named by start year ("2026" = 2026-27).
 YEARS = [2026, 2027, 2028, 2029]
