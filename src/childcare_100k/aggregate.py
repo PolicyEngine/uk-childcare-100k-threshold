@@ -874,18 +874,25 @@ def household_source_codes(runs, year):
     return hh_code, len(uniques)
 
 
-def bootstrap(runs, expected, years=(2027, 2029), draws=BOOTSTRAP_DRAWS, seed=BOOTSTRAP_SEED):
+# The years the bootstrap first covered draw first, so their resamples, and the figures published on them, stay
+# as they were when the other years were added.
+BOOTSTRAP_FIRST_YEARS = (2027, 2029)
+
+
+def bootstrap(runs, expected, years=YEARS, draws=BOOTSTRAP_DRAWS, seed=BOOTSTRAP_SEED):
     """Sampling uncertainty of the static costs: a bootstrap over FRS source households, on every take-up basis.
 
     Each draw resamples the source households with replacement, each with all its Microcosm copies, the release
     weights fixed (calibration is not redone), and ignores the FRS's clustering, so it is a floor on the
     uncertainty. Every basis (``household_changes``: the single draw and each take-up basis) is resampled with the
     same draws. Also counts the source households the 30-hours cost rests on, on the single draw, and their effective
-    number (Kish, over their shares of the cost). Aggregates only.
+    number (Kish, over their shares of the cost). Aggregates only. ``by_year`` is in year order; the draws are
+    taken for ``BOOTSTRAP_FIRST_YEARS`` first.
     """
     rng = np.random.default_rng(seed)
     out = {"draws": draws, "seed": seed, "by_year": {}}
-    for y in years:
+    by_year = {}
+    for y in sorted(years, key=lambda y: (y not in BOOTSTRAP_FIRST_YEARS, y)):
         code, n = household_source_codes(runs, y)
         counts = rng.multinomial(n, np.full(n, 1.0 / n), size=draws)
         h = household_changes(runs, expected, y)
@@ -903,7 +910,8 @@ def bootstrap(runs, expected, years=(2027, 2029), draws=BOOTSTRAP_DRAWS, seed=BO
         gaining = cost[cost > GAIN_THRESHOLD]
         year_out["source_households_30_hours"] = int(round(len(gaining), -1))
         year_out["effective_source_households_30_hours"] = int(round(float(gaining.sum() ** 2 / (gaining ** 2).sum()), -1))
-        out["by_year"][str(y)] = year_out
+        by_year[y] = year_out
+    out["by_year"] = {str(y): by_year[y] for y in sorted(by_year)}
     return out
 
 
