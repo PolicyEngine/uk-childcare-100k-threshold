@@ -7,16 +7,21 @@ import WhoGainsTab from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
 import {
   fyLabel,
+  LEAD_YEAR,
   getLabourSupply,
   getMeta,
+  getTakeUp,
   getYears,
   boundOf,
   labourSupplyParams,
   LS_BOUND_LABELS,
   LS_BOUNDS,
   parseLabourSupply,
+  parseTakeUp,
+  takeUpParams,
 } from "../lib/dataHelpers";
-import { TabLayout } from "./ui";
+import { Expandable, Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
+import { formatBn } from "../lib/formatters";
 
 export const TAB_OPTIONS = [
   { id: "budget", label: "Budget impact" },
@@ -186,6 +191,62 @@ export function LabourSupplyControl({ data, setting, onChange }) {
   );
 }
 
+/** A take-up option's name in the selector: its short label, marked when it is the headline. */
+export function takeUpOptionName(t, id) {
+  return `${t.bases[id].short_label}${id === t.headline ? " (headline)" : ""}`;
+}
+
+/**
+ * Who takes up the 30 hours among newly eligible children: one drop-down, the headline (DfE's rates by age) chosen
+ * by default, each option showing the 30 hours' cost it gives in the first full year. What each option is, and its
+ * source, is in a closed box underneath; it is the one place on Budget impact that states the rates.
+ */
+export function TakeUpControl({ data, basis, onChange }) {
+  const t = getTakeUp(data);
+  const year = String(LEAD_YEAR);
+  const cost = (id) => formatBn(t.bases[id].gross_bn.thirty_hours[year], 2);
+  const options = t.order.map((id) => ({ id, label: `${takeUpOptionName(t, id)}: ${cost(id)}` }));
+  return (
+    <div className="mb-4" data-testid="take-up-control">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+        <Select
+          label="Take-up"
+          ariaLabel="Take-up of the 30 hours among newly eligible families"
+          options={options}
+          value={basis}
+          onChange={onChange}
+          testId="take-up-select"
+        />
+        <span className="text-xs text-slate-500">Each option&apos;s 30 hours cost in {fyLabel(LEAD_YEAR)}</span>
+      </div>
+      <Expandable title="About these take-up options" testId="take-up-options" id={TAKE_UP_OPTIONS_ID} compact className="mt-3">
+        <ul className="space-y-3 text-sm leading-5 text-slate-600">
+          {t.order.map((id) => {
+            const b = t.bases[id];
+            return (
+              <li key={id} data-testid={`take-up-option-${id}`} aria-current={id === basis ? "true" : undefined}>
+                <span className={`font-semibold ${id === basis ? "text-[color:var(--pe-color-primary-700)]" : "text-slate-800"}`}>
+                  {b.short_label}
+                </span>
+                {id === t.headline ? (
+                  <span className="ml-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Headline</span>
+                ) : null}
+                <span className="block">{b.description}.</span>
+                <span className="block text-xs text-slate-500">
+                  Source:{" "}
+                  <a href={b.source_url} target="_blank" rel="noreferrer" className="underline">
+                    {b.source}
+                  </a>
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      </Expandable>
+    </div>
+  );
+}
+
 export function Dashboard({ data }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -212,24 +273,42 @@ export function Dashboard({ data }) {
     setSetting(parseLabourSupply(lsParam, boundParam));
   }
 
-  function replaceUrl(tab, ls) {
-    const params = new URLSearchParams([...(tab === DEFAULT_TAB ? [] : [["tab", tab]]), ...labourSupplyParams(ls)]);
+  // The 30 hours take-up basis, kept in the URL as ?takeup=centax; the headline (DfE by age) by default.
+  const takeUpParam = searchParams.get("takeup");
+  const [basis, setBasis] = useState(() => parseTakeUp(takeUpParam, data));
+  const [seenTakeUp, setSeenTakeUp] = useState(takeUpParam);
+  if (takeUpParam !== seenTakeUp) {
+    setSeenTakeUp(takeUpParam);
+    setBasis(parseTakeUp(takeUpParam, data));
+  }
+
+  function replaceUrl(tab, ls, takeUp) {
+    const params = new URLSearchParams([
+      ...(tab === DEFAULT_TAB ? [] : [["tab", tab]]),
+      ...labourSupplyParams(ls),
+      ...takeUpParams(takeUp, data),
+    ]);
     const query = params.toString();
     router.replace(query ? `/?${query}` : "/", { scroll: false });
   }
 
   function handleTabChange(tab) {
     setActiveTab(tab);
-    replaceUrl(tab, setting);
+    replaceUrl(tab, setting, basis);
   }
 
   function handleSettingChange(next) {
     setSetting(next);
-    replaceUrl(activeTab, next);
+    replaceUrl(activeTab, next, basis);
+  }
+
+  function handleBasisChange(next) {
+    setBasis(next);
+    replaceUrl(activeTab, setting, next);
   }
 
   return (
-    <div className="app-shell min-h-screen">
+    <div className="app-shell min-h-screen overflow-x-clip">
       <header className="title-row">
         <div className="mx-auto flex max-w-[1600px] items-center justify-between px-6 py-4 md:px-10 lg:pl-24">
           <h1>Scrapping the childcare cliff edge</h1>
@@ -274,11 +353,16 @@ export function Dashboard({ data }) {
           ))}
         </div>
 
-        {/* Only Budget impact changes with the labour supply setting, so the control shows only there. */}
-        {activeTab === "budget" ? <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} /> : null}
+        {/* Only Budget impact's figures change with the take-up and labour supply settings, so the controls show only there. */}
+        {activeTab === "budget" ? (
+          <>
+            <TakeUpControl data={data} basis={basis} onChange={handleBasisChange} />
+            <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} />
+          </>
+        ) : null}
 
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
-          {activeTab === "budget" && <LandingTab data={data} setting={setting} />}
+          {activeTab === "budget" && <LandingTab data={data} setting={setting} basis={basis} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
           {activeTab === "method" && <MethodTab data={data} setting={setting} />}
         </TabLayout>

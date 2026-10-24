@@ -1,22 +1,33 @@
-"""The expected-mode pair: every family claims the 30 hours, for the cost averaged over the take-up draws.
+"""The expected-mode pairs: every family claims the 30 hours, for the costs averaged over take-up.
 
 The dataset draws each benefit unit's ``would_claim_extended_childcare`` once, at the
 take-up contract's working-parent rate (``config.EXTENDED_TAKE_UP_RATE``), and nests
 ``would_claim_universal_childcare`` under it (the conditional universal rate is zero, so
 the two flags are equal on every record). A single draw decides whether each of the few
-heavily weighted newly eligible families claims. The expected cost averages over that
-draw (PolicyEngine/uk-childcare-100k-threshold#7): each newly eligible family's cost if it
-claims, times the take-up rate. This module runs the pair that gives the cost if it
-claims: both flags set to true for every benefit unit in baseline and reform. Families
-eligible today are eligible in both runs, so the pair's change is the newly eligible
-families'. The extended-hours usage and the under-2 usage draws are held as drawn.
+heavily weighted newly eligible families claims. The expected cost averages over take-up
+instead (PolicyEngine/uk-childcare-100k-threshold#7): each newly eligible family's or
+child's cost if it takes up the hours, times the take-up rate (``config.TAKE_UP_BASES``).
+This module runs the pairs that give the cost if it takes them up, both flags set to true
+for every benefit unit in baseline and reform:
 
-The reform run nets the new funded hours off childcare spending as the central reform does
-(``engine.net_new_hours``), and keeps the Tax-Free Childcare paid before that netting, which
-is what a family that does not claim the new hours gets (aggregate.expected_costs).
+- ``claim_all`` (the contract basis): the extended-hours usage and the under-2 usage
+  draws are held as drawn, and the contract's flat family rate applies on top;
+- ``claim_use_all`` (the DfE and CenTax bases): every child also uses its hours
+  (``max_free_entitlement_hours_used``, the under-2 usage draw, set to 30), because those
+  rates are child-level take-up that already counts use; the family's weekly hours cap
+  stays as drawn.
 
-The pair is kept apart from ``config.SCENARIOS`` so that adding it does not change the
-run definition hash and invalidate the other runs. Its cache files carry the same
+Families eligible today are eligible in both runs of a pair, so its change is the newly
+eligible families'.
+
+Each reform run nets the new funded hours off childcare spending as the central reform does
+(``engine.net_new_hours``), and keeps the Tax-Free Childcare paid before that netting, for
+each household and each person: it is what a family or child that does not take up the new
+hours gets (aggregate.person_changes). Each run also stores each person's DfE age (31
+December: the year less ``birth_year``) and funded hours by entitlement, for the rates by age.
+
+The pairs are kept apart from ``config.SCENARIOS`` so that adding them does not change the
+run definition hash and invalidate the other runs. Their cache files carry the same
 provenance as the other runs plus a hash of this module, and are refused if either changes.
 """
 
@@ -36,10 +47,12 @@ import numpy as np
 from .config import EXPECTED_SCENARIOS, REFORM_PARAMETERS, TFC_VARIABLE, YEARS, parameter_changes
 from .corrections import apply_corrections, is_applied
 from .datasets import POLICYENGINE_UK_VERSION, dataset_path
-from .engine import RUNS, extract, meta_path, person_free_value, provenance, run_path
+from .engine import PERSON_FREE_HOURS_VARIABLES, RUNS, extract, meta_path, person_free_value, provenance, run_path
 
 SOURCE = Path(__file__).resolve()
 JOBS = list(EXPECTED_SCENARIOS)
+# engine.PERSON_FREE_HOURS_VARIABLES' per-person funded hours, keyed as aggregate.thirty_hours_components keys them.
+FREE_HOURS_KEYS = ("extended", "universal", "targeted")
 
 
 def module_hash():
@@ -76,22 +89,26 @@ def _simulation(scenario):
 
 
 def _net_new_hours(sim, base):
-    """engine.net_new_hours against this module's baseline run (same method, scenario-agnostic)."""
+    """engine.net_new_hours against this module's baseline run (same method, scenario-agnostic).
+
+    Returns, by year, the Tax-Free Childcare paid before netting on each household and on each person.
+    """
     load_meta(base)
     z = np.load(run_path(base))
     ids = np.asarray(sim.calculate("person_id", YEARS[0])).astype(np.int64)
-    before, netted = {}, {}
+    before, before_person, netted = {}, {}, {}
     for y in YEARS:
         if not np.array_equal(z[f"{y}/p_id"], ids):
             raise ValueError(f"person order differs from the {base} run's")
         new = np.maximum(person_free_value(sim, y) - z[f"{y}/p_free_value"], 0.0)
         spend = np.asarray(sim.calculate("childcare_expenses", y)).astype(float)
         netted[y] = np.maximum(spend - new, 0.0)
+        before_person[y] = np.asarray(sim.calculate(TFC_VARIABLE, y)).astype(float)
         before[y] = np.asarray(sim.calculate(TFC_VARIABLE, y, map_to="household")).astype(float)
     sim.reset_calculations()
     for y, value in netted.items():
         sim.set_input("childcare_expenses", y, value.astype(np.float32))
-    return before
+    return before, before_person
 
 
 def run_job(scenario):
@@ -103,14 +120,21 @@ def run_job(scenario):
     spec = EXPECTED_SCENARIOS[scenario]
     arrays = {}
     if spec.get("base"):
-        for y, value in _net_new_hours(sim, spec["base"]).items():
-            arrays[f"{y}/hh_tfc_before_netting"] = value
+        before, before_person = _net_new_hours(sim, spec["base"])
+        for y in YEARS:
+            arrays[f"{y}/hh_tfc_before_netting"] = before[y]
+            arrays[f"{y}/p_tfc_before_netting"] = before_person[y]
     for y in YEARS:
         for k, v in extract(sim, y).items():
             arrays[f"{y}/{k}"] = v
-        for variable in spec["inputs"]:  # the override reached the simulation
-            if not np.asarray(sim.calculate(variable, y)).all():
-                raise RuntimeError(f"{scenario}: {variable} is not true for every record in {y}")
+        # Each person's DfE age (on 31 December of the year, as DfE's January census counts it) and funded hours by
+        # entitlement, for the take-up rates by age (aggregate.person_changes).
+        arrays[f"{y}/p_dfe_age"] = y - np.asarray(sim.calculate("birth_year", y)).astype(np.int64)
+        for variable, key in zip(PERSON_FREE_HOURS_VARIABLES, FREE_HOURS_KEYS):
+            arrays[f"{y}/p_free_{key}"] = np.asarray(sim.calculate(variable, y)).astype(float)
+        for variable, value in spec["inputs"].items():  # the override reached the simulation
+            if not np.all(np.asarray(sim.calculate(variable, y)) == value):
+                raise RuntimeError(f"{scenario}: {variable} is not {value} for every record in {y}")
     if spec["params"]:
         p = sim.tax_benefit_system.parameters
         for name in spec["params"]:

@@ -351,7 +351,7 @@ function BreakdownSection({ data, year, yearSelect }) {
     <Section
       id="breakdown"
       title="Where do the gains go?"
-      lead={leads[by]}
+      lead={`${leads[by]} The breakdowns on this tab, and the counts below, are on the dataset's single draw of who claims the 30 hours; Budget impact gives the cost and the families gaining on the take-up option chosen there.`}
       details={
         <>
           {details[by]}
@@ -554,12 +554,12 @@ export default function WhoGainsTab({ data }) {
       <Section
         id="recipients"
         title="How many families and children gain?"
-        lead={`Families and children who gain from each scheme in ${fy}, the year chosen above. A family gains if its support rises by more than £1 a year. Many gain from both schemes, so the two scheme bars add up to more than "either or both". Use Show to count children instead, or to see the children gaining by age: Tax-Free Childcare covers children up to 11, so many of them are of school age.`}
+        lead={`Families and children who gain from each scheme in ${fy}, the year chosen above. A family gains if its support rises by more than £1 a year. Many gain from both schemes, so the two scheme bars add up to more than "either or both". Use Show to count children instead, or to see the children gaining by age: Tax-Free Childcare covers children up to 11, so many of them are of school age. These counts are on the dataset's single take-up draw (see above), so they differ a little from the families gaining on Budget impact.`}
         details={
           <>
             <p>
               Tax-Free Childcare covers children up to 11, so most children gaining are of school age. The 30 hours
-              cover children from 9 months, but the model holds ages in whole years and gives no hours at age 0.
+              cover children from the term after they turn 9 months until they start reception.
             </p>
             {recipients.families_losing > 0 ? (
               <p>

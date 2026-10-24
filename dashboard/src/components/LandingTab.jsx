@@ -2,14 +2,13 @@
 
 import { useState } from "react";
 
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, ComposedChart, LabelList, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { colors, schemeColors } from "../lib/colors";
 import {
   fyLabel,
   getBenchmarks,
   getBudget,
-  getBudgetComparisons,
-  getRecipients,
+  getTakeUp,
   getUncertainty,
   isNum,
   isStatic,
@@ -24,7 +23,7 @@ import {
 import { formatBn, formatCurrency, formatMoneyBn, formatPct, formatThousands } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { Expandable, AXIS_STYLE, CustomTooltip, Section } from "./ui";
+import { Expandable, AXIS_STYLE, CustomTooltip, openDetails, Section, TAKE_UP_OPTIONS_ID } from "./ui";
 
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
@@ -262,23 +261,29 @@ export function netGrossGapM(net, gross) {
 
 /** Each scheme side by side: where it applies, what it gives, who qualifies today and what the reform changes. */
 const bnRange = (lo, hi) => `${formatBn(lo, 2)} to ${formatBn(hi, 2)}`;
+// In a narrow table cell a range breaks after "to", never inside a figure.
+const bnRangeCell = (lo, hi) => (
+  <>
+    <span className="whitespace-nowrap">{formatBn(lo, 2)} to</span> <span className="whitespace-nowrap">{formatBn(hi, 2)}</span>
+  </>
+);
 
-/** The bootstrap's standard deviation and 5th-95th percentile beside the headline, and the take-up and age checks. */
-export function UncertaintyTable({ data }) {
-  const u = getUncertainty(data);
+/** The bootstrap's standard deviation and 5th-95th percentile on the take-up basis chosen, and the single draw. */
+export function UncertaintyTable({ data, basis }) {
+  const u = getUncertainty(data, basis);
   const rows = [
-    ["30 hours: standard deviation", (r) => formatBn(r.expected.thirty_hours.sd_bn, 2)],
-    ["30 hours: 5th to 95th percentile", (r) => bnRange(r.expected.thirty_hours.p5_bn, r.expected.thirty_hours.p95_bn)],
-    ["Both schemes: standard deviation", (r) => formatBn(r.expected.total.sd_bn, 2)],
-    ["Both schemes: 5th to 95th percentile", (r) => bnRange(r.expected.total.p5_bn, r.expected.total.p95_bn)],
+    ["30 hours: standard deviation", (r) => formatBn(r.chosen.thirty_hours.sd_bn, 2)],
+    ["30 hours: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
+    ["Both schemes: standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
+    ["Both schemes: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
     ["30 hours on the dataset's single take-up draw", (r) => formatBn(r.singleThirty, 2)],
   ];
   return (
     <div className="overflow-x-auto">
-      <table className="data-table" data-testid="uncertainty-table">
+      <table className="data-table compact" data-testid="uncertainty-table">
         <thead>
           <tr>
-            <th />
+            <th className="text-left font-normal text-slate-500">Take-up: {u.basis.short_label}</th>
             {u.rows.map((r) => (
               <th key={r.year} className="text-right">
                 {nb(r.year)}
@@ -289,9 +294,9 @@ export function UncertaintyTable({ data }) {
         <tbody>
           {rows.map(([label, cell]) => (
             <tr key={label}>
-              <td className="min-w-[180px] font-medium text-slate-800">{label}</td>
+              <td className="font-medium text-slate-800 sm:min-w-[180px]">{label}</td>
               {u.rows.map((r) => (
-                <td key={r.year} className="whitespace-nowrap text-right tabular-nums">
+                <td key={r.year} className="text-right tabular-nums sm:whitespace-nowrap">
                   {cell(r)}
                 </td>
               ))}
@@ -303,9 +308,194 @@ export function UncertaintyTable({ data }) {
   );
 }
 
-/** The notes under the uncertainty table: what the range leaves out, take-up and the age profile. */
-export function UncertaintyNotes({ data }) {
-  const u = getUncertainty(data);
+// The marks of the range chart, used by the chart and its legend alike.
+const RANGE_MARKS = {
+  thirty_hours: { band: colors.primary[200], dot: schemeColors.thirty_hours },
+  total: { band: colors.gray[300], dot: colors.gray[700] },
+  centax: colors.gray[900],
+  single: colors.primary[600],
+};
+
+/** The range chart's rows: per year, the 30 hours and both schemes, each a 5th-95th percentile band and the central cost. */
+export function rangeChartRows(u, centax) {
+  return u.rows.flatMap((r) => [
+    {
+      key: `${r.year}-thirty`,
+      year: nb(r.year),
+      part: "30 hours",
+      scheme: "thirty_hours",
+      range: [r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn],
+      central: r.thirty,
+      centax: isNum(centax[String(r.year)]) ? centax[String(r.year)] : null,
+      single: r.singleThirty,
+    },
+    {
+      key: `${r.year}-total`,
+      year: nb(r.year),
+      part: "Both schemes",
+      scheme: "total",
+      range: [r.chosen.total.p5_bn, r.chosen.total.p95_bn],
+      central: r.total,
+      centax: null,
+      single: null,
+    },
+  ]);
+}
+
+function RangeTick({ x, y, payload, rows }) {
+  const row = rows.find((r) => r.key === payload.value);
+  if (!row) return null;
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={-6} y={-3} textAnchor="end" fontSize={12} fontWeight={600} fill={colors.gray[800]}>
+        {row.year}
+      </text>
+      <text x={-6} y={11} textAnchor="end" fontSize={11} fill={colors.gray[500]}>
+        {row.part}
+      </text>
+    </g>
+  );
+}
+
+/** The band's two ends labelled under it. */
+function RangeEnds({ x, y, width, height, value }) {
+  if (!Array.isArray(value) || !isNum(x) || !isNum(width)) return null;
+  const ty = y + height + 11;
+  return (
+    <g fontSize={10.5} fill={colors.gray[600]}>
+      <text x={x} y={ty} textAnchor="start">{formatBn(value[0], 2)}</text>
+      <text x={x + width} y={ty} textAnchor="end">{formatBn(value[1], 2)}</text>
+    </g>
+  );
+}
+
+function CentralDot({ cx, cy, payload }) {
+  if (!isNum(cx) || !isNum(cy)) return null;
+  return <circle cx={cx} cy={cy} r={5.5} fill={RANGE_MARKS[payload.scheme].dot} stroke="#fff" strokeWidth={1.5} />;
+}
+
+function CentaxMark({ cx, cy }) {
+  if (!isNum(cx) || !isNum(cy)) return null;
+  const d = 5.5;
+  return <path d={`M${cx},${cy - d} L${cx + d},${cy} L${cx},${cy + d} L${cx - d},${cy} Z`} fill={RANGE_MARKS.centax} stroke="#fff" strokeWidth={1} />;
+}
+
+function SingleMark({ cx, cy }) {
+  if (!isNum(cx) || !isNum(cy)) return null;
+  return <circle cx={cx} cy={cy} r={5} fill="#fff" stroke={RANGE_MARKS.single} strokeWidth={2} />;
+}
+
+function RangeTooltip({ active, payload }) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  const lines = [
+    ["Central", formatBn(row.central, 2)],
+    ["5th to 95th percentile", bnRange(row.range[0], row.range[1])],
+    ...(isNum(row.centax) ? [["CenTax, static", formatBn(row.centax, 2)]] : []),
+    ...(isNum(row.single) ? [["Single take-up draw", formatBn(row.single, 2)]] : []),
+  ];
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm shadow-lg">
+      <div className="mb-2 font-semibold text-slate-800">
+        {row.part}, {row.year}
+      </div>
+      {lines.map(([k, v]) => (
+        <div key={k} className="flex items-center justify-between gap-4">
+          <span className="text-slate-600">{k}</span>
+          <span className="font-medium tabular-nums text-slate-800">{v}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The bootstrap's 5th-95th percentile range for each year, for the 30 hours and both schemes, with the central cost
+ * on the take-up option chosen, CenTax's static cost of the free hours and the 30 hours on the single take-up draw.
+ */
+export function RangeChart({ data, basis }) {
+  const u = getUncertainty(data, basis);
+  const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
+  const rows = rangeChartRows(u, centax);
+  const values = rows.flatMap((r) => [...r.range, r.central, r.centax, r.single].filter(isNum));
+  const lo = Math.floor(Math.min(...values) * 10) / 10;
+  const hi = Math.ceil(Math.max(...values) * 10) / 10;
+  const ticks = [];
+  for (let v = lo; v <= hi + 1e-9; v += 0.2) ticks.push(Math.round(v * 10) / 10);
+  const years = u.rows.map((r) => fyLabel(r.year)).join(" and ");
+  const description = rows
+    .map(
+      (r) =>
+        `${r.part}, ${r.year}: central ${formatBn(r.central, 2)}, 5th to 95th percentile ${bnRange(r.range[0], r.range[1])}` +
+        (isNum(r.centax) ? `, CenTax static ${formatBn(r.centax, 2)}` : "") +
+        (isNum(r.single) ? `, single take-up draw ${formatBn(r.single, 2)}` : ""),
+    )
+    .join("; ");
+  const legend = [
+    { id: "band", label: "5th to 95th percentile", swatch: <span className="inline-block h-2.5 w-5 rounded-sm" style={{ backgroundColor: RANGE_MARKS.thirty_hours.band }} /> },
+    { id: "central", label: `Central (${u.basis.short_label})`, swatch: <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RANGE_MARKS.thirty_hours.dot }} /> },
+    { id: "centax", label: "CenTax, static (30 hours)", swatch: <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ backgroundColor: RANGE_MARKS.centax }} /> },
+    { id: "single", label: "Single take-up draw (30 hours)", swatch: <span className="inline-block h-3 w-3 rounded-full border-2 bg-white" style={{ borderColor: RANGE_MARKS.single }} /> },
+  ];
+  return (
+    <figure data-testid="range-chart">
+      <div
+        role="img"
+        aria-labelledby="range-chart-title"
+        aria-describedby="range-chart-desc"
+        style={{ height: 64 * rows.length + 40 }}
+      >
+        <p id="range-chart-title" className="sr-only">
+          Sampling range of the static cost, {years}, on take-up {u.basis.short_label}
+        </p>
+        <p id="range-chart-desc" className="sr-only">
+          {description}.
+        </p>
+        <ResponsiveContainer width="100%" height="100%">
+          <ComposedChart data={rows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barCategoryGap="38%">
+            <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} horizontal={false} />
+            <XAxis type="number" domain={[lo, hi]} ticks={ticks} tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, 1)} />
+            <YAxis type="category" dataKey="key" width={96} tickLine={false} axisLine={false} tick={<RangeTick rows={rows} />} />
+            <Tooltip cursor={{ fill: colors.gray[50] }} content={<RangeTooltip />} />
+            <Bar dataKey="range" isAnimationActive={false} radius={4}>
+              {rows.map((r) => (
+                <Cell key={r.key} fill={RANGE_MARKS[r.scheme].band} />
+              ))}
+              <LabelList dataKey="range" content={<RangeEnds />} />
+            </Bar>
+            <Line dataKey="central" stroke="none" isAnimationActive={false} dot={<CentralDot />} activeDot={false} legendType="none" />
+            <Line dataKey="centax" stroke="none" isAnimationActive={false} dot={<CentaxMark />} activeDot={false} legendType="none" />
+            <Line dataKey="single" stroke="none" isAnimationActive={false} dot={<SingleMark />} activeDot={false} legendType="none" />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+      <figcaption className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-600">
+        {legend.map((l) => (
+          <span key={l.id} className="flex items-center gap-2" data-testid={`range-legend-${l.id}`}>
+            {l.swatch}
+            {l.label}
+          </span>
+        ))}
+      </figcaption>
+      <ChartLogo />
+    </figure>
+  );
+}
+
+/** A link to the take-up options box above, opening it first. */
+function OptionsLink({ children }) {
+  return (
+    <a href={`#${TAKE_UP_OPTIONS_ID}`} onClick={() => openDetails(TAKE_UP_OPTIONS_ID)}>
+      {children}
+    </a>
+  );
+}
+
+/** The notes under the range chart, each topic in its own closed box of short points. */
+export function UncertaintyNotes({ data, basis }) {
+  const u = getUncertainty(data, basis);
+  const t = getTakeUp(data);
+  const b = u.basis;
   const lead = u.rows.find((r) => r.year === LEAD_YEAR) ?? u.rows[0];
   const share = u.age.share_over_limit_by_age_pct;
   const others = [0, 2, 3, 4].map((k) => share[String(k)]);
@@ -313,44 +503,79 @@ export function UncertaintyNotes({ data }) {
   const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
   const centaxInside = u.rows.every((r) => {
     const c = centax[String(r.year)];
-    return isNum(c) && r.expected.thirty_hours.p5_bn <= c && c <= r.expected.thirty_hours.p95_bn;
+    return isNum(c) && r.chosen.thirty_hours.p5_bn <= c && c <= r.chosen.thirty_hours.p95_bn;
   });
   const [lo, hi] = [Math.min(u.age.even_spread_bn, u.age.centax_gradient_bn), Math.max(u.age.even_spread_bn, u.age.centax_gradient_bn)];
+  const family = b.unit === "family";
   return (
-    <ul className="mt-3 list-disc space-y-2 pl-5 text-sm text-slate-700" data-testid="uncertainty-notes">
-      <li>
-        The range is a floor on the sampling uncertainty. It resamples the FRS households behind the release, each
-        with all its Microcosm copies, {u.draws.toLocaleString("en-GB")}{" "}
-        times with the weights fixed; it holds the
-        calibration fixed and ignores the survey&apos;s clustering. The 30 hours&apos; cost in {nb(lead.year)} rests
-        on about {lead.sourceHouseholds} FRS households, an effective number of about {lead.effectiveSourceHouseholds}.{" "}
-        {centaxInside ? "CenTax's static costs for both years lie inside the range. " : ""}On the single take-up draw
-        the bootstrap reproduces{" "}
-        <a href={u.sourceUrl} target="_blank" rel="noreferrer">
-          the Microcosm team&apos;s
-        </a>
-        .
-      </li>
-      <li>
-        The central cost averages over who claims the 30 hours: each newly eligible family&apos;s cost if it claims,
-        times the{" "}
-        <a href={u.rateUrl} target="_blank" rel="noreferrer">
-          take-up rate
-        </a>{" "}
-        ({formatPct(100 * u.rate, 1)}). The dataset draws once whether each family claims, and its heavily weighted
-        newly eligible families drew a claim more often than the rate, so the single draw is higher. Each percentage
-        point of the rate moves the 30 hours&apos; cost by about £{u.perPoint[u.years.indexOf(lead.year)]}m in{" "}
-        {nb(lead.year)}.
-      </li>
-      <li>
-        The age profile can only push the cost up. The release has few 1-year-olds in families with a parent over
-        £100,000 ({pct(share["1"])}, against {pct(Math.min(...others))} to {pct(Math.max(...others))}{" "}
-        at the other
-        ages under 5), and no source independent of the survey crosses income with a child&apos;s age. Spreading the
-        newly entitled 1-to-4-year-olds evenly across those ages, or on CenTax&apos;s gradient between under-3s and
-        3-to-4s, raises the 30 hours&apos; cost in {nb(u.age.year)} by about {formatBn(lo, 2)} to {formatBn(hi, 2)}.
-      </li>
-    </ul>
+    <div className="mt-4 space-y-2" data-testid="uncertainty-notes">
+      <Expandable title="How wide is the range?" testId="note-range" compact>
+        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-700">
+          <li>
+            A floor on the sampling uncertainty: {u.draws.toLocaleString("en-GB")} resamples of the FRS households
+            behind the release, each with all its Microcosm copies.
+          </li>
+          <li>The weights and calibration are held fixed, and the survey&apos;s clustering is ignored.</li>
+          <li>
+            The 30 hours&apos; cost in {nb(lead.year)} rests on about {lead.sourceHouseholds} FRS households, an
+            effective number of about {lead.effectiveSourceHouseholds} (on the single take-up draw).
+          </li>
+          <li>
+            {centaxInside ? "CenTax's static costs lie inside the range in both years. " : ""}On the single draw the
+            bootstrap reproduces{" "}
+            <a href={u.sourceUrl} target="_blank" rel="noreferrer">
+              the Microcosm team&apos;s
+            </a>
+            .
+          </li>
+        </ul>
+      </Expandable>
+      <Expandable title="Why expected take-up?" testId="take-up-note" compact>
+        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-700">
+          {family ? (
+            <li>
+              On {b.short_label}, the cost is each newly eligible family&apos;s cost if it claims, times{" "}
+              <OptionsLink>the flat rate</OptionsLink>.
+            </li>
+          ) : (
+            <li>
+              On {b.short_label}, the cost is each newly entitled child&apos;s cost if its family claims and it uses the
+              hours, times <OptionsLink>the take-up for its age</OptionsLink>. The rates count both, so they replace the
+              dataset&apos;s own draw of who claims.
+            </li>
+          )}
+          <li>
+            The single draw is higher: the dataset&apos;s heavily weighted newly eligible families drew a claim more
+            often than its rate.
+          </li>
+          {family ? (
+            <li>
+              Each percentage point of the rate moves the 30 hours&apos; cost by about £{b.per_point_m[String(lead.year)]}m in{" "}
+              {nb(lead.year)}.
+            </li>
+          ) : null}
+          <li>
+            {b.id === t.headline ? `${b.short_label} is the headline; ` : `The headline is ${t.bases[t.headline].short_label}; `}
+            why, and how it compares with the flat rate by age, is under{" "}
+            <a href="?tab=method#assumptions">Who takes up the 30 hours</a> on Methodology.
+          </li>
+        </ul>
+      </Expandable>
+      <Expandable title="Age profile: can only push the cost up" testId="note-age" compact>
+        <ul className="list-disc space-y-1.5 pl-5 text-sm leading-6 text-slate-700">
+          <li>
+            The release has few 1-year-olds in families with a parent over £100,000: {pct(share["1"])}, against{" "}
+            {pct(Math.min(...others))} to {pct(Math.max(...others))} at the other ages under 5.
+          </li>
+          <li>No source independent of the survey crosses income with a child&apos;s age.</li>
+          <li>
+            Spreading the newly entitled 1-to-4-year-olds evenly across those ages, or on CenTax&apos;s gradient between
+            under-3s and 3-to-4s, adds about {formatBn(lo, 2)} to {formatBn(hi, 2)} to the 30 hours&apos; cost in{" "}
+            {nb(u.age.year)} (on the single take-up draw).
+          </li>
+        </ul>
+      </Expandable>
+    </div>
   );
 }
 
@@ -394,16 +619,19 @@ function SchemesTable() {
   );
 }
 
-export default function LandingTab({ data, setting = STATIC_SETTING }) {
-  const budget = getBudget(data);
+export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
+  const takeUp = getTakeUp(data);
+  const chosen = takeUp.bases[basis ?? takeUp.headline];
+  const budget = getBudget(data, chosen.id);
   const dynamic = !isStatic(setting);
   const offsets = labourSupplyOffset(data, setting);
   const cost = budget.rows.map((r, i) => r.total - offsets[i]);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const [scheme, setScheme] = useState(null);
   const lead = budget.rows[li];
-  const recipients = getRecipients(data, lead.year);
-  const cmp = getBudgetComparisons(data);
+  // Families and children gaining on the chosen take-up basis (totals only; the breakdowns are on Who gains).
+  const recipients = chosen.recipients[lead.year];
+  const cmp = { net: chosen.net };
   const chart = costChartData(budget, offsets, dynamic);
   const gapM = netGrossGapM(cmp.net, budget.rows.map((r) => r.total));
   const fy = nb(lead.year);
@@ -413,7 +641,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       <Section
         id="at-a-glance"
         title="The cost at a glance"
-        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year. Click a year's bar to change the year, or a scheme to show it alone.`}
+        lead={`What removing the limit adds to government spending and who gains, opening on ${fyLabel(LEAD_YEAR)}, the first full year, with take-up of the 30 hours on the option chosen above (${chosen.short_label}${chosen.id === takeUp.headline ? ", the headline" : ""}). Click a year's bar to change the year, or a scheme to show it alone.`}
         boxed={false}
       >
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -515,10 +743,18 @@ export default function LandingTab({ data, setting = STATIC_SETTING }) {
       <Section
         id="uncertainty"
         title="How certain is the cost?"
-        lead="The static cost rests on a small number of survey households, so it carries sampling uncertainty. The table gives it beside the central figures above, for the first full year and the last."
+        lead={`The static cost rests on a small number of survey households, so it carries sampling uncertainty. The chart shows the range for the first full year and the last, on take-up ${chosen.short_label}. Hover over a row for its figures.`}
+        boxed={false}
       >
-        <UncertaintyTable data={data} />
-        <UncertaintyNotes data={data} />
+        <div className="panel">
+          <RangeChart data={data} basis={chosen.id} />
+        </div>
+        <div className="mt-4">
+          <Expandable title="Show the numbers" testId="uncertainty-expandable" compact>
+            <UncertaintyTable data={data} basis={chosen.id} />
+          </Expandable>
+        </div>
+        <UncertaintyNotes data={data} basis={chosen.id} />
       </Section>
 
     </div>
