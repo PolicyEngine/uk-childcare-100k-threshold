@@ -505,6 +505,24 @@ describe("the range chart", () => {
     expect(within(chart).getByRole("img").getAttribute("aria-describedby")).toBe("range-chart-desc");
     expect(document.getElementById("range-chart-desc").textContent).toContain(bn(rows[0].range[0]));
   });
+
+  it("shows one leg at a time, the 30 hours by default, with only that leg's markers and numbers", () => {
+    render(<LandingTab data={data} />);
+    const n = Object.keys(data.budget.uncertainty.by_year).length;
+    const select = screen.getByTestId("range-leg-select");
+    const rowCount = () => document.getElementById("range-chart-desc").textContent.split(";").length;
+    const legend = () => ["band", "central", "centax", "single"].filter((id) => screen.queryByTestId(`range-legend-${id}`));
+    const tableLabels = () => [...screen.getByTestId("uncertainty-table").querySelectorAll("tbody td:first-child")].map((td) => td.textContent);
+    expect(select.value).toBe("thirty_hours");
+    expect(rowCount()).toBe(n);
+    expect(legend()).toEqual(["band", "central", "centax", "single"]);
+    expect(tableLabels().every((l) => l.startsWith("30 hours"))).toBe(true);
+    fireEvent.change(select, { target: { value: "total" } });
+    expect(rowCount()).toBe(n);
+    expect(document.getElementById("range-chart-desc").textContent).not.toContain("CenTax");
+    expect(legend()).toEqual(["band", "central"]);
+    expect(tableLabels()).toEqual(["Both schemes: standard deviation", "Both schemes: 5th to 95th percentile"]);
+  });
 });
 
 describe("who gains: the recipients view across years", () => {

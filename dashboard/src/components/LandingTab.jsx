@@ -23,7 +23,7 @@ import {
 import { formatBn, formatCurrency, formatMoneyBn, formatPct, formatThousands } from "../lib/formatters";
 import { axisDigits, niceAxis } from "../lib/ticks";
 import ChartLogo from "./ChartLogo";
-import { Expandable, ExpandableGroup, AXIS_STYLE, CustomTooltip, Section } from "./ui";
+import { Expandable, ExpandableGroup, AXIS_STYLE, CustomTooltip, Section, Select } from "./ui";
 
 /** A non-breaking hyphen keeps "2026-27" on one line. */
 const nb = (year) => fyLabel(year).replace("-", "‑");
@@ -268,16 +268,21 @@ const bnRangeCell = (lo, hi) => (
   </>
 );
 
-/** The bootstrap's standard deviation and 5th-95th percentile on the take-up basis chosen, and the single draw. */
-export function UncertaintyTable({ data, basis }) {
+/**
+ * The bootstrap's standard deviation and 5th-95th percentile on the take-up basis chosen, for the leg the range chart
+ * shows (the 30 hours or both schemes), and, for the 30 hours, the single draw.
+ */
+export function UncertaintyTable({ data, basis, leg = "thirty_hours" }) {
   const u = getUncertainty(data, basis);
   const rows = [
-    ["30 hours: standard deviation", (r) => formatBn(r.chosen.thirty_hours.sd_bn, 2)],
-    ["30 hours: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
-    ["Both schemes: standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
-    ["Both schemes: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
-    ["30 hours on the dataset's single take-up draw", (r) => formatBn(r.singleThirty, 2)],
-  ];
+    ["thirty_hours", "30 hours: standard deviation", (r) => formatBn(r.chosen.thirty_hours.sd_bn, 2)],
+    ["thirty_hours", "30 hours: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.thirty_hours.p5_bn, r.chosen.thirty_hours.p95_bn)],
+    ["total", "Both schemes: standard deviation", (r) => formatBn(r.chosen.total.sd_bn, 2)],
+    ["total", "Both schemes: 5th to 95th percentile", (r) => bnRangeCell(r.chosen.total.p5_bn, r.chosen.total.p95_bn)],
+    ["thirty_hours", "30 hours on the dataset's single take-up draw", (r) => formatBn(r.singleThirty, 2)],
+  ]
+    .filter(([l]) => l === leg)
+    .map(([, label, cell]) => [label, cell]);
   return (
     <div className="overflow-x-auto">
       <table className="data-table compact" data-testid="uncertainty-table">
@@ -316,6 +321,12 @@ const RANGE_MARKS = {
   single: colors.primary[600],
 };
 
+/** The two legs the range chart can show, one at a time. */
+export const RANGE_LEGS = [
+  { id: "thirty_hours", label: "30 hours" },
+  { id: "total", label: "Both schemes" },
+];
+
 /** The range chart's rows: per year, the 30 hours and both schemes, each a 5th-95th percentile band and the central cost. */
 export function rangeChartRows(u, centax) {
   return u.rows.flatMap((r) => [
@@ -347,11 +358,8 @@ function RangeTick({ x, y, payload, rows }) {
   if (!row) return null;
   return (
     <g transform={`translate(${x},${y})`}>
-      <text x={-6} y={-3} textAnchor="end" fontSize={12} fontWeight={600} fill={colors.gray[800]}>
+      <text x={-6} y={4} textAnchor="end" fontSize={12} fontWeight={600} fill={colors.gray[800]}>
         {row.year}
-      </text>
-      <text x={-6} y={11} textAnchor="end" fontSize={11} fill={colors.gray[500]}>
-        {row.part}
       </text>
     </g>
   );
@@ -410,13 +418,16 @@ function RangeTooltip({ active, payload }) {
 }
 
 /**
- * The bootstrap's 5th-95th percentile range for each year, for the 30 hours and both schemes, with the central cost
- * on the take-up option chosen, CenTax's static cost of the free hours and the 30 hours on the single take-up draw.
+ * The bootstrap's 5th-95th percentile range for each year, for one leg (the 30 hours or both schemes), with the
+ * central cost on the take-up option chosen and, for the 30 hours, CenTax's static cost of the free hours and the
+ * 30 hours on the single take-up draw. The axis fits the leg shown.
  */
-export function RangeChart({ data, basis }) {
+export function RangeChart({ data, basis, leg = "thirty_hours" }) {
   const u = getUncertainty(data, basis);
   const centax = getBenchmarks(data)[0]?.underlying_static_by_year_bn ?? {};
-  const rows = rangeChartRows(u, centax);
+  const rows = rangeChartRows(u, centax).filter((r) => r.scheme === leg);
+  const legName = RANGE_LEGS.find((l) => l.id === leg)?.label;
+  if (!rows.length || !legName) throw new Error(`RangeChart: no leg ${leg}`);
   const values = rows.flatMap((r) => [...r.range, r.central, r.centax, r.single].filter(isNum));
   const lo = Math.floor(Math.min(...values) * 10) / 10;
   const hi = Math.ceil(Math.max(...values) * 10) / 10;
@@ -426,16 +437,21 @@ export function RangeChart({ data, basis }) {
   const description = rows
     .map(
       (r) =>
-        `${r.part}, ${r.year}: central ${formatBn(r.central, 2)}, 5th to 95th percentile ${bnRange(r.range[0], r.range[1])}` +
+        `${r.year}: central ${formatBn(r.central, 2)}, 5th to 95th percentile ${bnRange(r.range[0], r.range[1])}` +
         (isNum(r.centax) ? `, CenTax static ${formatBn(r.centax, 2)}` : "") +
         (isNum(r.single) ? `, single take-up draw ${formatBn(r.single, 2)}` : ""),
     )
     .join("; ");
+  // CenTax and the single draw exist for the 30 hours only, so their markers are listed only when they are drawn.
   const legend = [
-    { id: "band", label: "5th to 95th percentile", swatch: <span className="inline-block h-2.5 w-5 rounded-sm" style={{ backgroundColor: RANGE_MARKS.thirty_hours.band }} /> },
-    { id: "central", label: `Central (${u.basis.short_label})`, swatch: <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RANGE_MARKS.thirty_hours.dot }} /> },
-    { id: "centax", label: "CenTax, static (30 hours)", swatch: <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ backgroundColor: RANGE_MARKS.centax }} /> },
-    { id: "single", label: "Single take-up draw (30 hours)", swatch: <span className="inline-block h-3 w-3 rounded-full border-2 bg-white" style={{ borderColor: RANGE_MARKS.single }} /> },
+    { id: "band", label: "5th to 95th percentile", swatch: <span className="inline-block h-2.5 w-5 rounded-sm" style={{ backgroundColor: RANGE_MARKS[leg].band }} /> },
+    { id: "central", label: `Central (${u.basis.short_label})`, swatch: <span className="inline-block h-3 w-3 rounded-full" style={{ backgroundColor: RANGE_MARKS[leg].dot }} /> },
+    ...(rows.some((r) => isNum(r.centax))
+      ? [{ id: "centax", label: "CenTax, static", swatch: <span className="inline-block h-2.5 w-2.5 rotate-45" style={{ backgroundColor: RANGE_MARKS.centax }} /> }]
+      : []),
+    ...(rows.some((r) => isNum(r.single))
+      ? [{ id: "single", label: "Single take-up draw", swatch: <span className="inline-block h-3 w-3 rounded-full border-2 bg-white" style={{ borderColor: RANGE_MARKS.single }} /> }]
+      : []),
   ];
   return (
     <figure data-testid="range-chart">
@@ -446,7 +462,7 @@ export function RangeChart({ data, basis }) {
         style={{ height: 56 * rows.length + 40 }}
       >
         <p id="range-chart-title" className="sr-only">
-          Sampling range of the static cost, {years}, on take-up {u.basis.short_label}
+          Sampling range of the static cost of {legName === "30 hours" ? "the 30 hours" : "both schemes"}, {years}, on take-up {u.basis.short_label}
         </p>
         <p id="range-chart-desc" className="sr-only">
           {description}.
@@ -455,7 +471,7 @@ export function RangeChart({ data, basis }) {
           <ComposedChart data={rows} layout="vertical" margin={{ top: 4, right: 16, left: 0, bottom: 4 }} barCategoryGap="38%">
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} horizontal={false} />
             <XAxis type="number" domain={[lo, hi]} ticks={ticks} tick={AXIS_STYLE} tickFormatter={(v) => formatBn(v, 1)} />
-            <YAxis type="category" dataKey="key" width={96} tickLine={false} axisLine={false} tick={<RangeTick rows={rows} />} />
+            <YAxis type="category" dataKey="key" width={76} tickLine={false} axisLine={false} tick={<RangeTick rows={rows} />} />
             <Tooltip cursor={{ fill: colors.gray[50] }} content={<RangeTooltip />} />
             <Bar dataKey="range" isAnimationActive={false} radius={4}>
               {rows.map((r) => (
@@ -569,6 +585,8 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
   const cost = budget.rows.map((r, i) => r.total - offsets[i]);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const [scheme, setScheme] = useState(null);
+  // The range chart shows one leg at a time: the 30 hours by default.
+  const [leg, setLeg] = useState(RANGE_LEGS[0].id);
   const lead = budget.rows[li];
   // Families and children gaining on the chosen take-up basis (totals only; the breakdowns are on Who gains).
   const recipients = chosen.recipients[lead.year];
@@ -696,11 +714,21 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
         boxed={false}
       >
         <div className="panel joined-below">
-          <RangeChart data={data} basis={chosen.id} />
+          <div className="mb-4">
+            <Select
+              label="Show"
+              ariaLabel="Show the range for the 30 hours or both schemes"
+              options={RANGE_LEGS}
+              value={leg}
+              onChange={setLeg}
+              testId="range-leg-select"
+            />
+          </div>
+          <RangeChart data={data} basis={chosen.id} leg={leg} />
         </div>
         <ExpandableGroup joined testId="uncertainty-notes">
           <Expandable title="Show the numbers" testId="uncertainty-expandable" compact>
-            <UncertaintyTable data={data} basis={chosen.id} />
+            <UncertaintyTable data={data} basis={chosen.id} leg={leg} />
           </Expandable>
           <RangeNote data={data} basis={chosen.id} />
         </ExpandableGroup>
