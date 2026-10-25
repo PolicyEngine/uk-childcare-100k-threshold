@@ -422,58 +422,15 @@ def test_cliff_example_is_the_grid_default():
     assert c["earnings"] == g["earnings"] and c["net_income_baseline"] == s["baseline"]
 
 
-# ── Labour supply ───────────────────────────────────────────────────────────
+# ── Behaviour ───────────────────────────────────────────────────────────────
 
 
-def test_labour_supply_block():
-    ls = RESULTS["labour_supply"]
-    static = RESULTS["budget"]["gross_bn"]["total"]
-    # Only the hours response is published: the participation response (partners moving into work) is not.
-    assert "extensive" not in ls
-    assert set(ls["population"][YEAR_KEYS[0]]) == {"hours_responding_adults"}
-    assert "participation_elasticities" not in ls["assumptions"] and "hours_for_new_entrants" not in ls["assumptions"]
-    for bound in ("central", "low", "high"):
-        _by_year(ls["intensive"]["offset_bn"][bound])
-        _by_year(ls["intensive"]["ftes"][bound])
-        for y in YEAR_KEYS:
-            assert ls["total_offset_bn"][bound][y] == ls["intensive"]["offset_bn"][bound][y]
-            # Hours cover every responding adult in work, whatever their income.
-            parts = ls["intensive"]["at_or_below_limit"]["offset_bn"][bound][y] + ls["intensive"]["over_limit"]["offset_bn"][bound][y]
-            assert ls["intensive"]["offset_bn"][bound][y] == pytest.approx(parts, abs=0.0015)
-            # Each group's hours offset is its price effect (money back) plus its income effect (money out).
-            for g in ("at_or_below_limit", "over_limit"):
-                part = ls["intensive"][g]
-                assert part["price_offset_bn"][bound][y] >= 0
-                assert part["income_offset_bn"][bound][y] <= 0
-                assert part["offset_bn"][bound][y] == pytest.approx(
-                    part["price_offset_bn"][bound][y] + part["income_offset_bn"][bound][y], abs=0.0015)
-            # The dynamic cost is the published static total less the hours offset.
-            assert ls["dynamic_cost_bn"][bound][y] == pytest.approx(static[y] - ls["total_offset_bn"][bound][y], abs=0.0015)
-    for y in YEAR_KEYS:
-        lo, mid, hi = (ls["intensive"]["offset_bn"][b][y] for b in ("low", "central", "high"))
-        assert lo <= mid <= hi
-        # The income-basis sensitivities share the price effect and net to their own parts.
-        assert set(ls["intensive_income_basis"]) == {"paid_care_fixed_spend", "government_cost"}
-        for sens in ls["intensive_income_basis"].values():
-            assert sens["price_offset_bn"][y] == pytest.approx(ls["intensive"]["price_offset_bn"]["central"][y], abs=0.0015)
-            assert sens["offset_bn"][y] == pytest.approx(sens["price_offset_bn"][y] + sens["income_offset_bn"][y], abs=0.0015)
-        # The price-basis sensitivities share the income effect's gain and net to their own parts.
-        assert set(ls["intensive_price_basis"]) == {"original_spend", "tfc_only"}
-        for sens in ls["intensive_price_basis"].values():
-            assert sens["offset_bn"][y] == pytest.approx(sens["price_offset_bn"][y] + sens["income_offset_bn"][y],
-                                                         abs=0.0015)
-        # Keeping the support on the displaced spend makes the gain, and so the income effect's cost, no smaller.
-        assert (ls["intensive_income_basis"]["paid_care_fixed_spend"]["income_offset_bn"][y]
-                <= ls["intensive"]["income_offset_bn"]["central"][y] + 0.0015)
-    assert "bunching" in ls["not_modelled"].lower() and "moving into work" in ls["not_modelled"]
-
-
-def test_static_assumption_carries_the_labour_supply_effect():
+def test_no_labour_supply_response_is_published():
+    # The costs are static: the labour supply job (parents' hours, partners moving into work) is not published.
+    assert "labour_supply" not in RESULTS
     row = next(r for r in RESULTS["modelling_assumptions"] if r["id"] == "static")
-    assert row["alternative"] == "Parents in work change their hours"
-    offset = RESULTS["labour_supply"]["total_offset_bn"]["central"]
-    for y in YEAR_KEYS:
-        assert row["effect_bn"][y] == pytest.approx(-offset[y], abs=0.0005)
+    assert "effect_bn" not in row and "alternative" not in row
+    assert "bunching" in row["modelled"] and "partners moving into work" in row["modelled"]
 
 
 @pytest.mark.parametrize("year", YEAR_KEYS)
