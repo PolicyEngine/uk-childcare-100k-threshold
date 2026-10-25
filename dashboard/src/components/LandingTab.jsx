@@ -11,11 +11,7 @@ import {
   getTakeUp,
   getUncertainty,
   isNum,
-  isStatic,
-  labourSupplyLabel,
-  labourSupplyOffset,
   LEAD_YEAR,
-  STATIC_SETTING,
   SCHEME_LABELS,
   SCHEMES,
   yearHeading,
@@ -169,44 +165,24 @@ function BarList({ items, selected, onSelect, format }) {
   );
 }
 
-export const OFFSET_KEY = "labour_supply";
-
-/** The labour supply series' name: the hours response brings money back (getLabourSupply fails on a negative one). */
-export const OFFSET_NAME = "Back from parents working more";
-
-/**
- * The yearly chart's rows and series. With a margin on, the chart carries the labour supply response as a signed
- * series (below zero when it brings money back), so each year's series add up to the cost after the response.
- */
-export function costChartData(budget, offsets, dynamic) {
-  const rows = budget.rows.map((r, i) => ({ ...r, label: yearHeading(r.year), [OFFSET_KEY]: -offsets[i] }));
-  return { rows, series: dynamic ? [...SCHEMES, OFFSET_KEY] : [...SCHEMES], offsetName: OFFSET_NAME };
+/** The yearly chart's rows: each year's static cost of the two schemes. */
+export function costChartData(budget) {
+  return budget.rows.map((r) => ({ ...r, label: yearHeading(r.year) }));
 }
 
-/** What the tooltip's total adds up for one row: every series the chart draws. */
-export function chartRowTotal(row, series) {
-  return series.reduce((t, s) => t + row[s], 0);
-}
-
-function CostChart({ rows, series, offsetName }) {
-  const withOffset = series.includes(OFFSET_KEY);
-  const fills = { ...schemeColors, [OFFSET_KEY]: colors.gray[400] };
-  const names = { ...SCHEME_LABELS, [OFFSET_KEY]: offsetName };
-  const values = rows.flatMap((r) => [r.thirty_hours + r.tax_free_childcare, ...(withOffset ? [r[OFFSET_KEY], chartRowTotal(r, series)] : [])]);
+function CostChart({ rows }) {
+  const values = rows.map((r) => r.thirty_hours + r.tax_free_childcare);
   const digits = axisDigits(values);
   const axis = niceAxis(values);
   return (
     <>
       <div style={{ height: 340 }} data-testid="cost-chart">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 0 }} stackOffset="sign">
+          <BarChart data={rows} margin={{ top: 10, right: 20, left: 10, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={colors.border.light} vertical={false} />
             <XAxis dataKey="label" tick={AXIS_STYLE} />
             <YAxis tick={AXIS_STYLE} tickFormatter={(v) => (v === 0 ? "£0" : formatBn(v, digits))} {...axis} />
-            <Tooltip
-              cursor={{ fill: colors.gray[100] }}
-              content={<CustomTooltip formatter={(v) => formatMoneyBn(v)} totalLabel={withOffset ? "Cost after the response" : "Total"} />}
-            />
+            <Tooltip cursor={{ fill: colors.gray[100] }} content={<CustomTooltip formatter={(v) => formatMoneyBn(v)} totalLabel="Total" />} />
             {SCHEMES.map((s) => (
               <Bar
                 key={s}
@@ -222,26 +198,14 @@ function CostChart({ rows, series, offsetName }) {
                 maxBarSize={80}
               />
             ))}
-            {withOffset ? (
-              <Bar
-                dataKey={OFFSET_KEY}
-                name={offsetName}
-                stackId="cost"
-                fill={fills[OFFSET_KEY]}
-                stroke="#fff"
-                strokeWidth={1}
-                isAnimationActive={false}
-                maxBarSize={80}
-              />
-            ) : null}
           </BarChart>
         </ResponsiveContainer>
       </div>
       <div className="mt-3 flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm text-slate-600">
-        {series.map((s) => (
+        {SCHEMES.map((s) => (
           <span key={s} className="flex items-center gap-2" data-testid={`legend-${s}`}>
-            <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: fills[s] }} />
-            {names[s]}
+            <span className="inline-block h-3 w-3 rounded-sm" style={{ backgroundColor: schemeColors[s] }} />
+            {SCHEME_LABELS[s]}
           </span>
         ))}
       </div>
@@ -576,13 +540,11 @@ function SchemesTable() {
   );
 }
 
-export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
+export default function LandingTab({ data, basis }) {
   const takeUp = getTakeUp(data);
   const chosen = takeUp.bases[basis ?? takeUp.headline];
   const budget = getBudget(data, chosen.id);
-  const dynamic = !isStatic(setting);
-  const offsets = labourSupplyOffset(data, setting);
-  const cost = budget.rows.map((r, i) => r.total - offsets[i]);
+  const cost = budget.rows.map((r) => r.total);
   const [li, setLi] = useState(budget.years.indexOf(LEAD_YEAR));
   const [scheme, setScheme] = useState(null);
   // The range chart shows one leg at a time: the 30 hours by default.
@@ -591,7 +553,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
   // Families and children gaining on the chosen take-up basis (totals only; the breakdowns are on Who gains).
   const recipients = chosen.recipients[lead.year];
   const cmp = { net: chosen.net };
-  const chart = costChartData(budget, offsets, dynamic);
+  const chart = costChartData(budget);
   const gapM = netGrossGapM(cmp.net, budget.rows.map((r) => r.total));
   const fy = nb(lead.year);
 
@@ -607,13 +569,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
           <Card
             label={`Cost in ${fy}`}
             value={formatBn(cost[li], 2)}
-            detail={
-              dynamic
-                ? `After the labour supply response (${labourSupplyLabel(setting)}): ${formatBn(lead.total, 2)} static, ${formatMoneyBn(
-                    offsets[li],
-                  )} back from parents working more`
-                : "Extra government spending on both schemes"
-            }
+            detail="Extra government spending on both schemes"
             testId="card-cost"
           >
             <MiniBars
@@ -627,7 +583,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
           <Card
             label={scheme ? SCHEME_LABELS[scheme] : "By scheme"}
             value={scheme ? formatBn(lead[scheme], 2) : `${formatBn(lead.thirty_hours, 2)} and ${formatBn(lead.tax_free_childcare, 2)}`}
-            detail={`${scheme ? `Cost of this scheme, ${fy}` : `30 hours and Tax-Free Childcare, ${fy}`}${dynamic ? "; static: the labour supply response applies to the total only" : ""}`}
+            detail={scheme ? `Cost of this scheme, ${fy}` : `30 hours and Tax-Free Childcare, ${fy}`}
             testId="card-split"
           >
             <SplitBar thirty={lead.thirty_hours} tfc={lead.tax_free_childcare} selected={scheme} onSelect={setScheme} />
@@ -682,7 +638,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
               Childcare is withdrawn above £100,000 of adjusted net income, with the policy in force for the whole
               year. {fyLabel(budget.years[0])} is more than half over, so its full-year cost is illustrative.
             </p>
-            {!dynamic && gapM <= 2 ? (
+            {gapM <= 2 ? (
               <p data-testid="net-note">
                 {gapM === 0
                   ? "The static cost is the same net of other taxes and benefits."
@@ -692,14 +648,7 @@ export default function LandingTab({ data, setting = STATIC_SETTING, basis }) {
           </>
         }
       >
-        {dynamic ? (
-          <p className="mb-3 text-sm text-slate-600" data-testid="chart-setting">
-            Labour supply on ({labourSupplyLabel(setting)}), an illustrative scenario rather than a forecast (see{" "}
-            <a href="?tab=method#labour-supply">Methodology</a>): the grey bars below zero are the money back from
-            parents working more, not split by scheme; hover for the cost after the response.
-          </p>
-        ) : null}
-        <CostChart rows={chart.rows} series={chart.series} offsetName={chart.offsetName} />
+        <CostChart rows={chart} />
       </Section>
 
       <Section

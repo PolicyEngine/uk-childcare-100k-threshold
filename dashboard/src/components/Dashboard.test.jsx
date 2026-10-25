@@ -17,7 +17,7 @@ import WhoGainsTab, { DECILE_MEASURES, listOf, recipientViews, sortGroups, SUPPR
 import MethodTab from "./MethodTab";
 import { plainText, RichText } from "./ui";
 import { cliffSummary, getHouseholdGrid, getUncertainty, householdRows, LEAD_YEAR, ResultsError } from "../lib/dataHelpers";
-import { formatMoneyBn, formatThousands } from "../lib/formatters";
+import { formatThousands } from "../lib/formatters";
 import { bn, BROKEN_TEXT, fy, gbp, mutate, realData as data, textOf } from "../lib/testUtils";
 
 const years = data.meta.years;
@@ -280,98 +280,66 @@ describe("methodology", () => {
     expect(document.body.textContent).not.toMatch(/the same above and below £100,000/);
   });
 
-  it("keeps the labour supply sensitivities in the method notes, linked from the Sensitivities item", () => {
-    render(<MethodTab data={data} />);
-    const item = screen.getByTestId("ls-sensitivities");
-    expect(within(item).getByRole("link", { name: "method notes on GitHub" }).getAttribute("href")).toMatch(/docs\/METHOD\.md$/);
-  });
-
 });
 
-describe("the labour supply control", () => {
-  const ls = data.labour_supply;
+describe("behaviour", () => {
   const lead = String(LEAD_YEAR);
+  const centaxTable = /Removing-the-childcare-cliff-edge\.pdf#page=42$/;
 
-  it("opens static, and switching the hours response on changes the cost card and the URL", () => {
+  it("has no hours switch: the controls row is the Take-up box alone, and an old ?ls= link is ignored", () => {
     router.replace.mockClear();
-    render(<Dashboard data={data} />);
-    // One response: partners moving into work is not published.
-    expect(screen.queryByTestId("toggle-extensive")).toBeNull();
-    expect(screen.getByTestId("toggle-intensive").getAttribute("aria-checked")).toBe("false");
-    expect(screen.queryByTestId("toggle-intensive-bound")).toBeNull();
+    searchParams.set("ls", "int:high");
+    try {
+      render(<Dashboard data={data} />);
+      expect(screen.queryByRole("switch")).toBeNull();
+      expect(screen.queryByTestId("labour-supply-control")).toBeNull();
+      const controls = screen.getByTestId("budget-controls");
+      expect([...controls.children].map((c) => c.dataset.testid)).toEqual(["take-up-control"]);
+      expect(screen.getByTestId("card-cost").textContent).toContain(bn(total(LEAD_YEAR)));
+      fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
+      expect(router.replace).toHaveBeenLastCalledWith("/?tab=who-gains", { scroll: false });
+    } finally {
+      searchParams.delete("ls");
+    }
+  });
+
+  it("shows the static cost only in the cards and the yearly chart", () => {
+    render(<LandingTab data={data} />);
     expect(screen.getByTestId("card-cost").textContent).toContain(bn(data.budget.gross_bn.total[lead]));
-
-    fireEvent.click(screen.getByTestId("toggle-intensive"));
-    const cost = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.central[lead];
-    expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
-    expect(screen.getByTestId("card-cost").textContent).toContain("(parents' hours)");
-    expect(router.replace).toHaveBeenLastCalledWith("/?ls=int", { scroll: false });
-
-    fireEvent.change(screen.getByTestId("toggle-intensive-bound"), { target: { value: "high" } });
-    const high = data.budget.gross_bn.total[lead] - ls.intensive.offset_bn.high[lead];
-    expect(screen.getByTestId("card-cost").textContent).toContain(bn(high));
-    expect(screen.getByTestId("card-cost").textContent).toContain("(parents' hours at the high setting)");
-    expect(router.replace).toHaveBeenLastCalledWith("/?ls=int%3Ahigh", { scroll: false });
+    expect(screen.getByTestId("card-cost").textContent).toContain("Extra government spending on both schemes");
+    expect(screen.queryByTestId("legend-labour_supply")).toBeNull();
+    expect(screen.queryByTestId("chart-setting")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Back from parents working more|labour supply/i);
   });
 
-  it("sits under the tab bar on Budget impact only, the one tab it changes", () => {
-    render(<Dashboard data={data} />);
-    const tablist = screen.getByRole("tablist");
-    const control = screen.getByTestId("labour-supply-control");
-    // Below the tabs: the tab bar precedes the control in document order.
-    expect(tablist.compareDocumentPosition(control) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(screen.getByTestId("intro").contains(control)).toBe(false);
-
-    fireEvent.click(screen.getByRole("tab", { name: "Who gains" }));
-    expect(screen.queryByTestId("labour-supply-control")).toBeNull();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Methodology" }));
-    expect(screen.queryByTestId("labour-supply-control")).toBeNull();
+  it("says on Methodology, in three bullets, that the costs are static and gives CenTax's behavioural estimates", () => {
+    render(<MethodTab data={data} />);
+    const card = document.getElementById("behaviour");
+    expect(within(card).getByRole("heading", { level: 2 }).textContent).toBe("Behaviour");
+    const items = within(screen.getByTestId("behaviour-details")).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    expect(items[0].textContent).toContain("Our costs are static: nobody changes how much they work.");
+    expect(items[1].textContent).toMatch(/bunching/);
+    expect(items[1].textContent).toMatch(/partners moving into work/);
+    const centax = items[2].textContent;
+    for (const v of [CENTAX.parentsBn, CENTAX.partnersBn, CENTAX.staticBn, CENTAX.netBn]) expect(centax).toContain(bn(v));
+    expect(centax).toContain(`in ${CENTAX.year}`);
+    expect(within(items[2]).getByRole("link").getAttribute("href")).toMatch(centaxTable);
+    // The Tax-Free Childcare leg's missing CenTax counterpart is said once on the tab.
+    expect(document.body.textContent.split("no CenTax counterpart").length - 1).toBe(1);
+    expect(document.getElementById("labour-supply")).toBeNull();
   });
 
-  it("explains labour supply on Methodology from the results file", () => {
-    const text = textOf(<MethodTab data={data} />);
-    expect(text).toContain(plainText(ls.responding_population));
-    expect(text).toContain(String(ls.assumptions.hours_price_elasticity));
-    expect(text).toContain(ls.not_modelled);
-    expect(text).toContain(bn(CENTAX.parentsBn));
-    expect(text).toContain(bn(CENTAX.partnersBn));
-  });
-
-  it("states the hours response's price effect (money back) and income effect (money out) by group", () => {
-    const text = textOf(<MethodTab data={data} />);
-    const f = String(final);
-    const i = ls.intensive;
-    expect(i.price_offset_bn.central[f]).toBeGreaterThanOrEqual(0);
-    expect(i.income_offset_bn.central[f]).toBeLessThanOrEqual(0);
-    expect(text).toContain("OBR's income elasticities");
-    expect(text).toContain(`price effect brings back ${formatMoneyBn(i.price_offset_bn.central[f])}`);
-    expect(text).toContain(`${formatMoneyBn(i.over_limit.price_offset_bn.central[f])} from those over it`);
-    expect(text).toContain(`income effect costs ${formatMoneyBn(-i.income_offset_bn.central[f])}`);
-    expect(text).toContain(`a net ${formatMoneyBn(i.offset_bn.central[f])} back`);
-    // The findings give the totals; the split by group is in the Method list's "Hours" item.
-    expect(screen.queryByTestId("ls-intensive")).toBeNull();
-  });
-
-  it("fills the comparison's dynamic cost: hours with the range when off, the chosen setting when on", () => {
-    const f = String(final);
-    const off = textOf(<MethodTab data={data} />);
-    // The key figure, then the range and what it covers on a second line.
-    expect(off).toContain(`${bn(ls.dynamic_cost_bn.central[f])}${bn(ls.dynamic_cost_bn.high[f])} to ${bn(ls.dynamic_cost_bn.low[f])}`);
-    expect(off).toContain("parents' hours only, net of the income effect");
-    expect(ls.dynamic_cost_bn.central[f]).toBeCloseTo(data.budget.gross_bn.total[f] - ls.intensive.offset_bn.central[f], 3);
-    const on = textOf(<MethodTab data={data} setting={{ intensive: true, bounds: { intensive: "low" } }} />);
-    const cost = data.budget.gross_bn.total[f] - ls.intensive.offset_bn.low[f];
-    expect(on).toContain(`${bn(cost)}parents' hours at the low setting`);
-    // Nothing on the page reports partners moving into work as a result.
-    expect(off).not.toMatch(/Partners moving into work:|Moving into work/);
-  });
-
-  it("shows the money back in the yearly chart only when the hours response is on", () => {
-    expect(textOf(<LandingTab data={data} />)).not.toContain("Back from parents working more");
-    expect(textOf(<LandingTab data={data} setting={{ intensive: true, bound: "central" }} />)).toContain(
-      "Back from parents working more",
-    );
+  it("leaves our behavioural cost unmodelled in the comparison, against CenTax's net cost and range", () => {
+    render(<MethodTab data={data} />);
+    expect(screen.getByTestId("behaviour-cost-cell").textContent).toBe("Not modelled");
+    expect(screen.queryByTestId("dynamic-cell")).toBeNull();
+    expect(screen.queryByTestId("effect-static")).toBeNull();
+    const row = screen.getByText(/^Cost after parents change how much they work/).closest("tr");
+    expect(row.textContent).toContain(bn(CENTAX.netBn));
+    expect(row.textContent).toMatch(/Range raises £0\.16bn to £0\.77bn/);
+    const work = screen.getByText("Do parents change how much they work?").closest("tr");
+    expect(work.querySelectorAll("td")[2].textContent).toBe("—");
   });
 });
 
@@ -449,14 +417,6 @@ describe("the take-up control", () => {
     expect(screen.queryByTestId("uncertainty-method-link")).toBeNull();
   });
 
-  it("adds the labour supply response to the chosen basis's cost", () => {
-    render(<Dashboard data={data} />);
-    choose("centax");
-    fireEvent.click(screen.getByTestId("toggle-intensive"));
-    const cost = basis("centax").gross_bn.total[lead] - data.labour_supply.intensive.offset_bn.central[lead];
-    expect(screen.getByTestId("card-cost").textContent).toContain(bn(cost));
-  });
-
   it("opens on the basis the URL names, and shows only on Budget impact", () => {
     searchParams.set("takeup", "contract");
     try {
@@ -474,7 +434,7 @@ describe("the take-up control", () => {
       expect(staticCell.startsWith(bn(basis(takeUp.headline).gross_bn.total[f]))).toBe(true);
       expect(staticCell).toContain(`take-up: ${basis(takeUp.headline).label}`);
       expect(table).not.toContain(`${bn(basis("contract").gross_bn.total[f])}30 hours`);
-      expect(screen.getByTestId("dynamic-cell").textContent).toContain(bn(data.labour_supply.dynamic_cost_bn.central[f]));
+      expect(screen.getByTestId("behaviour-cost-cell").textContent).toBe("Not modelled");
     } finally {
       searchParams.delete("takeup");
     }
