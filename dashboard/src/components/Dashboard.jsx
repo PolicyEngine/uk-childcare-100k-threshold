@@ -5,21 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import LandingTab from "./LandingTab";
 import WhoGainsTab from "./WhoGainsTab";
 import MethodTab from "./MethodTab";
-import {
-  fyLabel,
-  LEAD_YEAR,
-  getLabourSupply,
-  getMeta,
-  getTakeUp,
-  getYears,
-  boundOf,
-  labourSupplyParams,
-  LS_BOUND_LABELS,
-  LS_BOUNDS,
-  parseLabourSupply,
-  parseTakeUp,
-  takeUpParams,
-} from "../lib/dataHelpers";
+import { fyLabel, LEAD_YEAR, getMeta, getTakeUp, getYears, parseTakeUp, takeUpParams } from "../lib/dataHelpers";
 import { Select, TabLayout, TAKE_UP_OPTIONS_ID } from "./ui";
 import { formatBn } from "../lib/formatters";
 
@@ -46,7 +32,7 @@ const SECTIONS = {
   ],
   method: [
     { id: "model", title: "How we cost it" },
-    { id: "labour-supply", title: "Labour supply" },
+    { id: "behaviour", title: "Behaviour" },
     { id: "assumptions", title: "Compared with others" },
     { id: "validation", title: "Validation" },
     { id: "limitations", title: "Limitations" },
@@ -81,120 +67,10 @@ export function ReplicationLine({ meta }) {
   );
 }
 
-/** An on/off switch with its label. */
-const OBR_ELASTICITIES_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf";
-const BREWER_URL =
-  "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41";
-
-// The two controls at the top of Budget impact (Take-up and the hours response) share one card style and one
-// style of closed "more" link, so they read as a set.
+// The control at the top of Budget impact (Take-up): its card style and its closed "more" link.
 const CONTROL_CARD = "flex flex-col rounded-xl border px-4 py-2.5";
 const CONTROL_SUMMARY =
   "inline-flex cursor-pointer list-none items-center gap-1 rounded text-xs font-semibold text-slate-600 hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--pe-color-primary-600)]";
-
-/**
- * One response as a card: the title row is the switch; under it the margin and, when on, the setting; the
- * description and source closed underneath.
- */
-function ResponseCard({ on, onChange, bound, onBound, title, tag, description, source, testId }) {
-  return (
-    <div
-      className={`${CONTROL_CARD} transition-colors ${
-        on ? "border-[color:var(--pe-color-primary-600)] bg-[color:var(--pe-color-primary-50)]" : "border-slate-200 bg-white"
-      }`}
-      data-testid={`${testId}-card`}
-    >
-      <button
-        type="button"
-        role="switch"
-        aria-checked={on}
-        aria-label={title}
-        data-testid={testId}
-        onClick={() => onChange(!on)}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <span className="font-semibold text-slate-900">{title}</span>
-        <span
-          aria-hidden
-          className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition-colors ${
-            on ? "bg-[color:var(--pe-color-primary-600)]" : "bg-slate-300"
-          }`}
-        >
-          <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0.5"}`} />
-        </span>
-      </button>
-      <div className="mt-1 flex min-h-6 flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-        <span className="text-[11px] font-semibold uppercase tracking-wide">{tag}</span>
-        {on ? (
-          <label className="flex items-center gap-1.5">
-            Setting
-            <select
-              value={bound}
-              onChange={(e) => onBound(e.target.value)}
-              className="h-6 rounded-full border border-slate-200 bg-white px-2 text-xs font-medium text-slate-800"
-              aria-label={`${title}: setting`}
-              data-testid={`${testId}-bound`}
-            >
-              {LS_BOUNDS.map((x) => (
-                <option key={x} value={x}>
-                  {LS_BOUND_LABELS[x]}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
-      </div>
-      <details className="group mt-auto pt-1 text-sm" data-testid={`${testId}-details`}>
-        <summary className={CONTROL_SUMMARY}>
-          Details
-          <span aria-hidden="true" className="text-slate-500 transition-transform group-open:rotate-90">
-            ›
-          </span>
-        </summary>
-        <p className="mt-1 leading-5 text-slate-600">{description}</p>
-        <p className="mt-1 text-xs text-slate-500">
-          Source: {source}. How it is modelled: <a href="?tab=method#labour-supply">Methodology</a>.
-        </p>
-      </details>
-    </div>
-  );
-}
-
-/**
- * Labour supply: the page opens static. The hours response can be switched on, with a low, central or high setting.
- * Only the cost figures on Budget impact and the comparison on Methodology change, so it is shown under
- * the tab bar on Budget impact only; Methodology explains it.
- */
-export function LabourSupplyControl({ data, setting, onChange }) {
-  const ls = getLabourSupply(data);
-  const a = ls.assumptions;
-  const link = (href, text) => (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
-      {text}
-    </a>
-  );
-  return (
-    // `contents`: the card sits in the controls grid beside the Take-up box.
-    <div className="contents" data-testid="labour-supply-control">
-      <ResponseCard
-        on={setting.intensive}
-        onChange={(v) => onChange({ ...setting, intensive: v })}
-        bound={boundOf(setting, "intensive")}
-        onBound={(x) => onChange({ ...setting, bounds: { ...setting.bounds, intensive: x } })}
-        tag="How many hours"
-        title="Parents change their hours"
-        description="Parents in work in families where a parent earns over £100,000 may work more as an extra hour of childcare gets cheaper, and a little less as the family is better off. This brings money back."
-        source={
-          <>
-            {link(BREWER_URL, "Brewer et al., IFS WP20/09")} (price, assumed {a.hours_price_elasticity}),{" "}
-            {link(OBR_ELASTICITIES_URL, "OBR income elasticities")}
-          </>
-        }
-        testId="toggle-intensive"
-      />
-    </div>
-  );
-}
 
 /** A take-up option's name in the selector: its short label, marked when it is the headline. */
 export function takeUpOptionName(t, id) {
@@ -273,16 +149,6 @@ export function Dashboard({ data }) {
     setActiveTab(getInitialTab(tabParam));
   }
 
-  // Labour supply, kept in the URL beside the tab (?ls=int:low); static by default.
-  const lsParam = searchParams.get("ls");
-  const boundParam = searchParams.get("bound");
-  const [setting, setSetting] = useState(() => parseLabourSupply(lsParam, boundParam));
-  const [seenLs, setSeenLs] = useState(`${lsParam}|${boundParam}`);
-  if (`${lsParam}|${boundParam}` !== seenLs) {
-    setSeenLs(`${lsParam}|${boundParam}`);
-    setSetting(parseLabourSupply(lsParam, boundParam));
-  }
-
   // The 30 hours take-up basis, kept in the URL as ?takeup=centax; the headline (DfE by age) by default.
   const takeUpParam = searchParams.get("takeup");
   const [basis, setBasis] = useState(() => parseTakeUp(takeUpParam, data));
@@ -292,29 +158,20 @@ export function Dashboard({ data }) {
     setBasis(parseTakeUp(takeUpParam, data));
   }
 
-  function replaceUrl(tab, ls, takeUp) {
-    const params = new URLSearchParams([
-      ...(tab === DEFAULT_TAB ? [] : [["tab", tab]]),
-      ...labourSupplyParams(ls),
-      ...takeUpParams(takeUp, data),
-    ]);
+  function replaceUrl(tab, takeUp) {
+    const params = new URLSearchParams([...(tab === DEFAULT_TAB ? [] : [["tab", tab]]), ...takeUpParams(takeUp, data)]);
     const query = params.toString();
     router.replace(query ? `/?${query}` : "/", { scroll: false });
   }
 
   function handleTabChange(tab) {
     setActiveTab(tab);
-    replaceUrl(tab, setting, basis);
-  }
-
-  function handleSettingChange(next) {
-    setSetting(next);
-    replaceUrl(activeTab, next, basis);
+    replaceUrl(tab, basis);
   }
 
   function handleBasisChange(next) {
     setBasis(next);
-    replaceUrl(activeTab, setting, next);
+    replaceUrl(activeTab, next);
   }
 
   return (
@@ -363,19 +220,17 @@ export function Dashboard({ data }) {
           ))}
         </div>
 
-        {/* Only Budget impact's figures change with the take-up and labour supply settings, so the controls show only there. */}
+        {/* Only Budget impact's figures change with take-up, so the control shows only there. */}
         {activeTab === "budget" ? (
-          // Closed, the cards stretch to one height with their "more" links on one line; once one is open, only it grows.
-          <div className="mb-8 grid gap-3 sm:grid-cols-2 has-[details[open]]:items-start" data-testid="budget-controls">
+          <div className="mb-8 max-w-xl" data-testid="budget-controls">
             <TakeUpControl data={data} basis={basis} onChange={handleBasisChange} />
-            <LabourSupplyControl data={data} setting={setting} onChange={handleSettingChange} />
           </div>
         ) : null}
 
         <TabLayout key={activeTab} sections={SECTIONS[activeTab]}>
-          {activeTab === "budget" && <LandingTab data={data} setting={setting} basis={basis} />}
+          {activeTab === "budget" && <LandingTab data={data} basis={basis} />}
           {activeTab === "who-gains" && <WhoGainsTab data={data} />}
-          {activeTab === "method" && <MethodTab data={data} setting={setting} />}
+          {activeTab === "method" && <MethodTab data={data} />}
         </TabLayout>
 
         <footer className="mt-10 border-t border-slate-200 pt-5 text-center text-sm text-slate-500">

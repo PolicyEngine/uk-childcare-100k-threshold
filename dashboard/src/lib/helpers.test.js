@@ -16,6 +16,7 @@ import {
   getDistributionYears,
   getLimitations,
   getMeta,
+  getModellingAssumptions,
   getRange,
   getRecipients,
   getReform,
@@ -322,31 +323,15 @@ describe("formatters", () => {
   });
 });
 
-describe("labour supply", () => {
-  it("reads the setting from the URL and writes it back, static by default", async () => {
-    const { parseLabourSupply, labourSupplyParams, labourSupplyOffset, getLabourSupply } = await import("./dataHelpers");
-    expect(parseLabourSupply(null, null)).toEqual({ intensive: false, bound: "central", bounds: { intensive: "central" } });
-    // An older link's `ext` (partners moving into work, no longer published) is ignored.
-    expect(parseLabourSupply("ext,int", "nonsense")).toEqual({ intensive: true, bound: "central", bounds: { intensive: "central" } });
-    expect(parseLabourSupply("ext:high", null).intensive).toBe(false);
-    expect(labourSupplyParams({ intensive: false, bound: "high" })).toEqual([]);
-    expect(labourSupplyParams({ intensive: true, bounds: { intensive: "low" } })).toEqual([["ls", "int:low"]]);
-    expect(parseLabourSupply("ext,int:high", null).bounds).toEqual({ intensive: "high" });
-    const off = labourSupplyOffset(data, { intensive: false, bound: "central" });
-    expect(off.every((v) => v === 0)).toBe(true);
-    const ls = getLabourSupply(data);
-    expect(ls.extensive).toBeUndefined();
-    const hours = labourSupplyOffset(data, { intensive: true, bound: "central" });
-    hours.forEach((v, i) => expect(v).toBeCloseTo(ls.intensive.offset.central[i], 6));
-  });
-
-  it("refuses a dynamic cost that is not the static total less the hours offset, and a negative hours offset", async () => {
-    const { validateResults, ResultsError } = await import("./dataHelpers");
-    const y = String(data.meta.years[0]);
-    const bad = mutate(`labour_supply.dynamic_cost_bn.central.${y}`, data.labour_supply.dynamic_cost_bn.central[y] + 0.1);
-    expect(() => validateResults(bad)).toThrow(ResultsError);
-    expect(() => validateResults(mutate("labour_supply", undefined, { remove: true }))).toThrow(/labour_supply/);
-    // The page calls the hours offset money back, so a negative one must not load.
-    expect(() => validateResults(mutate(`labour_supply.intensive.offset_bn.low.${y}`, -0.01))).toThrow(/negative/);
+describe("behaviour", () => {
+  it("publishes no labour supply response, and the readers no longer offer one", async () => {
+    const helpers = await import("./dataHelpers");
+    expect(data.labour_supply).toBeUndefined();
+    for (const name of ["getLabourSupply", "parseLabourSupply", "labourSupplyParams", "labourSupplyOffset", "STATIC_SETTING"]) {
+      expect(helpers[name], name).toBeUndefined();
+    }
+    const row = getModellingAssumptions(data).find((r) => r.id === "static");
+    expect(row.effects).toBeUndefined();
+    expect(row.alternative).toBeUndefined();
   });
 });

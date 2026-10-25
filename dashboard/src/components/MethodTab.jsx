@@ -1,17 +1,7 @@
 "use client";
 
-import {
-  fyLabel,
-  getLabourSupply,
-  getLimitations,
-  getMeta,
-  getTakeUp,
-  getUncertainty,
-  getValidation,
-  LEAD_YEAR,
-  STATIC_SETTING,
-} from "../lib/dataHelpers";
-import { formatBn, formatCount, formatCurrency, formatMoneyBn, formatPct } from "../lib/formatters";
+import { fyLabel, getLimitations, getMeta, getTakeUp, getUncertainty, getValidation, LEAD_YEAR } from "../lib/dataHelpers";
+import { formatBn, formatCount, formatCurrency, formatPct } from "../lib/formatters";
 import { BenchmarkNotes, CENTAX, UnifiedComparison } from "./Comparison";
 import { BulletList, Expandable, ListItem, RichText } from "./ui";
 
@@ -78,9 +68,6 @@ function ValidationTable({ rows }) {
   );
 }
 
-const OBR_NOTE_URL = "https://obr.uk/docs/dlm_uploads/NICS-Cut-Impact-on-Labour-Supply-Note.pdf";
-const BREWER_URL =
-  "https://ifs.org.uk/sites/default/files/output_url_files/WP202009-Does-more-free-childcare-help-parents-work-more.pdf#page=41";
 const CENTAX_TABLE_URL =
   "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf#page=42";
 
@@ -90,83 +77,23 @@ const Ext = ({ href, children }) => (
   </a>
 );
 
-function LabourSupplySection({ data }) {
-  const ls = getLabourSupply(data);
-  const a = ls.assumptions;
-  const raw = data.labour_supply;
-  const li = ls.years.length - 1;
-  const year = fyLabel(ls.years[li]);
-  const scale = (x) => (Math.abs(x - 1 / 3) < 0.001 ? "1/3" : String(x));
+/** Behaviour: our costs are static; what that leaves out, and CenTax's estimate of it. */
+function BehaviourSection() {
   return (
-    <Card
-      id="labour-supply"
-      title="Labour supply"
-      lead={
-        <>
-          Our headline assumes nobody changes how much they work. The hours switch on{" "}
-          <a href="?tab=budget">Budget impact</a> adds a work response: the cost then shown is the static cost less the
-          extra tax and National Insurance, net of the extra childcare support and benefits the response brings.
-        </>
-      }
-    >
-      <Subhead>What we find, {year}</Subhead>
-      <BulletList testId="labour-supply-details">
-        <li data-testid="labour-supply-method">
-          <strong className="font-semibold text-slate-900">Parents changing their hours:</strong> a net{" "}
-          {formatMoneyBn(ls.intensive.offset.central[li])} back, at central elasticities. The price effect brings back{" "}
-          {formatMoneyBn(ls.intensive.price.central[li])}, as cheaper childcare pulls hours up; the income effect costs{" "}
-          {formatMoneyBn(-ls.intensive.income.central[li])}, as being better off pulls them down.
+    <Card id="behaviour" title="Behaviour">
+      <BulletList testId="behaviour-details">
+        <li data-testid="behaviour-static">Our costs are static: nobody changes how much they work.</li>
+        <li data-testid="behaviour-not-modelled">
+          We don&apos;t model parents keeping their income just under £100,000 (bunching), or partners moving into work.
         </li>
-      </BulletList>
-      <Subhead>How it compares</Subhead>
-      <BulletList>
-        <ListItem title="Not modelled" summary={ls.notModelled} testId="ls-not-modelled" />
-        <ListItem
-          title="Compared with CenTax"
-          testId="ls-centax"
-          summary={
-            <>
-              CenTax&apos;s{" "}
-              <Ext href={CENTAX_TABLE_URL}>
-                {formatBn(CENTAX.parentsBn, 2)} from parents who stop holding their income below £100,000
-              </Ext>{" "}
-              and {formatBn(CENTAX.partnersBn, 2)} from partners entering work, in {CENTAX.year}, have no counterpart
-              here, and our hours response has none in theirs.
-            </>
-          }
-        />
-      </BulletList>
-      <Subhead>Method</Subhead>
-      <BulletList>
-        <ListItem title="Who responds" testId="ls-who" summary={<RichText text={raw.responding_population} />} />
-        <ListItem
-          title="Hours"
-          testId="ls-intensive"
-          summary={
-            <>
-              It follows the price of childcare, not marginal tax rates: parents already in work become eligible
-              however many hours they work. The price elasticity is an assumed {a.hours_price_elasticity} (
-              <Ext href={BREWER_URL}>Brewer et al.</Ext>, extrapolated); the income response uses the{" "}
-              <Ext href={OBR_NOTE_URL}>OBR&apos;s income elasticities</Ext>. Of the price effect,{" "}
-              {formatMoneyBn(ls.intensive.at_or_below_limit.price.central[li])} comes from adults at or below
-              £100,000 and {formatMoneyBn(ls.intensive.over_limit.price.central[li])} from those over it; of the
-              income effect, {formatMoneyBn(-ls.intensive.at_or_below_limit.income.central[li])} and{" "}
-              {formatMoneyBn(-ls.intensive.over_limit.income.central[li])}.
-            </>
-          }
-        />
-        <ListItem
-          title="Sensitivities"
-          testId="ls-sensitivities"
-          summary={
-            <>
-              Low and high multiply every elasticity by {scale(a.elasticity_scales.low)} and by{" "}
-              {scale(a.elasticity_scales.high)}, an illustrative range; more tests are in the{" "}
-              <Ext href={METHOD_URL}>method notes on GitHub</Ext>.
-            </>
-          }
-        />
-        <ListItem title="Couples" testId="ls-checks" summary={<RichText text={a.couples} />} />
+        <li data-testid="behaviour-centax">
+          CenTax estimate both with HMRC data:{" "}
+          <Ext href={CENTAX_TABLE_URL}>
+            {formatBn(CENTAX.parentsBn, 2)} and {formatBn(CENTAX.partnersBn, 2)} in {CENTAX.year}
+          </Ext>
+          , taking their static {formatBn(CENTAX.staticBn, 2)} to {formatBn(CENTAX.netBn, 2)} net. CenTax cost the free
+          hours only, so our Tax-Free Childcare leg has no CenTax counterpart.
+        </li>
       </BulletList>
     </Card>
   );
@@ -213,7 +140,7 @@ function ageProfileLimitation(data) {
 }
 
 
-export default function MethodTab({ data, setting = STATIC_SETTING }) {
+export default function MethodTab({ data }) {
   const meta = getMeta(data);
   const validation = getValidation(data);
   const takeUp = getTakeUp(data);
@@ -256,7 +183,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
         </BulletList>
       </Card>
 
-      <LabourSupplySection data={data} />
+      <BehaviourSection />
 
       <Card
         id="assumptions"
@@ -265,7 +192,7 @@ export default function MethodTab({ data, setting = STATIC_SETTING }) {
       >
         <Subhead>The table</Subhead>
         <Expandable title="Show the comparison table" testId="comparison-expandable" compact>
-          <UnifiedComparison data={data} setting={setting} />
+          <UnifiedComparison data={data} />
         </Expandable>
         <p className="mt-3 text-sm leading-6 text-slate-600" data-testid="choices-method-link">
           More on each choice is in the <Ext href={METHOD_URL}>method notes on GitHub</Ext>.

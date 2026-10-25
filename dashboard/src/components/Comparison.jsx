@@ -1,17 +1,6 @@
 "use client";
 
-import {
-  fyLabel,
-  getBenchmarks,
-  getBudget,
-  getLabourSupply,
-  getModellingAssumptions,
-  getTakeUp,
-  isStatic,
-  labourSupplyLabel,
-  labourSupplyOffset,
-  STATIC_SETTING,
-} from "../lib/dataHelpers";
+import { fyLabel, getBenchmarks, getBudget, getModellingAssumptions, getTakeUp } from "../lib/dataHelpers";
 import { formatBn } from "../lib/formatters";
 
 const nb = (year) => fyLabel(year).replace("-", "\u2011");
@@ -72,26 +61,6 @@ const Link = ({ href, children }) => (
   </a>
 );
 
-/**
- * Our cost once parents change how much they work, in the final year: the static cost less the hours offset. With
- * the hours switch off it shows central elasticities with the low-high range; with it on, the setting chosen. The
- * key figure and its detail come back separately, for the table's two lines.
- */
-export function dynamicCell(data, setting) {
-  const budget = getBudget(data);
-  const li = budget.years.length - 1;
-  const ls = getLabourSupply(data);
-  if (isStatic(setting)) {
-    const d = ls.dynamic;
-    return {
-      main: formatBn(d.central[li], 2),
-      sub: `${formatBn(d.high[li], 2)} to ${formatBn(d.low[li], 2)}, an illustrative range; parents' hours only, net of the income effect`,
-    };
-  }
-  const cost = budget.rows[li].total - labourSupplyOffset(data, setting)[li];
-  return { main: formatBn(cost, 2), sub: labourSupplyLabel(setting) };
-}
-
 const CENTAX_REPORT_URL =
   "https://centax.org.uk/wp-content/uploads/2026/09/AdvaniFlewPepin-HallSummers2026_Removing-the-childcare-cliff-edge.pdf";
 // Table 4.2 (static cost, both behavioural margins and the net cost) is on page 42; the ANI definition on page 6.
@@ -121,7 +90,7 @@ function Cell({ main, sub, testId }) {
  * sources or the law. The effect column is what changing our choice to the tested alternative does to the cost in
  * the final year; on the cost rows it has nothing to show.
  */
-export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
+export function UnifiedComparison({ data }) {
   // Always on the headline take-up basis: the effect column is measured from it, so another basis's cost here would
   // not match the rows below. The take-up toggle is on Budget impact.
   const takeUp = getTakeUp(data);
@@ -143,7 +112,6 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
       {r.source_says}. <Link href={r.source.url}>{r.source.label}</Link>
     </>
   );
-  const dyn = dynamicCell(data, setting);
   const groups = [
     {
       title: "Cost",
@@ -175,7 +143,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
         ],
         [
           `Cost after parents change how much they work, ${nb(last.year)}`,
-          <Cell key="d" testId="dynamic-cell" main={dyn.main} sub={dyn.sub} />,
+          <span key="d" data-testid="behaviour-cost-cell">Not modelled</span>,
           none,
           <Cell
             key="cn"
@@ -193,7 +161,7 @@ export function UnifiedComparison({ data, setting = STATIC_SETTING }) {
         [
           "Do parents change how much they work?",
           a.static.ours,
-          eff("static"),
+          none,
           <Link key="c" href={CENTAX_TABLE_4_2_URL}>
             Yes: parents stop keeping income below £100,000; partners move into work
           </Link>,

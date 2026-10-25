@@ -1,5 +1,5 @@
 /**
- * The yearly cost chart and its notes under each labour supply setting. Recharts' ResponsiveContainer measures zero in
+ * The yearly cost chart (the static cost) and its notes. Recharts' ResponsiveContainer measures zero in
  * happy-dom and draws nothing, so it is replaced by a fixed-size container: the bars and the tooltip are then rendered
  * from the same data the page uses.
  */
@@ -12,62 +12,34 @@ vi.mock("recharts", async (importOriginal) => {
   return { ...actual, ResponsiveContainer: ({ children }) => cloneElement(children, { width: 800, height: 340 }) };
 });
 
-import LandingTab, { chartRowTotal, costChartData, netGrossGapM, OFFSET_KEY, OFFSET_NAME } from "./LandingTab";
+import LandingTab, { costChartData, netGrossGapM } from "./LandingTab";
 import { CustomTooltip } from "./ui";
-import { getBudget, labourSupplyOffset } from "../lib/dataHelpers";
+import { getBudget, SCHEMES } from "../lib/dataHelpers";
 import { formatMoneyBn } from "../lib/formatters";
 import { realData as data, textOf } from "../lib/testUtils";
 
-const HOURS = { intensive: true, bound: "central" };
-const STATIC = { intensive: false, bound: "central" };
 const years = data.meta.years.map(String);
 
 describe("the yearly cost chart", () => {
-  it("draws the labour supply response as its own series when the hours response is on", () => {
+  it("draws the two schemes only: the static cost", () => {
     // The yearly chart only: the range chart under "How certain" draws a bar of its own.
-    const bars = (c) => c.querySelector('[data-testid="cost-chart"]').querySelectorAll(".recharts-bar");
-    const { container: off } = render(<LandingTab data={data} setting={STATIC} />);
-    expect(bars(off)).toHaveLength(2);
-    const { container: on } = render(<LandingTab data={data} setting={HOURS} />);
-    expect(bars(on)).toHaveLength(3);
-    expect(bars(on)[2].querySelectorAll(".recharts-bar-rectangle")).toHaveLength(years.length);
+    const { container } = render(<LandingTab data={data} />);
+    const bars = container.querySelector('[data-testid="cost-chart"]').querySelectorAll(".recharts-bar");
+    expect(bars).toHaveLength(2);
+    expect(bars[1].querySelectorAll(".recharts-bar-rectangle")).toHaveLength(years.length);
   });
 
-  it.each([
-    ["hours", HOURS],
-    ["static", STATIC],
-  ])("adds up, in each year, to the cost after the response (%s)", (_, setting) => {
-    const offsets = labourSupplyOffset(data, setting);
-    const static_ = setting === STATIC;
-    const { rows, series } = costChartData(getBudget(data), offsets, !static_);
-    expect(series.includes(OFFSET_KEY)).toBe(!static_);
-    rows.forEach((row, i) => {
-      const y = years[i];
-      const expected = static_ ? data.budget.gross_bn.total[y] : data.budget.gross_bn.total[y] - offsets[i];
-      expect(chartRowTotal(row, series)).toBeCloseTo(expected, 9);
-      if (setting === HOURS) expect(Math.abs(chartRowTotal(row, series) - data.labour_supply.dynamic_cost_bn.central[y])).toBeLessThan(0.002);
+  it("adds up, in each year, to the static total", () => {
+    costChartData(getBudget(data)).forEach((row, i) => {
+      expect(row.thirty_hours + row.tax_free_childcare).toBeCloseTo(data.budget.gross_bn.total[years[i]], 2);
     });
   });
 
-  it("totals the tooltip over the series drawn, so it shows the selected setting's cost", () => {
-    const offsets = labourSupplyOffset(data, HOURS);
-    const { rows, series } = costChartData(getBudget(data), offsets, true);
-    const row = rows[1];
-    const payload = series.map((s) => ({ name: s, value: row[s], color: "#000" }));
-    render(<CustomTooltip active payload={payload} label={row.label} formatter={formatMoneyBn} totalLabel="Cost after the response" />);
-    expect(screen.getByText("Cost after the response").nextSibling.textContent).toBe(formatMoneyBn(row.total - offsets[1]));
-  });
-});
-
-describe("the response's wording", () => {
-  it("calls the hours response money back, with the amount in the cost card", () => {
-    const offsets = labourSupplyOffset(data, HOURS);
-    expect(offsets.every((v) => v >= 0)).toBe(true);
-    const text = textOf(<LandingTab data={data} setting={HOURS} />);
-    const lead = years.indexOf(String(data.meta.lead_year));
-    expect(text).toContain(OFFSET_NAME);
-    expect(text).toContain(`${formatMoneyBn(offsets[lead])} back from parents working more`);
-    expect(text).not.toMatch(/more, as the response raises the cost|grey bars on top/);
+  it("totals the tooltip over the two schemes", () => {
+    const row = costChartData(getBudget(data))[1];
+    const payload = SCHEMES.map((s) => ({ name: s, value: row[s], color: "#000" }));
+    render(<CustomTooltip active payload={payload} label={row.label} formatter={formatMoneyBn} totalLabel="Total" />);
+    expect(screen.getByText("Total").nextSibling.textContent).toBe(formatMoneyBn(row.thirty_hours + row.tax_free_childcare));
   });
 
   it("formats small amounts in £m", () => {
@@ -81,12 +53,11 @@ describe("the net-cost note", () => {
   const gross = years.map((y) => data.budget.gross_bn.total[y]);
   const net = years.map((y) => data.budget.net_bn.total[y]);
 
-  it("states the actual gap between net and gross, in the static setting only", () => {
+  it("states the actual gap between net and gross", () => {
     const gap = netGrossGapM(net, gross);
-    const text = textOf(<LandingTab data={data} setting={STATIC} />);
+    const text = textOf(<LandingTab data={data} />);
     if (gap > 0 && gap <= 2) expect(text).toContain(`within £${gap}m`);
     expect(text).not.toContain("The cost is the same net of other taxes and benefits: nothing else changes");
-    expect(textOf(<LandingTab data={data} setting={HOURS} />)).not.toContain("Net of other taxes and benefits");
   });
 
   it("measures the gap in £m", () => {
